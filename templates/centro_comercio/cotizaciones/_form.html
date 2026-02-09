@@ -1,0 +1,528 @@
+<form method="post"
+      data-cot-form
+      action="{% if obj %}{% url 'centro_comercio:cotizacion_editar' obj.id %}{% else %}{% url 'centro_comercio:cotizacion_nuevo' %}{% endif %}">
+  {% csrf_token %}
+
+  <div class="card shadow-sm mb-0">
+    <div class="card-body">
+
+      <div class="d-flex align-items-center justify-content-between mb-3">
+        <div class="d-flex align-items-center">
+          <i class="fas fa-file-invoice text-danger mr-2"></i>
+          <h5 class="mb-0 font-weight-bold">
+            {% if obj %}Editar cotización{% else %}Nueva cotización{% endif %}
+          </h5>
+        </div>
+      </div>
+
+      <!-- Datos principales -->
+      <div class="form-row">
+        <div class="form-group col-md-6">
+          <label class="mb-1">Código Cotización</label>
+          <div class="input-group">
+            <div class="input-group-prepend">
+              <span class="input-group-text"><i class="fas fa-hashtag"></i></span>
+            </div>
+            {{ form.codigo }}
+          </div>
+        </div>
+
+        <div class="form-group col-md-6">
+          <label class="mb-1">Seleccionar Cliente</label>
+          <div class="input-group">
+            <div class="input-group-prepend">
+              <span class="input-group-text"><i class="fas fa-user-tie"></i></span>
+            </div>
+            {{ form.cliente }}
+          </div>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group col-md-6">
+          <label class="mb-1">Fecha cotización</label>
+          <div class="input-group">
+            <div class="input-group-prepend">
+              <span class="input-group-text"><i class="far fa-calendar"></i></span>
+            </div>
+            {{ form.fecha }}
+          </div>
+        </div>
+
+        <div class="form-group col-md-6">
+          <label class="mb-1">Fecha Vigencia</label>
+          <div class="input-group">
+            <div class="input-group-prepend">
+              <span class="input-group-text"><i class="far fa-calendar-check"></i></span>
+            </div>
+            {{ form.vigencia_hasta }}
+          </div>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group col-md-6">
+          <label class="mb-1">Descuento</label>
+          <div class="input-group">
+            <div class="input-group-prepend">
+              <span class="input-group-text"><i class="fas fa-tag"></i></span>
+            </div>
+            {{ form.descuento }}
+          </div>
+          <small class="text-muted">Se descuenta al total final (después de IVA).</small>
+        </div>
+
+        <div class="form-group col-md-6">
+          <label class="mb-1">Estado</label>
+          <div class="input-group">
+            <div class="input-group-prepend">
+              <span class="input-group-text"><i class="fas fa-flag"></i></span>
+            </div>
+            {{ form.estado }}
+          </div>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="mb-1">Términos y condiciones</label>
+        {{ form.terminos }}
+      </div>
+
+      <hr class="my-3">
+
+      <!-- Items -->
+      <div class="d-flex align-items-center justify-content-between mb-2">
+        <div class="d-flex align-items-center">
+          <i class="fas fa-list-ul text-success mr-2"></i>
+          <strong>Items cotización</strong>
+        </div>
+        <small class="text-muted">Se calcula automático (cuando el JS sí vive 😄)</small>
+      </div>
+
+      {{ formset.management_form }}
+
+      <div class="table-responsive">
+        <table class="table table-sm table-hover mb-0" id="items-table">
+          <thead class="thead-light">
+            <tr>
+              <th style="min-width:220px;">Título</th>
+              <th style="width:90px;">¿Exento?</th>
+              <th style="min-width:140px;">Unidad</th>
+              <th style="width:120px;">Cantidad</th>
+              <th style="width:160px;">Valor</th>
+              <th style="width:170px;" class="text-right">Total</th>
+              <th style="width:90px;" class="text-center">Eliminar</th>
+            </tr>
+          </thead>
+
+          <tbody>
+            {% for f in formset %}
+              <tr class="item-row">
+                <td>{{ f.titulo }}</td>
+                <td>{{ f.exento }}</td>
+                <td>{{ f.unidad }}</td>
+                <td>{{ f.cantidad }}</td>
+                <td>{{ f.valor_unitario }}</td>
+                <td class="text-right font-weight-bold">
+                  <span class="item-total" data-raw="0">$ 0</span>
+                </td>
+                <td class="text-center">{{ f.DELETE }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Totales -->
+      <div class="row mt-3">
+        <div class="col-lg-6"></div>
+        <div class="col-lg-6">
+          <div class="card border-0 bg-light mb-0">
+            <div class="card-body py-3">
+              <div class="d-flex justify-content-between">
+                <span class="text-muted">Neto</span>
+                <strong id="t-neto">$ 0</strong>
+              </div>
+              <div class="d-flex justify-content-between mt-1">
+                <span class="text-muted">IVA 19% (solo afecto)</span>
+                <strong class="text-danger" id="t-iva">$ 0</strong>
+              </div>
+              <div class="d-flex justify-content-between mt-1">
+                <span class="text-muted">Descuento</span>
+                <strong id="t-desc">$ 0</strong>
+              </div>
+              <hr class="my-2">
+              <div class="d-flex justify-content-between">
+                <span class="h6 mb-0">Total a pagar</span>
+                <span class="h5 mb-0 text-primary font-weight-bold" id="t-total">$ 0</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="text-center mt-3">
+        <button class="btn btn-primary px-4">
+          <i class="fas fa-save"></i> {% if obj %}Guardar{% else %}Crear{% endif %}
+        </button>
+      </div>
+
+    </div>
+  </div>
+</form>
+<style>
+  /* Estilos para mejor visualización */
+  #items-table .item-row td {
+      vertical-align: middle !important;
+  }
+  .item-total {
+      font-weight: bold;
+      color: #28a745;
+  }
+  #t-total {
+      color: #dc3545;
+      font-size: 1.3rem;
+  }
+  .text-right {
+      text-align: right !important;
+  }
+</style>
+
+<script>
+// ============================================
+// SISTEMA UNIFICADO DE COTIZACIONES - COMPATIBLE
+// ============================================
+
+// Función para detectar si estamos en un modal (mantener compatibilidad)
+function estaEnModal() {
+    // Verificar si estamos dentro de un modal de Bootstrap
+    const modal = document.querySelector('.modal.show');
+    if (modal) {
+        // Verificar si nuestro formulario está dentro de este modal
+        const form = document.querySelector('form[data-cot-form]');
+        return form && modal.contains(form);
+    }
+    return false;
+}
+
+// Función para inicializar cálculos usando el sistema unificado
+function inicializarCalculosUnificados() {
+    console.log("🔧 _form.html: Inicializando con sistema unificado");
+    
+    // Verificar si estamos en un modal
+    if (estaEnModal()) {
+        console.log("✅ Estamos en un modal, la inicialización será manejada por panel.html");
+        return;
+    }
+    
+    // Intentar usar el sistema unificado primero
+    if (typeof window.inicializarCotizacionForm === 'function') {
+        console.log("✅ Usando sistema unificado de cotizaciones.js");
+        window.inicializarCotizacionForm(document);
+        return;
+    }
+    
+    // Fallback: si no existe, usar initCotizacionForm (compatibilidad)
+    if (typeof window.initCotizacionForm === 'function') {
+        console.log("⚠️ Usando initCotizacionForm (compatibilidad)");
+        window.initCotizacionForm(document);
+        return;
+    }
+    
+    // Último recurso: implementación local de respaldo
+    console.warn("⚠️ Sistema unificado no disponible, usando respaldo local");
+    inicializarRespaldoLocal();
+}
+
+// ✅ ACTUALIZADO: Implementación local de respaldo con soporte para select "Exento"
+function inicializarRespaldoLocal() {
+    console.log("🆘 _form.html: Inicializando respaldo local");
+    
+    // Función para formatear números como moneda chilena
+    function formatoMoneda(num) {
+        if (isNaN(num) || num === null || num === undefined) num = 0;
+        return '$ ' + num.toLocaleString('es-CL', {
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 0
+        });
+    }
+    
+    // Función para parsear números (quitar puntos de miles)
+    function parsearNumero(texto) {
+        if (!texto) return 0;
+        const limpio = String(texto)
+            .replace(/\./g, '')  // Eliminar puntos (separadores de miles)
+            .replace(',', '.');  // Convertir coma decimal a punto
+        return parseFloat(limpio) || 0;
+    }
+    
+    // ✅ ACTUALIZADO: Función para determinar si un elemento de exento está marcado como "Sí"
+    function esExento(elementoExento) {
+        if (!elementoExento) return false;
+        
+        // Si es un select
+        if (elementoExento.tagName === 'SELECT') {
+            return elementoExento.value === 'True';
+        }
+        
+        // Si es un checkbox (compatibilidad)
+        if (elementoExento.type === 'checkbox') {
+            return elementoExento.checked;
+        }
+        
+        // Si es un radio button u otro tipo
+        const valor = (elementoExento.value || "").toString().trim().toLowerCase();
+        return ["1", "true", "si", "sí", "yes", "on"].includes(valor);
+    }
+    
+    // Calcular todos los totales
+    function calcularTodosTotales() {
+        let neto = 0;
+        let afecto = 0;
+        
+        // Calcular por cada fila de ítems
+        const filas = document.querySelectorAll('#items-table tbody tr.item-row');
+        filas.forEach(fila => {
+            const inputCantidad = fila.querySelector('[name$="cantidad"]');
+            const inputValor = fila.querySelector('[name$="valor_unitario"]');
+            const inputExento = fila.querySelector('[name$="exento"]');
+            
+            if (inputCantidad && inputValor) {
+                const cantidad = parsearNumero(inputCantidad.value);
+                const valor = parsearNumero(inputValor.value);
+                const total = cantidad * valor;
+                
+                // Actualizar total de la fila
+                const totalSpan = fila.querySelector('.item-total');
+                if (totalSpan) {
+                    totalSpan.textContent = formatoMoneda(total);
+                    totalSpan.dataset.raw = total;
+                }
+                
+                neto += total;
+                
+                // ✅ ACTUALIZADO: Verificar si es exento usando la nueva función
+                if (!esExento(inputExento)) {
+                    afecto += total;
+                }
+            }
+        });
+        
+        // Calcular IVA (19% sobre lo afecto)
+        const iva = afecto * 0.19;
+        
+        // Obtener descuento
+        const inputDescuento = document.querySelector('[name$="descuento"]');
+        const descuento = parsearNumero(inputDescuento?.value);
+        
+        // Calcular total final
+        const totalFinal = neto + iva - descuento;
+        
+        // Actualizar la interfaz
+        const elementoNeto = document.getElementById('t-neto');
+        const elementoIva = document.getElementById('t-iva');
+        const elementoDesc = document.getElementById('t-desc');
+        const elementoTotal = document.getElementById('t-total');
+        
+        if (elementoNeto) elementoNeto.textContent = formatoMoneda(neto);
+        if (elementoIva) elementoIva.textContent = formatoMoneda(iva);
+        if (elementoDesc) elementoDesc.textContent = formatoMoneda(descuento);
+        if (elementoTotal) elementoTotal.textContent = formatoMoneda(totalFinal);
+    }
+    
+    // Inicializar eventos de entrada
+    function inicializarEventos() {
+        // Eventos para campos de ítems
+        document.querySelectorAll('#items-table [name$="cantidad"], #items-table [name$="valor_unitario"]').forEach(input => {
+            input.addEventListener('input', calcularTodosTotales);
+            input.addEventListener('change', calcularTodosTotales);
+            input.addEventListener('blur', function(e) {
+                // Formatear al salir del campo
+                const valor = parsearNumero(e.target.value);
+                if (!isNaN(valor) && valor !== 0) {
+                    e.target.value = valor.toLocaleString('es-CL', {
+                        minimumFractionDigits: 0,
+                        maximumFractionDigits: 0
+                    });
+                }
+            });
+        });
+        
+        // ✅ ACTUALIZADO: Evento para select de exento (y compatibilidad con checkbox)
+        document.querySelectorAll('#items-table [name$="exento"]').forEach(select => {
+            select.addEventListener('change', calcularTodosTotales);
+        });
+        
+        // Evento para descuento
+        const inputDescuento = document.querySelector('[name$="descuento"]');
+        if (inputDescuento) {
+            inputDescuento.addEventListener('input', calcularTodosTotales);
+            inputDescuento.addEventListener('change', calcularTodosTotales);
+            inputDescuento.addEventListener('blur', function(e) {
+                const valor = parsearNumero(e.target.value);
+                if (!isNaN(valor) && valor !== 0) {
+                    e.target.value = valor.toLocaleString('es-CL', {
+                        minimumFractionDigits: 0,
+                        maximumFractionDigits: 0
+                    });
+                }
+            });
+        }
+        
+        // Calcular inicialmente
+        calcularTodosTotales();
+    }
+    
+    // Ejecutar inicialización
+    inicializarEventos();
+}
+
+// ✅ Compatibilidad: Definir initCotizacionForm si no existe
+if (typeof window.initCotizacionForm === 'undefined') {
+    window.initCotizacionForm = function(contenedor) {
+        console.log("🔧 _form.html: initCotizacionForm llamado (compatibilidad)");
+        
+        // Usar el sistema unificado si está disponible
+        if (typeof window.inicializarCotizacionForm === 'function') {
+            return window.inicializarCotizacionForm(contenedor);
+        }
+        
+        // Fallback: usar implementación local
+        const form = contenedor.querySelector('form[data-cot-form]');
+        if (form) {
+            // Copiar las funciones de respaldo y ejecutarlas en el contexto correcto
+            const inicializarRespaldoLocal = function() {
+                // Esta es una versión adaptada para funcionar en cualquier contenedor
+                function formatoMoneda(num) {
+                    if (isNaN(num) || num === null || num === undefined) num = 0;
+                    return '$ ' + num.toLocaleString('es-CL', {
+                        minimumFractionDigits: 0,
+                        maximumFractionDigits: 0
+                    });
+                }
+                
+                function parsearNumero(texto) {
+                    if (!texto) return 0;
+                    const limpio = String(texto)
+                        .replace(/\./g, '')
+                        .replace(',', '.');
+                    return parseFloat(limpio) || 0;
+                }
+                
+                // ✅ ACTUALIZADO: Función para determinar si es exento
+                function esExento(elementoExento) {
+                    if (!elementoExento) return false;
+                    
+                    if (elementoExento.tagName === 'SELECT') {
+                        return elementoExento.value === 'True';
+                    }
+                    
+                    if (elementoExento.type === 'checkbox') {
+                        return elementoExento.checked;
+                    }
+                    
+                    const valor = (elementoExento.value || "").toString().trim().toLowerCase();
+                    return ["1", "true", "si", "sí", "yes", "on"].includes(valor);
+                }
+                
+                function calcularTodosTotales() {
+                    let neto = 0;
+                    let afecto = 0;
+                    
+                    const filas = contenedor.querySelectorAll('#items-table tbody tr.item-row');
+                    filas.forEach(fila => {
+                        const inputCantidad = fila.querySelector('[name$="cantidad"]');
+                        const inputValor = fila.querySelector('[name$="valor_unitario"]');
+                        const inputExento = fila.querySelector('[name$="exento"]');
+                        
+                        if (inputCantidad && inputValor) {
+                            const cantidad = parsearNumero(inputCantidad.value);
+                            const valor = parsearNumero(inputValor.value);
+                            const total = cantidad * valor;
+                            
+                            const totalSpan = fila.querySelector('.item-total');
+                            if (totalSpan) {
+                                totalSpan.textContent = formatoMoneda(total);
+                            }
+                            
+                            neto += total;
+                            
+                            // ✅ ACTUALIZADO: Usar la función esExento
+                            if (!esExento(inputExento)) {
+                                afecto += total;
+                            }
+                        }
+                    });
+                    
+                    const iva = afecto * 0.19;
+                    const inputDescuento = contenedor.querySelector('[name$="descuento"]');
+                    const descuento = parsearNumero(inputDescuento?.value);
+                    const totalFinal = neto + iva - descuento;
+                    
+                    const elementoNeto = contenedor.querySelector('#t-neto');
+                    const elementoIva = contenedor.querySelector('#t-iva');
+                    const elementoDesc = contenedor.querySelector('#t-desc');
+                    const elementoTotal = contenedor.querySelector('#t-total');
+                    
+                    if (elementoNeto) elementoNeto.textContent = formatoMoneda(neto);
+                    if (elementoIva) elementoIva.textContent = formatoMoneda(iva);
+                    if (elementoDesc) elementoDesc.textContent = formatoMoneda(descuento);
+                    if (elementoTotal) elementoTotal.textContent = formatoMoneda(totalFinal);
+                }
+                
+                // Inicializar eventos
+                contenedor.querySelectorAll('#items-table [name$="cantidad"], #items-table [name$="valor_unitario"]').forEach(input => {
+                    input.addEventListener('input', calcularTodosTotales);
+                    input.addEventListener('change', calcularTodosTotales);
+                });
+                
+                // ✅ ACTUALIZADO: Para select de exento
+                contenedor.querySelectorAll('#items-table [name$="exento"]').forEach(select => {
+                    select.addEventListener('change', calcularTodosTotales);
+                });
+                
+                const inputDescuento = contenedor.querySelector('[name$="descuento"]');
+                if (inputDescuento) {
+                    inputDescuento.addEventListener('input', calcularTodosTotales);
+                    inputDescuento.addEventListener('change', calcularTodosTotales);
+                }
+                
+                calcularTodosTotales();
+            };
+            
+            inicializarRespaldoLocal();
+        }
+        
+        return {
+            calcularTotales: function() {
+                console.log("📊 Función calcularTotales disponible");
+            },
+            calcularFila: function(fila) {
+                console.log("📊 Función calcularFila disponible");
+            }
+        };
+    };
+}
+
+// ✅ Función principal de inicialización
+function inicializarFormulario() {
+    console.log("🔍 _form.html: Detectando contexto...");
+    console.log("📍 ¿Estamos en un modal?:", estaEnModal() ? "Sí" : "No");
+    console.log("📊 Sistema unificado disponible:", typeof window.inicializarCotizacionForm);
+    console.log("📊 initCotizacionForm disponible:", typeof window.initCotizacionForm);
+    
+    // Esperar un momento para asegurar que el DOM esté completamente cargado
+    setTimeout(inicializarCalculosUnificados, 50);
+}
+
+// ✅ Ejecutar inicialización
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', inicializarFormulario);
+} else {
+    inicializarFormulario();
+}
+
+// ✅ Debug: verificar estado
+console.log("✅ _form.html cargado correctamente");
+console.log("📍 Contexto actual:", estaEnModal() ? "Modal" : "Página normal");
+</script>

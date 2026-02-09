@@ -1,0 +1,131 @@
+{% extends "layout/base.html" %}
+{% load humanize %}
+
+{% block title %}Mantenimientos{% endblock %}
+{% block page_title %}Mantenimientos{% endblock %}
+
+{% block content %}
+<div class="card">
+  <div class="card-header">
+    <h3 class="card-title">Lista de mantenimientos</h3>
+    <div class="card-tools">
+      <a href="{% url 'taller_mantenimiento_nuevo' %}" class="btn btn-primary btn-sm">
+        <i class="fas fa-plus"></i> Nuevo
+      </a>
+    </div>
+  </div>
+
+  <div class="card-body">
+    <!-- Filtros -->
+    <form class="mb-3">
+      <div class="form-row">
+        <div class="col-md-3">
+          <label>Vehículo</label>
+          <select name="vehiculo" class="form-control">
+            <option value="">-- Todos --</option>
+            {% for v in vehiculos %}
+              <option value="{{ v.id }}" {% if f.vehiculo|default:'' == v.id|stringformat:'s' %}selected{% endif %}>{{ v.patente }} - {{ v.marca }} {{ v.modelo }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-2">
+          <label>Tipo</label>
+          <select name="tipo" class="form-control">
+            <option value="">-- Todos --</option>
+            <option value="PREVENTIVO" {% if f.tipo == 'PREVENTIVO' %}selected{% endif %}>Preventivo</option>
+            <option value="CORRECTIVO" {% if f.tipo == 'CORRECTIVO' %}selected{% endif %}>Correctivo</option>
+          </select>
+        </div>
+        <div class="col-md-2">
+          <label>Estado</label>
+          <select name="estado" class="form-control">
+            <option value="">-- Todos --</option>
+            <option value="PLANIFICADO" {% if f.estado == 'PLANIFICADO' %}selected{% endif %}>Planificado</option>
+            <option value="EN_PROCESO" {% if f.estado == 'EN_PROCESO' %}selected{% endif %}>En proceso</option>
+            <option value="FINALIZADO" {% if f.estado == 'FINALIZADO' %}selected{% endif %}>Finalizado</option>
+          </select>
+        </div>
+        <div class="col-md-2">
+          <label>Desde</label>
+          <input type="date" name="desde" class="form-control" value="{{ f.desde }}">
+        </div>
+        <div class="col-md-2">
+          <label>Hasta</label>
+          <input type="date" name="hasta" class="form-control" value="{{ f.hasta }}">
+        </div>
+        <div class="col-md-1 d-flex align-items-end">
+          <button class="btn btn-outline-secondary btn-block"><i class="fas fa-sync"></i></button>
+        </div>
+      </div>
+    </form>
+
+    <div class="table-responsive">
+      <table class="table table-hover">
+        <thead>
+          <tr>
+            <th>Vehículo</th>
+            <th>Tipo</th>
+            <th>Programado</th>
+            <th>Real</th>
+            <th>Km (prog/real)</th>
+            <th>Estado</th>
+            <th class="text-right">Costo total</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for m in mantenimientos %}
+          <tr>
+            <td>{{ m.vehiculo.patente }}</td>
+            <td>
+              {% if m.tipo == "PREVENTIVO" %}
+                <span class="badge badge-info">Preventivo</span>
+              {% else %}
+                <span class="badge badge-warning">Correctivo</span>
+              {% endif %}
+            </td>
+            <td>
+              {% if m.fecha_programada %}{{ m.fecha_programada|date:"d/m/Y" }}{% else %}-{% endif %}
+            </td>
+            <td>
+              {% if m.fecha_real %}{{ m.fecha_real|date:"d/m/Y" }}{% else %}-{% endif %}
+            </td>
+            <td>{{ m.km_programado|default:"-" }} / {{ m.km_real|default:"-" }}</td>
+            <td>
+              {% if m.estado == "PLANIFICADO" %}
+                <span class="badge badge-secondary">Planificado</span>
+              {% elif m.estado == "EN_PROCESO" %}
+                <span class="badge badge-primary">En proceso</span>
+              {% else %}
+                <span class="badge badge-success">Finalizado</span>
+              {% endif %}
+            </td>
+            <td class="text-right">${{ m.costo_total|floatformat:0|intcomma }}</td>
+            <td class="text-right">
+              <a href="{% url 'taller_mantenimiento_editar' m.id %}" class="btn btn-sm btn-outline-secondary">
+                <i class="fas fa-edit"></i>
+              </a>
+              {% if m.estado != "EN_PROCESO" %}
+                <a href="{% url 'taller_mantenimiento_cambiar_estado' m.id 'EN_PROCESO' %}" class="btn btn-sm btn-outline-primary">
+                  <i class="fas fa-play"></i>
+                </a>
+              {% endif %}
+              {% if m.estado != "FINALIZADO" %}
+                <a href="{% url 'taller_mantenimiento_cambiar_estado' m.id 'FINALIZADO' %}" class="btn btn-sm btn-outline-success">
+                  <i class="fas fa-check"></i>
+                </a>
+              {% endif %}
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="8" class="text-center">No hay mantenimientos.</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+  </div>
+</div>
+{% endblock %}

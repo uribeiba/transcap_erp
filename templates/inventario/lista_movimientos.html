@@ -1,0 +1,57 @@
+{% extends "layout/base.html" %}
+
+{% block title %}Movimientos de Inventario{% endblock %}
+{% block page_title %}Movimientos de Inventario{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <div class="row">
+            <div class="col-md-6">
+                <h3 class="card-title">Movimientos de Inventario</h3>
+            </div>
+            <div class="col-md-6 text-right">
+                <a href="{% url 'inventario:registrar_movimiento' %}" class="btn btn-success btn-sm">
+                    <i class="fas fa-plus"></i> Nuevo Movimiento
+                </a>
+            </div>
+        </div>
+    </div>
+    <div class="card-body">
+
+        <div class="table-responsive">
+            <table class="table table-striped table-sm table-hover">
+                <thead>
+                    <tr>
+                        <th>Fecha</th>
+                        <th>Tipo</th>
+                        <th>Producto</th>
+                        <th>Bodega</th>
+                        <th>Cantidad</th>
+                        <th>Referencia</th>
+                        <th>Usuario</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for m in movimientos %}
+                        <tr>
+                            <td>{{ m.fecha|date:"d/m/Y H:i" }}</td>
+                            <td>{{ m.get_tipo_display }}</td>
+                            <td>{{ m.producto }}</td>
+                            <td>{{ m.bodega }}</td>
+                            <td>{{ m.cantidad }}</td>
+                            <td>{{ m.referencia }}</td>
+                            <td>{{ m.usuario_registro }}</td>
+                        </tr>
+                    {% empty %}
+                        <tr>
+                            <td colspan="7" class="text-center">No hay movimientos registrados.</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+    </div>
+</div>
+{% endblock %}

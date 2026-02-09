@@ -1,0 +1,39 @@
+{% extends "layout/base.html" %}
+{% block title %}Detalle EDP{% endblock %}
+{% block page_title %}Detalle EDP{% endblock %}
+{% block content %}
+<div class="card">
+  <div class="card-body">
+    <h5 class="mb-3">{{ edp.codigo }}</h5>
+    <div class="text-muted mb-3">{{ edp.fecha_pago|date:"d/m/Y" }} — {{ edp.get_estado_display }}</div>
+
+    <h6>Servicios</h6>
+    <table class="table table-sm">
+      <thead><tr><th>Servicio</th><th class="text-right">Total</th></tr></thead>
+      <tbody>
+        {% for it in items %}
+          <tr><td>{{ it.servicio }}</td><td class="text-right">{{ it.total_linea }}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    <h6>Pagos</h6>
+    <table class="table table-sm">
+      <thead><tr><th>Fecha</th><th>Medio</th><th class="text-right">Monto</th></tr></thead>
+      <tbody>
+        {% for p in pagos %}
+          <tr><td>{{ p.fecha|date:"d/m/Y" }}</td><td>{{ p.get_medio_pago_display }}</td><td class="text-right">{{ p.monto }}</td></tr>
+        {% empty %}
+          <tr><td colspan="3" class="text-muted text-center">Sin pagos</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    <div class="text-right">
+      <div>Neto: <strong>{{ edp.neto }}</strong></div>
+      <div>IVA: <strong>{{ edp.iva }}</strong></div>
+      <div>Total: <strong>{{ edp.total }}</strong></div>
+    </div>
+  </div>
+</div>
+{% endblock %}

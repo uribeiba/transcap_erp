@@ -1,0 +1,121 @@
+{% extends "layout/base.html" %}
+{% load humanize %}
+
+{% block title %}Rutas de viaje{% endblock %}
+{% block page_title %}Rutas de viaje{% endblock %}
+
+{% block content %}
+<div class="row mb-3">
+  <div class="col-md-8">
+    <form class="form-inline" method="get">
+      <div class="input-group">
+        <input type="text" name="q" value="{{ q }}" class="form-control"
+               placeholder="Buscar por nombre, origen o destino...">
+        <div class="input-group-append">
+          <button class="btn btn-primary" type="submit">
+            <i class="fas fa-search"></i> Buscar
+          </button>
+        </div>
+      </div>
+    </form>
+  </div>
+  <div class="col-md-4 text-right">
+    <a href="{% url 'taller_rutas_viaje_crear' %}" class="btn btn-success">
+      <i class="fas fa-route"></i> Nueva ruta
+    </a>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header">
+    <h3 class="card-title">Rutas registradas</h3>
+  </div>
+  <div class="card-body p-0">
+    <table class="table table-hover table-sm mb-0">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Nombre</th>
+          <th>Origen</th>
+          <th>Destino</th>
+          <th>Distancia (km)</th>
+          <th>Peajes aprox.</th>
+          <th>Estado</th>
+          <th style="width: 120px;">Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in rutas %}
+          <tr>
+            <td>{{ forloop.counter }}</td>
+            <td>{{ r.nombre }}</td>
+            <td>{{ r.origen }}</td>
+            <td>{{ r.destino }}</td>
+            <td>
+              {% if r.distancia_km %}
+                {{ r.distancia_km }}
+              {% else %}
+                —
+              {% endif %}
+            </td>
+            <td>
+              {% if r.peajes_aprox %}
+                ${{ r.peajes_aprox|floatformat:0|intcomma }}
+              {% else %}
+                —
+              {% endif %}
+            </td>
+            <td>
+              {% if r.activo %}
+                <span class="badge badge-success">Activa</span>
+              {% else %}
+                <span class="badge badge-secondary">Inactiva</span>
+              {% endif %}
+            </td>
+            <td>
+              <a href="{% url 'taller_rutas_viaje_editar' r.id %}" class="btn btn-xs btn-primary">
+                <i class="fas fa-edit"></i>
+              </a>
+              <a href="{% url 'taller_rutas_viaje_eliminar' r.id %}" class="btn btn-xs btn-danger">
+                <i class="fas fa-trash"></i>
+              </a>
+            </td>
+          </tr>
+        {% empty %}
+          <tr>
+            <td colspan="8" class="text-center py-3">
+              <em>No hay rutas registradas.</em>
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {% if rutas.has_other_pages %}
+  <div class="card-footer clearfix">
+    <ul class="pagination pagination-sm m-0 float-right">
+      {% if rutas.has_previous %}
+        <li class="page-item"><a class="page-link" href="?q={{ q }}&page={{ rutas.previous_page_number }}">«</a></li>
+      {% else %}
+        <li class="page-item disabled"><span class="page-link">«</span></li>
+      {% endif %}
+
+      {% for i in rutas.paginator.page_range %}
+        {% if rutas.number == i %}
+          <li class="page-item active"><span class="page-link">{{ i }}</span></li>
+        {% else %}
+          <li class="page-item"><a class="page-link" href="?q={{ q }}&page={{ i }}">{{ i }}</a></li>
+        {% endif %}
+      {% endfor %}
+
+      {% if rutas.has_next %}
+        <li class="page-item"><a class="page-link" href="?q={{ q }}&page={{ rutas.next_page_number }}">»</a></li>
+      {% else %}
+        <li class="page-item disabled"><span class="page-link">»</span></li>
+      {% endif %}
+    </ul>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

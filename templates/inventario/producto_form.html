@@ -1,0 +1,61 @@
+{% extends "layout/base.html" %}
+
+{% block title %}Producto{% endblock %}
+{% block page_title %}Producto{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <h3 class="card-title">
+            {% if producto %}Editar Producto{% else %}Nuevo Producto{% endif %}
+        </h3>
+    </div>
+    <div class="card-body">
+        <form method="post">
+            {% csrf_token %}
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="form-group">
+                        {{ form.codigo.label_tag }}
+                        {{ form.codigo }}
+                    </div>
+                    <div class="form-group">
+                        {{ form.nombre.label_tag }}
+                        {{ form.nombre }}
+                    </div>
+                    <div class="form-group">
+                        {{ form.categoria.label_tag }}
+                        {{ form.categoria }}
+                    </div>
+                    <div class="form-group">
+                        {{ form.unidad_medida.label_tag }}
+                        {{ form.unidad_medida }}
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="form-group">
+                        {{ form.stock_minimo.label_tag }}
+                        {{ form.stock_minimo }}
+                    </div>
+                    <div class="form-group">
+                        {{ form.activo.label_tag }}
+                        <div class="form-check">
+                            {{ form.activo }}
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        {{ form.descripcion.label_tag }}
+                        {{ form.descripcion }}
+                    </div>
+                </div>
+            </div>
+            <button type="submit" class="btn btn-primary">
+                <i class="fas fa-save"></i> Guardar
+            </button>
+            <a href="{% url 'inventario:lista_productos' %}" class="btn btn-secondary">
+                Volver
+            </a>
+        </form>
+    </div>
+</div>
+{% endblock %}

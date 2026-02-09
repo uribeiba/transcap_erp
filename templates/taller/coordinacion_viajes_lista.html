@@ -1,0 +1,218 @@
+{% extends "layout/base.html" %}
+{% load humanize %}
+
+{% block title %}Coordinación de Viajes{% endblock %}
+{% block page_title %}Coordinación de Viajes{% endblock %}
+
+{% block extra_css %}
+<style>
+.btn-pdf {
+    background-color: #dc3545;
+    color: white;
+    border-color: #dc3545;
+}
+.btn-pdf:hover {
+    background-color: #c82333;
+    color: white;
+}
+.btn-email {
+    background-color: #17a2b8;
+    color: white;
+    border-color: #17a2b8;
+}
+.btn-email:hover {
+    background-color: #138496;
+    color: white;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <div class="row">
+            <div class="col-md-8">
+                <h3 class="card-title">Coordinación de Viajes</h3>
+            </div>
+            <div class="col-md-4 text-right">
+                <a href="{% url 'taller_coordinacion_viaje_crear' %}" class="btn btn-primary">
+                    <i class="fas fa-plus"></i> Nuevo Viaje
+                </a>
+            </div>
+        </div>
+    </div>
+    
+    <div class="card-body">
+        <!-- Filtros -->
+        <form class="mb-4">
+            <div class="row">
+                <div class="col-md-4">
+                    <input type="text" name="q" value="{{ q }}" class="form-control" 
+                           placeholder="Buscar conductor, patente, origen, destino...">
+                </div>
+                <div class="col-md-3">
+                    <input type="date" name="fecha" value="{{ fecha }}" class="form-control" 
+                           placeholder="Fecha de carga">
+                </div>
+                <div class="col-md-2">
+                    <button type="submit" class="btn btn-outline-secondary btn-block">
+                        <i class="fas fa-search"></i> Buscar
+                    </button>
+                </div>
+                <div class="col-md-3 text-right">
+                    <a href="{% url 'taller_coordinacion_viajes_lista' %}" class="btn btn-secondary">
+                        <i class="fas fa-sync"></i> Limpiar
+                    </a>
+                </div>
+            </div>
+        </form>
+
+        <!-- Tabla de viajes -->
+        <div class="table-responsive">
+            <table class="table table-hover table-striped">
+                <thead class="thead-dark">
+                    <tr>
+                        <th>Fecha Carga</th>
+                        <th>Conductor</th>
+                        <th>Tracto</th>
+                        <th>Semirremolque</th>
+                        <th>Origen</th>
+                        <th>Destino</th>
+                        <th>Sobrest.</th>
+                        <th>Estado</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for viaje in viajes %}
+                    <tr>
+                        <td>{{ viaje.fecha_carga|date:"d/m/Y" }}</td>
+                        <td>
+                            {{ viaje.conductor.nombres }} {{ viaje.conductor.apellidos }}
+                            <br><small class="text-muted">{{ viaje.conductor.rut }}</small>
+                        </td>
+
+                        <!-- ====== TRACTO CAMIÓN (usa campo tracto_camion) ====== -->
+                        <td>
+                            {% if viaje.tracto_camion %}
+                                {{ viaje.tracto_camion.patente }}
+                                <br>
+                                <small class="text-muted">
+                                    {{ viaje.tracto_camion.marca }} {{ viaje.tracto_camion.modelo }}
+                                </small>
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+
+                        <!-- ====== SEMIRREMOLQUE (usa campo semirremolque) ====== -->
+                        <td>
+                            {% if viaje.semirremolque %}
+                                {{ viaje.semirremolque.patente }}
+                                <br>
+                                <small class="text-muted">
+                                    {{ viaje.semirremolque.marca }} {{ viaje.semirremolque.modelo }}
+                                </small>
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+
+                        <td>{{ viaje.origen }}</td>
+                        <td>{{ viaje.destino }}</td>
+                        <td>
+                            {% if viaje.sobreestadia_dias %}
+                                <span class="badge badge-warning">{{ viaje.sobreestadia_dias }} días</span>
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <span class="badge 
+                                {% if viaje.estado == 'PLANIFICADO' %}badge-info
+                                {% elif viaje.estado == 'EN_CURSO' %}badge-primary
+                                {% elif viaje.estado == 'FINALIZADO' %}badge-success
+                                {% elif viaje.estado == 'CANCELADO' %}badge-danger
+                                {% else %}badge-secondary{% endif %}">
+                                {{ viaje.get_estado_display }}
+                            </span>
+                        </td>
+                        <td>
+                            <div class="btn-group btn-group-sm">
+                                <!-- Botón PDF con estilo mejorado -->
+                                <a href="{% url 'taller_coordinacion_viaje_pdf' viaje.id %}" 
+                                   class="btn btn-pdf" 
+                                   title="Descargar PDF" 
+                                   target="_blank">
+                                    <i class="fas fa-file-pdf"></i>
+                                </a>
+                                
+                                <!-- Botón Correo -->
+                                <a href="mailto:?subject=Coordinación de Viaje {{ viaje.id }}&body=Adjunto PDF de coordinación de viaje: " 
+                                   class="btn btn-email" 
+                                   title="Enviar por correo"
+                                   onclick="this.href = this.href + window.location.origin + '{% url 'taller_coordinacion_viaje_pdf' viaje.id %}'; return true;">
+                                    <i class="fas fa-envelope"></i>
+                                </a>
+                                
+                                <!-- Botón Editar -->
+                                <a href="{% url 'taller_coordinacion_viaje_editar' viaje.id %}" 
+                                   class="btn btn-outline-primary" 
+                                   title="Editar">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                                
+                                <!-- Botón Eliminar -->
+                                <a href="{% url 'taller_coordinacion_viaje_eliminar' viaje.id %}" 
+                                   class="btn btn-outline-danger" 
+                                   title="Eliminar">
+                                    <i class="fas fa-trash"></i>
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="9" class="text-center text-muted py-4">
+                            <i class="fas fa-inbox fa-2x mb-2"></i><br>
+                            No se encontraron viajes
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Paginación -->
+        {% if viajes.has_other_pages %}
+        <nav aria-label="Paginación">
+            <ul class="pagination justify-content-center">
+                {% if viajes.has_previous %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page=1{% if q %}&q={{ q }}{% endif %}{% if fecha %}&fecha={{ fecha }}{% endif %}">Primera</a>
+                    </li>
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ viajes.previous_page_number }}{% if q %}&q={{ q }}{% endif %}{% if fecha %}&fecha={{ fecha }}{% endif %}">Anterior</a>
+                    </li>
+                {% endif %}
+
+                <li class="page-item active">
+                    <span class="page-link">
+                        Página {{ viajes.number }} de {{ viajes.paginator.num_pages }}
+                    </span>
+                </li>
+
+                {% if viajes.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ viajes.next_page_number }}{% if q %}&q={{ q }}{% endif %}{% if fecha %}&fecha={{ fecha }}{% endif %}">Siguiente</a>
+                    </li>
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ viajes.paginator.num_pages }}{% if q %}&q={{ q }}{% endif %}{% if fecha %}&fecha={{ fecha }}{% endif %}">Última</a>
+                    </li>
+                {% endif %}
+            </ul>
+        </nav>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

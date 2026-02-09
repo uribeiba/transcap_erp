@@ -1,0 +1,804 @@
+{% extends "layout/base.html" %}
+{% load operaciones_extras %}
+
+{% block title %}Tablero Operativo{% endblock %}
+{% block page_title %}Tablero Operativo Diario{% endblock %}
+
+{% block content %}
+<div class="row">
+  <div class="col-md-12">
+
+    <!-- Filtros top -->
+    <div class="card">
+      <div class="card-body py-2">
+        <div class="form-row align-items-end">
+          <!-- GET filtros -->
+          <div class="col-md-8">
+            <form class="form-row align-items-end" method="get">
+              <div class="col-md-3">
+                <label class="mb-0">Día</label>
+                <input type="date" class="form-control form-control-sm" name="fecha" value="{{ fecha|date:'Y-m-d' }}">
+              </div>
+              <div class="col-md-6">
+                <label class="mb-0">Buscar</label>
+                <input class="form-control form-control-sm" name="q" value="{{ q }}" placeholder="Cliente, guía, factura, viaje...">
+              </div>
+
+              <!-- mantenemos tab actual -->
+              <input type="hidden" name="tab" value="{{ tab }}">
+
+              <div class="col-md-3">
+                <button class="btn btn-sm btn-secondary">
+                  <i class="fas fa-filter"></i> Filtrar
+                </button>
+              </div>
+            </form>
+          </div>
+
+          <!-- POST crear rápido -->
+          <div class="col-md-4 text-right">
+            <form method="post" action="{% url 'operaciones:crear_rapido' %}">
+              {% csrf_token %}
+              <input type="hidden" name="fecha" value="{{ fecha|date:'Y-m-d' }}">
+              <input type="hidden" name="next" value="{% url 'operaciones:tablero_diario' %}?fecha={{ fecha|date:'Y-m-d' }}&tab={{ tab }}{% if q %}&q={{ q }}{% endif %}">
+              <button type="submit" class="btn btn-sm btn-primary">
+                <i class="fas fa-plus"></i> Nuevo registro rápido
+              </button>
+            </form>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- KPIs -->
+    <div class="row">
+      <div class="col-md-2">
+        <div class="small-box bg-warning">
+          <div class="inner">
+            <h3 data-kpi="PEND">{{ conteos.PEND|default:0 }}</h3>
+            <p>Pendientes</p>
+          </div>
+          <div class="icon"><i class="fas fa-hourglass-half"></i></div>
+        </div>
+      </div>
+      <div class="col-md-2">
+        <div class="small-box bg-orange">
+          <div class="inner">
+            <h3 data-kpi="GUIA">{{ conteos.GUIA|default:0 }}</h3>
+            <p>Guías</p>
+          </div>
+          <div class="icon"><i class="fas fa-receipt"></i></div>
+        </div>
+      </div>
+      <div class="col-md-2">
+        <div class="small-box bg-info">
+          <div class="inner">
+            <h3 data-kpi="FACT">{{ conteos.FACT|default:0 }}</h3>
+            <p>Facturados</p>
+          </div>
+          <div class="icon"><i class="fas fa-file-invoice"></i></div>
+        </div>
+      </div>
+      <div class="col-md-2">
+        <div class="small-box bg-success">
+          <div class="inner">
+            <h3 data-kpi="PAGO">{{ conteos.PAGO|default:0 }}</h3>
+            <p>Pagados</p>
+          </div>
+          <div class="icon"><i class="fas fa-check"></i></div>
+        </div>
+      </div>
+      <div class="col-md-2">
+        <div class="small-box bg-danger">
+          <div class="inner">
+            <h3 data-kpi="OBS">{{ conteos.OBS|default:0 }}</h3>
+            <p>Observados</p>
+          </div>
+          <div class="icon"><i class="fas fa-exclamation-triangle"></i></div>
+        </div>
+      </div>
+      <div class="col-md-2">
+        <div class="small-box bg-secondary">
+          <div class="inner">
+            <h5 class="mb-0">$ <span id="kpiTotalMonto">{{ total_monto }}</span></h5>
+            <p>Total día</p>
+          </div>
+          <div class="icon"><i class="fas fa-coins"></i></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tabs por estado -->
+    <div class="card">
+      <div class="card-header p-0">
+        <div class="d-flex justify-content-between align-items-center px-2 pt-2">
+
+          <ul class="nav nav-tabs">
+            {% for k, v in estados %}
+              <li class="nav-item">
+                <a class="nav-link {% if tab == k %}active{% endif %}"
+                   href="?fecha={{ fecha|date:'Y-m-d' }}&tab={{ k }}{% if q %}&q={{ q }}{% endif %}">
+                  {{ v }}
+                  <span class="badge badge-light ml-1" data-tabcount="{{ k }}">{{ conteos|get_item:k|default:0 }}</span>
+                </a>
+              </li>
+            {% endfor %}
+          </ul>
+
+          <!-- ✅ Chips presencia + status -->
+          <div class="d-flex align-items-center pr-2">
+            <span id="chipConectados" class="badge badge-success mr-2" style="font-size:12px;">
+              <i class="fas fa-users mr-1"></i> Conectadas: 0
+            </span>
+            <span id="chipEditando" class="badge badge-warning mr-2" style="font-size:12px;">
+              <i class="fas fa-user-edit mr-1"></i> Editando: 0
+            </span>
+            <small id="autoRefreshStatus" class="text-muted">
+              <i class="fas fa-sync-alt mr-1"></i> Sincronizando…
+            </small>
+          </div>
+
+        </div>
+
+        <!-- ✅ Lista detallada -->
+        <div class="px-2 pb-2">
+          <div id="listaPresencia" class="small text-muted"></div>
+        </div>
+      </div>
+
+      <div class="card-body table-responsive p-0">
+        <table class="table table-hover table-sm mb-0">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Cliente</th>
+              <th>Origen</th>
+              <th>Destino</th>
+              <th>Guía</th>
+              <th>Factura</th>
+              <th>Viaje</th>
+              <th>Monto</th>
+              <th>Prioridad</th>
+              <th>Edición</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for r in registros %}
+              <tr data-id="{{ r.id }}">
+                <td>{{ r.correlativo_diario|stringformat:"03d" }}</td>
+                <td>{{ r.cliente|default:"-" }}</td>
+                <td>{{ r.origen|default:"-" }}</td>
+                <td>{{ r.destino|default:"-" }}</td>
+                <td>{{ r.nro_guia|default:"" }}</td>
+                <td>{{ r.nro_factura|default:"" }}</td>
+                <td>{{ r.referencia_viaje|default:"" }}</td>
+                <td>{{ r.monto|default:"" }}</td>
+                <td>
+                  {% if r.prioridad == "URG" %}
+                    <span class="badge badge-danger">Urgente</span>
+                  {% else %}
+                    <span class="badge badge-secondary">Normal</span>
+                  {% endif %}
+                </td>
+                <td class="td-edicion">
+                  {% if r.bloqueado_por and not r.bloqueo_expirado %}
+                    <span class="badge badge-warning">
+                      <i class="fas fa-lock mr-1"></i> Editando: {{ r.bloqueado_por }}
+                    </span>
+                  {% else %}
+                    <button type="button" class="btn btn-xs btn-outline-primary btn-edit">
+                      <i class="fas fa-pen"></i> Abrir
+                    </button>
+                  {% endif %}
+                </td>
+              </tr>
+            {% empty %}
+              <tr><td colspan="10" class="text-center py-3"><em>No hay registros.</em></td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- Modal edición -->
+<div class="modal fade" id="editModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Editar registro</h5>
+        <button type="button" class="close" data-dismiss="modal"><span>&times;</span></button>
+      </div>
+
+      <div class="modal-body">
+        <div id="lockInfo" class="mb-2"></div>
+
+        <form id="editForm">
+          {% csrf_token %}
+
+          <div class="form-row">
+            <div class="col-md-3">
+              <label>Fecha</label>
+              <input name="fecha" type="date" class="form-control form-control-sm">
+            </div>
+            <div class="col-md-3">
+              <label>Estado</label>
+              <select name="estado" class="form-control form-control-sm">
+                {% for k,v in estados %}
+                  <option value="{{ k }}">{{ v }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-md-3">
+              <label>Prioridad</label>
+              <select name="prioridad" class="form-control form-control-sm">
+                <option value="NOR">Normal</option>
+                <option value="URG">Urgente</option>
+              </select>
+            </div>
+            <div class="col-md-3">
+              <label>Monto</label>
+              <input name="monto" class="form-control form-control-sm" step="0.01">
+            </div>
+          </div>
+
+          <div class="form-row mt-2">
+            <div class="col-md-4">
+              <label>N° Guía</label>
+              <input name="nro_guia" class="form-control form-control-sm">
+            </div>
+            <div class="col-md-4">
+              <label>N° Factura</label>
+              <input name="nro_factura" class="form-control form-control-sm">
+            </div>
+            <div class="col-md-4">
+              <label>Referencia viaje</label>
+              <input name="referencia_viaje" class="form-control form-control-sm">
+            </div>
+          </div>
+
+          <div class="mt-2">
+            <label>Observaciones</label>
+            <textarea name="observaciones" class="form-control form-control-sm" rows="2"></textarea>
+          </div>
+        </form>
+
+        <div id="saveMsg" class="mt-2"></div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary btn-sm" data-dismiss="modal">Cerrar</button>
+        <button type="button" class="btn btn-primary btn-sm" id="btnSave">
+          <i class="fas fa-save"></i> Guardar
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+
+<script>
+(function(){
+  let currentId = null;
+  let currentRow = null;
+  let hbTimer = null; // heartbeat interval
+  const currentTab = "{{ tab }}";
+
+  // -------------------------
+  // Helpers base
+  // -------------------------
+  function csrfToken(){
+    const el = document.querySelector("#editForm input[name=csrfmiddlewaretoken]");
+    return el ? el.value : "";
+  }
+
+  async function post(url, formData){
+    if (!formData) formData = new FormData();
+    if (!formData.get("csrfmiddlewaretoken")) {
+      formData.append("csrfmiddlewaretoken", csrfToken());
+    }
+    return await fetch(url, {
+      method: "POST",
+      body: formData,
+      headers: {"X-Requested-With":"XMLHttpRequest"}
+    });
+  }
+
+  function setLockInfo(type, text){
+    const el = document.getElementById("lockInfo");
+    if (!el) return;
+    if (!text){ el.innerHTML = ""; return; }
+    const klass =
+      (type === "warning") ? "alert alert-warning py-2 mb-2" :
+      (type === "success") ? "alert alert-success py-2 mb-2" :
+      "alert alert-secondary py-2 mb-2";
+    el.innerHTML = `<div class="${klass}"><i class="fas fa-lock mr-1"></i> ${text}</div>`;
+  }
+
+  function setSaveMsg(type, text){
+    const el = document.getElementById("saveMsg");
+    if (!el) return;
+    if (!text){ el.innerHTML = ""; return; }
+    const klass =
+      (type === "warning") ? "alert alert-warning py-2 mb-0" :
+      (type === "danger") ? "alert alert-danger py-2 mb-0" :
+      "alert alert-success py-2 mb-0";
+    el.innerHTML = `<div class="${klass}">${text}</div>`;
+  }
+
+  function renderPrioridadBadge(prioridad){
+    if (prioridad === "URG") return '<span class="badge badge-danger">Urgente</span>';
+    return '<span class="badge badge-secondary">Normal</span>';
+  }
+
+  // Toast simple (sin librerías extra)
+  function toast(text, type="info", ms=3500){
+    const id = "opsToastBox";
+    let box = document.getElementById(id);
+    if (!box){
+      box = document.createElement("div");
+      box.id = id;
+      box.style.position = "fixed";
+      box.style.right = "18px";
+      box.style.bottom = "18px";
+      box.style.zIndex = "1060";
+      box.style.maxWidth = "420px";
+      document.body.appendChild(box);
+    }
+
+    const klass =
+      type === "success" ? "alert alert-success" :
+      type === "warning" ? "alert alert-warning" :
+      type === "danger"  ? "alert alert-danger"  :
+      "alert alert-info";
+
+    const el = document.createElement("div");
+    el.className = `${klass} shadow-sm py-2 px-3 mb-2`;
+    el.style.borderRadius = "10px";
+    el.innerHTML = `<div class="d-flex align-items-center">
+      <div class="mr-2"><i class="fas fa-bell"></i></div>
+      <div style="line-height:1.15">${text}</div>
+      <button type="button" class="close ml-2" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+    </div>`;
+
+    el.querySelector(".close").addEventListener("click", ()=> el.remove());
+    box.appendChild(el);
+    setTimeout(()=>{ if (el && el.parentNode) el.remove(); }, ms);
+  }
+
+  // -------------------------
+  // ✅ EXPUESTA GLOBAL para auto-refresh
+  // -------------------------
+  window.updateRowFromData = function(row, data){
+    if (!row) return;
+    const tds = row.querySelectorAll("td");
+    if (tds.length < 10) return;
+
+    if (data.correlativo !== undefined && data.correlativo !== null) {
+      tds[0].innerText = String(data.correlativo).padStart(3, "0");
+    }
+    if (data.cliente_nombre !== undefined) tds[1].innerText = data.cliente_nombre || "-";
+    if (data.origen_nombre !== undefined) tds[2].innerText = data.origen_nombre || "-";
+    if (data.destino_nombre !== undefined) tds[3].innerText = data.destino_nombre || "-";
+    if (data.nro_guia !== undefined) tds[4].innerText = data.nro_guia || "";
+    if (data.nro_factura !== undefined) tds[5].innerText = data.nro_factura || "";
+    if (data.referencia_viaje !== undefined) tds[6].innerText = data.referencia_viaje || "";
+    if (data.monto !== undefined) tds[7].innerText = data.monto || "";
+    if (data.prioridad !== undefined) tds[8].innerHTML = renderPrioridadBadge(data.prioridad);
+
+    // si ya no pertenece al tab actual, lo apagamos para que se note
+    if (data.estado && data.estado !== currentTab) {
+      row.classList.add("text-muted");
+      row.style.opacity = "0.55";
+    } else {
+      row.classList.remove("text-muted");
+      row.style.opacity = "1";
+    }
+
+    // celda edición (bloqueo)
+    const tdEd = row.querySelector(".td-edicion") || tds[9];
+    if (data.bloqueado) {
+      tdEd.innerHTML =
+        `<span class="badge badge-warning">
+          <i class="fas fa-lock mr-1"></i> Editando: ${data.bloqueado_por || "otro usuario"}
+        </span>`;
+    } else {
+      tdEd.innerHTML = `
+        <button type="button" class="btn btn-xs btn-outline-primary btn-edit">
+          <i class="fas fa-pen"></i> Abrir
+        </button>`;
+      // reengancha click si se recreó el botón
+      const btn = tdEd.querySelector(".btn-edit");
+      if (btn) {
+        btn.addEventListener("click", ()=>{
+          const id = row.dataset.id;
+          window.openEditor(id, row);
+        });
+      }
+    }
+  };
+
+  // -------------------------
+  // ✅ Move row out of current tab (sin recargar)
+  // -------------------------
+  function removeRowAnimated(row){
+    if (!row) return;
+    row.style.transition = "opacity .25s ease, transform .25s ease";
+    row.style.opacity = "0";
+    row.style.transform = "translateX(8px)";
+    setTimeout(()=>{ if (row && row.parentNode) row.remove(); }, 260);
+  }
+
+  // -------------------------
+  // ✅ Heartbeat (mantener bloqueo vivo)
+  // -------------------------
+  function startHeartbeat(pk){
+    stopHeartbeat();
+    if (!pk) return;
+    hbTimer = setInterval(async ()=>{
+      try{
+        const fd = new FormData();
+        const res = await post(`/operaciones/registro/${pk}/heartbeat/`, fd);
+        if (res.status === 409){
+          const data = await res.json().catch(()=>({}));
+          setLockInfo("warning", data.msg || "Perdiste el bloqueo (otro usuario).");
+          toast("Perdiste el bloqueo del registro. Se cerrará el editor.", "warning", 4200);
+          $("#editModal").modal("hide");
+          stopHeartbeat();
+        }
+      }catch(e){
+        // silencio: si cae internet no matamos la edición altiro
+      }
+    }, 10000); // cada 10s
+  }
+
+  function stopHeartbeat(){
+    if (hbTimer){
+      clearInterval(hbTimer);
+      hbTimer = null;
+    }
+  }
+
+  // -------------------------
+  // Editor
+  // -------------------------
+  window.openEditor = async function(id, row=null){
+    currentRow = row || document.querySelector(`tr[data-id="${id}"]`);
+    setSaveMsg(null, "");
+    setLockInfo(null, "");
+
+    const fdLock = new FormData();
+    const lockRes = await post(`/operaciones/registro/${id}/lock/`, fdLock);
+
+    if (lockRes.status === 409){
+      const data = await lockRes.json().catch(()=>({}));
+      setLockInfo("warning", data.msg || "Este registro está bloqueado por otro usuario.");
+      toast(data.msg || "Registro bloqueado por otro usuario.", "warning");
+      return;
+    }
+    if (!lockRes.ok){
+      const data = await lockRes.json().catch(()=>({}));
+      setLockInfo("warning", data.msg || "No se pudo bloquear el registro.");
+      toast(data.msg || "No se pudo bloquear el registro.", "danger");
+      return;
+    }
+
+    const detRes = await fetch(`/operaciones/registro/${id}/detalle/`, {headers: {"X-Requested-With":"XMLHttpRequest"}});
+    const det = await detRes.json().catch(()=>null);
+    if (!det || !det.ok){
+      setLockInfo("warning", "No se pudo cargar el detalle.");
+      toast("No se pudo cargar el detalle.", "danger");
+      return;
+    }
+
+    currentId = id;
+    setLockInfo("success", "Registro bloqueado para tu edición.");
+
+    const f = document.getElementById("editForm");
+    f.fecha.value = det.data.fecha || "";
+    f.estado.value = det.data.estado || "PEND";
+    f.prioridad.value = det.data.prioridad || "NOR";
+    f.monto.value = det.data.monto || "";
+    f.nro_guia.value = det.data.nro_guia || "";
+    f.nro_factura.value = det.data.nro_factura || "";
+    f.referencia_viaje.value = det.data.referencia_viaje || "";
+    f.observaciones.value = det.data.observaciones || "";
+    f.dataset.estadoOriginal = det.data.estado || currentTab;
+
+    $("#editModal").modal("show");
+
+    // ✅ mantener bloqueo vivo mientras el modal está abierto
+    startHeartbeat(currentId);
+  };
+
+  // click abrir inicial
+  document.querySelectorAll(".btn-edit").forEach(btn=>{
+    btn.addEventListener("click", ()=>{
+      const row = btn.closest("tr");
+      const id = row.dataset.id;
+      window.openEditor(id, row);
+    });
+  });
+
+  // Guardar
+  document.getElementById("btnSave").addEventListener("click", async ()=>{
+    if (!currentId) return;
+
+    const formEl = document.getElementById("editForm");
+    const estadoOriginal = formEl.dataset.estadoOriginal || currentTab;
+
+    const fd = new FormData(formEl);
+    const res = await post(`/operaciones/registro/${currentId}/guardar/`, fd);
+
+    if (res.status === 409){
+      const data = await res.json().catch(()=>({}));
+      setSaveMsg("warning", data.msg || "Registro bloqueado por otro usuario.");
+      toast(data.msg || "Registro bloqueado por otro usuario.", "warning");
+      return;
+    }
+
+    if (res.ok){
+      setSaveMsg("success", "Guardado ✔ (actualizando...)");
+
+      // Traemos detalle actualizado
+      const detRes = await fetch(`/operaciones/registro/${currentId}/detalle/`, {headers: {"X-Requested-With":"XMLHttpRequest"}});
+      const det = await detRes.json().catch(()=>null);
+
+      if (det && det.ok){
+        // actualiza fila
+        window.updateRowFromData(currentRow, det.data);
+
+        // si cambió de tab, la sacamos de este tab sin recargar
+        const nuevoEstado = det.data.estado || estadoOriginal;
+        formEl.dataset.estadoOriginal = nuevoEstado;
+
+        if (nuevoEstado && nuevoEstado !== currentTab){
+          const nombreEstado = (document.querySelector(`option[value="${nuevoEstado}"]`) || {}).textContent || nuevoEstado;
+          toast(`Guardado ✔ · Se movió a <strong>${nombreEstado}</strong>`, "success", 4500);
+
+          // se ve un segundo y se va
+          setTimeout(()=> removeRowAnimated(currentRow), 450);
+
+          // opcional: cerrar modal al mover (UX más rápida)
+          setTimeout(()=> $("#editModal").modal("hide"), 650);
+        } else {
+          toast("Guardado ✔", "success", 2000);
+        }
+
+        setSaveMsg("success", "Guardado ✔");
+      } else {
+        setSaveMsg("warning", "Guardado ✔ (pero no pude refrescar la fila)");
+        toast("Guardado ✔ (sin refrescar fila)", "warning");
+      }
+
+      // 💡 forzar un refresh inmediato (KPIs + badges + bloqueos)
+      if (typeof window.__opsTickRefresh === "function") window.__opsTickRefresh();
+
+      return;
+    }
+
+    const data = await res.json().catch(()=>({}));
+    if (data.errors) {
+      const firstKey = Object.keys(data.errors)[0];
+      const firstErr = firstKey ? data.errors[firstKey] : null;
+      const msg = data.msg || (firstErr ? `${firstKey}: ${firstErr}` : "Error al guardar.");
+      setSaveMsg("danger", msg);
+      toast(msg, "danger", 5200);
+    } else {
+      setSaveMsg("danger", data.msg || "Error al guardar.");
+      toast(data.msg || "Error al guardar.", "danger", 5200);
+    }
+  });
+
+  // Unlock al cerrar modal
+  $('#editModal').on('hidden.bs.modal', async function () {
+    stopHeartbeat();
+
+    if (!currentId) return;
+    const fd = new FormData();
+    await post(`/operaciones/registro/${currentId}/unlock/`, fd);
+
+    currentId = null;
+    currentRow = null;
+    setSaveMsg(null, "");
+    setLockInfo(null, "");
+  });
+
+})();
+</script>
+
+<!-- Auto-open por open= -->
+<script>
+(function(){
+  const params = new URLSearchParams(window.location.search);
+  const openId = params.get("open");
+  if (openId) {
+    setTimeout(() => {
+      const row = document.querySelector(`tr[data-id="${openId}"]`);
+      if (typeof window.openEditor === "function") window.openEditor(openId, row);
+    }, 150);
+
+    params.delete("open");
+    const newUrl = window.location.pathname + (params.toString() ? "?" + params.toString() : "");
+    window.history.replaceState({}, "", newUrl);
+  }
+})();
+</script>
+
+<!-- ✅ Presencia multiusuario: ping + lista -->
+<script>
+(function(){
+  const PING_MS = 12000;
+
+  function getParams(){
+    const params = new URLSearchParams(window.location.search);
+    const fecha = params.get("fecha") || document.querySelector('input[name="fecha"]')?.value || "";
+    const tab = params.get("tab") || "{{ tab }}";
+    return {fecha, tab};
+  }
+
+  async function ping(){
+    const {fecha, tab} = getParams();
+    const fd = new FormData();
+    fd.append("fecha", fecha);
+    fd.append("tab", tab);
+    fd.append("csrfmiddlewaretoken", (document.querySelector("#editForm input[name=csrfmiddlewaretoken]") || {}).value || "");
+
+    try{
+      await fetch("{% url 'operaciones:presencia_ping' %}", {
+        method: "POST",
+        body: fd,
+        headers: {"X-Requested-With":"XMLHttpRequest"}
+      });
+    }catch(e){}
+  }
+
+  function renderPresencia(conectados, editando){
+    const chipC = document.getElementById("chipConectados");
+    const chipE = document.getElementById("chipEditando");
+    const lista = document.getElementById("listaPresencia");
+
+    if (chipC) chipC.innerHTML = `<i class="fas fa-users mr-1"></i> Conectadas: ${conectados.length}`;
+    if (chipE) chipE.innerHTML = `<i class="fas fa-user-edit mr-1"></i> Editando: ${editando.length}`;
+
+    const nombres = conectados.map(x=>{
+      const tagTab = x.tab ? ` <span class="badge badge-light">(${x.tab})</span>` : "";
+      return `<span class="mr-2"><i class="fas fa-circle text-success" style="font-size:9px;"></i> ${x.name}${tagTab}</span>`;
+    });
+
+    const edit = editando.map(x=>{
+      const corr = String(x.correlativo || 0).padStart(3,"0");
+      return `
+        <a href="?fecha={{ fecha|date:'Y-m-d' }}&tab=${encodeURIComponent(x.tab || "{{ tab }}")}&open=${encodeURIComponent(x.id)}"
+          class="mr-2 text-warning">
+          <i class="fas fa-lock"></i> ${x.user_name} · #${corr}
+        </a>`;
+    });
+
+    if (lista){
+      lista.innerHTML = `
+        <div class="mb-1"><strong>Conectadas:</strong> ${nombres.length ? nombres.join(" ") : "<em>ninguna</em>"}</div>
+        <div><strong>Editando:</strong> ${edit.length ? edit.join(" ") : "<em>nadie</em>"}</div>
+      `;
+    }
+  }
+
+  async function refreshPresencia(){
+    const {fecha, tab} = getParams();
+    const url = `{% url 'operaciones:presencia_lista' %}?fecha=${encodeURIComponent(fecha)}&tab=${encodeURIComponent(tab)}`;
+
+    try{
+      const res = await fetch(url, {headers: {"X-Requested-With":"XMLHttpRequest"}});
+      const data = await res.json();
+      if (!data || !data.ok) return;
+      renderPresencia(data.conectados || [], data.editando || []);
+    }catch(e){}
+  }
+
+  ping();
+  refreshPresencia();
+
+  setInterval(() => {
+    ping();
+    refreshPresencia();
+  }, PING_MS);
+})();
+</script>
+
+<!-- ✅ Auto-refresh suave cada 20s -->
+<script>
+(function(){
+  const REFRESH_MS = 20000;
+
+  function setStatus(text, ok=true){
+    const el = document.getElementById("autoRefreshStatus");
+    if (!el) return;
+    el.className = ok ? "text-success" : "text-danger";
+    el.innerHTML = `<i class="fas fa-sync-alt mr-1"></i> ${text}`;
+  }
+
+  function getParams(){
+    const params = new URLSearchParams(window.location.search);
+    const fecha = params.get("fecha") || document.querySelector('input[name="fecha"]')?.value || "";
+    const tab = params.get("tab") || "{{ tab }}";
+    const q = params.get("q") || document.querySelector('input[name="q"]')?.value || "";
+    return {fecha, tab, q};
+  }
+
+  function getVisibleIds(){
+    return Array.from(document.querySelectorAll('tr[data-id]'))
+      .map(tr => tr.dataset.id)
+      .filter(Boolean)
+      .join(",");
+  }
+
+  function updateCounts(conteos){
+    if (!conteos) return;
+
+    ["PEND","GUIA","FACT","PAGO","OBS"].forEach(k=>{
+      const el = document.querySelector(`[data-kpi="${k}"]`);
+      if (el) el.innerText = (conteos[k] || 0);
+    });
+
+    document.querySelectorAll("[data-tabcount]").forEach(b=>{
+      const k = b.getAttribute("data-tabcount");
+      b.innerText = (conteos[k] || 0);
+    });
+  }
+
+  async function tick(){
+    const {fecha, tab, q} = getParams();
+    const ids = getVisibleIds();
+
+    const url = `{% url 'operaciones:tablero_refresh' %}?fecha=${encodeURIComponent(fecha)}&tab=${encodeURIComponent(tab)}&q=${encodeURIComponent(q)}&ids=${encodeURIComponent(ids)}`;
+
+    setStatus("Sincronizando…", true);
+
+    fetch(url, {headers: {"X-Requested-With":"XMLHttpRequest"}})
+      .then(r => r.json())
+      .then(data => {
+        if (!data || !data.ok) {
+          setStatus("Error de sync", false);
+          return;
+        }
+
+        updateCounts(data.conteos || {});
+        const totalEl = document.getElementById("kpiTotalMonto");
+        if (totalEl) totalEl.innerText = data.total_monto || "0";
+
+        const filas = data.filas || {};
+        Object.keys(filas).forEach(id=>{
+          const row = document.querySelector(`tr[data-id="${id}"]`);
+          if (!row) return;
+
+          if (typeof window.updateRowFromData === "function") {
+            window.updateRowFromData(row, filas[id]);
+          } else {
+            // fallback mínimo
+            const tdEd = row.querySelector(".td-edicion");
+            if (tdEd && filas[id].bloqueado) {
+              tdEd.innerHTML = `<span class="badge badge-warning"><i class="fas fa-lock mr-1"></i> Editando: ${filas[id].bloqueado_por || "otro usuario"}</span>`;
+            }
+          }
+        });
+
+        const t = data.server_time ? data.server_time.substring(11,16) : "";
+        setStatus(`Actualizado${t ? " · " + t : ""}`, true);
+      })
+      .catch(() => setStatus("Sin conexión", false));
+  }
+
+  // expuesto para forzar refresh al guardar
+  window.__opsTickRefresh = tick;
+
+  setInterval(tick, REFRESH_MS);
+  setTimeout(tick, 2000);
+})();
+</script>
+
+{% endblock %}

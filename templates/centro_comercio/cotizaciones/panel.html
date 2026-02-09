@@ -1,0 +1,505 @@
+{% extends "layout/base.html" %}
+{% load static %}
+
+{% block title %}Centro de Comercio — Cotizaciones{% endblock %}
+
+{% block page_title %}Cotizaciones{% endblock %}
+
+{% block content %}
+<div class="card shadow-sm">
+  <div class="card-body p-3">
+    <div class="d-flex align-items-center justify-content-between">
+      <div class="d-flex align-items-center">
+        <i class="fas fa-file-invoice text-danger mr-2"></i>
+        <h5 class="mb-0 font-weight-bold">Cotizaciones</h5>
+      </div>
+
+      <button id="btnNuevo" class="btn btn-success">
+        <i class="fas fa-plus"></i> Nuevo
+      </button>
+    </div>
+
+    <hr class="my-3">
+
+    <!-- Filtros -->
+    <div class="form-row align-items-center">
+      <div class="col-auto mb-2">
+        <select id="fEstado" class="form-control form-control-sm" style="min-width:140px;">
+          <option value="">Todas</option>
+          <option value="PEND">Pendientes</option>
+          <option value="ACEP">Aceptadas</option>
+          <option value="ANUL">Anuladas</option>
+        </select>
+      </div>
+
+      <div class="col-auto mb-2">
+        <input id="fBuscar" type="text" class="form-control form-control-sm" placeholder="Buscar..." style="min-width:220px;">
+      </div>
+
+      <div class="col-auto mb-2">
+        <button id="btnFiltrar" class="btn btn-sm btn-secondary">
+          <i class="fas fa-filter"></i> Filtrar
+        </button>
+      </div>
+
+      <div class="col mb-2 text-right">
+        <small class="text-muted" id="lblEstadoCarga"></small>
+      </div>
+    </div>
+
+    <!-- Tabla dinámica -->
+    <div id="tablaWrap" class="mt-2">
+      <div class="text-center py-4 text-muted">
+        <i class="fas fa-spinner fa-spin mr-1"></i> Cargando...
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal grande -->
+<div class="modal fade" id="cotModal" tabindex="-1" role="dialog" aria-hidden="true">
+  <div class="modal-dialog modal-xl" role="document">
+    <div class="modal-content">
+
+      <div class="modal-header">
+        <h5 class="modal-title" id="cotModalTitle">
+          <i class="fas fa-file-invoice text-danger mr-2"></i> Cotizaciones
+        </h5>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Cerrar">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+
+      <div class="modal-body" id="cotModalBody">
+        <div class="text-center py-4 text-muted">
+          <i class="fas fa-spinner fa-spin mr-1"></i> Cargando...
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+  // --------------------------
+  // Helpers
+  // --------------------------
+  function qs(sel, root){ return (root || document).querySelector(sel); }
+  function qsa(sel, root){ return Array.from((root || document).querySelectorAll(sel)); }
+
+  function setLoading(el, msg){
+    el.innerHTML = `
+      <div class="text-center py-4 text-muted">
+        <i class="fas fa-spinner fa-spin mr-1"></i> ${msg || 'Cargando...'}
+      </div>`;
+  }
+
+  async function fetchHTML(url, opts){
+    const res = await fetch(url, opts || {});
+    const text = await res.text();
+    return { ok: res.ok, status: res.status, text };
+  }
+
+  async function fetchJSON(url, opts){
+    const res = await fetch(url, opts || {});
+    const data = await res.json().catch(() => null);
+    return { ok: res.ok, status: res.status, data };
+  }
+
+  function getCSRF(){
+    const input = document.querySelector('input[name="csrfmiddlewaretoken"]');
+    return input ? input.value : null;
+  }
+
+  // --------------------------
+  // URLs (ajusta SOLO si tus names difieren)
+  // --------------------------
+  const URLS = {
+    lista: "{% url 'centro_comercio:cotizaciones_lista' %}",
+    nuevo: "{% url 'centro_comercio:cotizacion_nuevo' %}",
+  };
+
+  function urlDetalle(id){ return "{% url 'centro_comercio:cotizacion_detalle' 0 %}".replace("/0/", "/" + id + "/"); }
+  function urlEditar(id){ return "{% url 'centro_comercio:cotizacion_editar' 0 %}".replace("/0/", "/" + id + "/"); }
+  function urlEliminar(id){ return "{% url 'centro_comercio:cotizacion_eliminar' 0 %}".replace("/0/", "/" + id + "/"); }
+
+  // --------------------------
+  // Estado UI
+  // --------------------------
+  const tablaWrap = qs("#tablaWrap");
+  const fEstado = qs("#fEstado");
+  const fBuscar = qs("#fBuscar");
+  const btnFiltrar = qs("#btnFiltrar");
+  const btnNuevo = qs("#btnNuevo");
+  const lblEstadoCarga = qs("#lblEstadoCarga");
+
+  const modalBody = qs("#cotModalBody");
+  const modalTitle = qs("#cotModalTitle");
+
+  function currentQuery(){
+    const q = (fBuscar.value || "").trim();
+    const estado = (fEstado.value || "").trim();
+    const params = new URLSearchParams();
+    if (q) params.set("q", q);
+    if (estado) params.set("estado", estado);
+    return params.toString();
+  }
+
+  // ✅ NUEVO: Función de respaldo mejorada para inicializar cálculos
+  function initializeCotizacionCalculations() {
+    try {
+      console.log("🔧 Inicializando cálculos manualmente (respuesta)...");
+      
+      // Buscar todos los inputs de cantidad y valor
+      const inputs = modalBody.querySelectorAll('input[name$="cantidad"], input[name$="valor_unitario"], input[name="descuento"]');
+      inputs.forEach(input => {
+        input.addEventListener('input', recalcTotals);
+        input.addEventListener('change', recalcTotals);
+      });
+      
+      // Buscar checkboxes de exento
+      const checkboxes = modalBody.querySelectorAll('input[name$="exento"]');
+      checkboxes.forEach(checkbox => {
+        checkbox.addEventListener('change', recalcTotals);
+      });
+      
+      // Calcular inicialmente
+      setTimeout(recalcTotals, 100);
+      
+    } catch (error) {
+      console.error("❌ Error inicializando cálculos:", error);
+    }
+  }
+
+// ✅ ACTUALIZADO: Función simplificada para recalcular totales (compatible con select)
+function recalcTotals() {
+    try {
+        console.log("🔄 Recalculando totales (respuesta)...");
+        let neto = 0;
+        let afecto = 0;
+        const ivaRate = 0.19;
+        
+        // Calcular por cada fila
+        const rows = modalBody.querySelectorAll('#items-table tbody tr.item-row');
+        rows.forEach(row => {
+            const cantidadInput = row.querySelector('[name$="cantidad"]');
+            const valorInput = row.querySelector('[name$="valor_unitario"]');
+            const exentoSelect = row.querySelector('[name$="exento"]');
+            const totalSpan = row.querySelector('.item-total');
+            
+            if (cantidadInput && valorInput) {
+                const cantidad = parseFloat(cantidadInput.value) || 0;
+                const valor = parseFloat(valorInput.value.replace(/\./g, '').replace(',', '.')) || 0;
+                const total = cantidad * valor;
+                
+                // Actualizar total de la fila
+                if (totalSpan) {
+                    totalSpan.textContent = '$ ' + total.toLocaleString('es-CL');
+                }
+                
+                neto += total;
+                
+                // ✅ VERIFICAR SI ES EXENTO (AHORA ES UN SELECT)
+                let esExento = false;
+                if (exentoSelect) {
+                    if (exentoSelect.tagName === 'SELECT') {
+                        // Select: valor 'True' para Sí, 'False' para No
+                        esExento = exentoSelect.value === 'True';
+                    } else if (exentoSelect.type === 'checkbox') {
+                        // Compatibilidad con checkbox
+                        esExento = exentoSelect.checked;
+                    }
+                }
+                
+                if (!esExento) {
+                    afecto += total;
+                }
+            }
+        });
+        
+        // Calcular IVA y descuento
+        const descuentoInput = modalBody.querySelector('[name$="descuento"]');
+        const descuento = parseFloat(descuentoInput?.value) || 0;
+        const iva = afecto * ivaRate;
+        const total = neto + iva - descuento;
+        
+        // Actualizar la interfaz
+        const netoEl = modalBody.querySelector('#t-neto');
+        const ivaEl = modalBody.querySelector('#t-iva');
+        const descEl = modalBody.querySelector('#t-desc');
+        const totalEl = modalBody.querySelector('#t-total');
+        
+        if (netoEl) netoEl.textContent = '$ ' + neto.toLocaleString('es-CL');
+        if (ivaEl) ivaEl.textContent = '$ ' + iva.toLocaleString('es-CL');
+        if (descEl) descEl.textContent = '$ ' + descuento.toLocaleString('es-CL');
+        if (totalEl) totalEl.textContent = '$ ' + total.toLocaleString('es-CL');
+        
+    } catch (error) {
+        console.error("❌ Error en recalcTotals:", error);
+    }
+}
+
+  // ✅ MEJORADO: Función de inicialización del formulario usando sistema unificado
+  function bootCotForm() {
+    console.log("🚀 Inicializando formulario de cotización en modal");
+    console.log("📊 Sistema unificado disponible:", typeof window.inicializarCotizacionForm);
+    console.log("📊 initCotizacionForm disponible:", typeof window.initCotizacionForm);
+    
+    // Función auxiliar para inicializar
+    const inicializarFormulario = function() {
+      try {
+        // Estrategia 1: Usar el sistema unificado (preferido)
+        if (typeof window.inicializarCotizacionForm === 'function') {
+          console.log("✅ Usando sistema unificado de cotizaciones.js");
+          const calculadora = window.inicializarCotizacionForm(modalBody);
+          if (calculadora) {
+            console.log("✅ Sistema de cotizaciones inicializado correctamente en modal");
+            return true;
+          }
+        }
+        
+        // Estrategia 2: Usar initCotizacionForm (compatibilidad)
+        if (typeof window.initCotizacionForm === 'function') {
+          console.log("⚠️ Usando initCotizacionForm (compatibilidad)");
+          window.initCotizacionForm(modalBody);
+          return true;
+        }
+        
+        // Estrategia 3: Sistema de respaldo
+        console.warn("⚠️ Usando sistema de respaldo");
+        initializeCotizacionCalculations();
+        return true;
+        
+      } catch (error) {
+        console.error("❌ Error inicializando formulario:", error);
+        return false;
+      }
+    };
+    
+    // Inicializar con múltiples intentos para mayor robustez
+    let exito = false;
+    
+    // Intento 1: Inmediato
+    exito = inicializarFormulario();
+    
+    // Intento 2: Después de 200ms (si falló el primero)
+    if (!exito) {
+      setTimeout(function() {
+        console.log("🔄 Reintentando inicialización (200ms)...");
+        inicializarFormulario();
+      }, 200);
+    }
+    
+    // Intento 3: Cuando el modal esté completamente visible
+    $('#cotModal').off('shown.bs.modal.cotizaciones').on('shown.bs.modal.cotizaciones', function() {
+      console.log("🎯 Modal completamente visible, verificando inicialización...");
+      setTimeout(function() {
+        // Solo intentar si no hubo éxito previo
+        if (!exito) {
+          console.log("🔄 Reintentando inicialización después de mostrar modal...");
+          inicializarFormulario();
+        }
+      }, 100);
+    });
+    
+    return exito;
+  }
+
+  // --------------------------
+  // Tabla
+  // --------------------------
+  async function cargarTabla(){
+    lblEstadoCarga.textContent = "Actualizando...";
+    setLoading(tablaWrap, "Cargando cotizaciones...");
+    const url = URLS.lista + (currentQuery() ? ("?" + currentQuery()) : "");
+    const r = await fetchHTML(url, {
+      headers: { "X-Requested-With": "XMLHttpRequest" }
+    });
+    tablaWrap.innerHTML = r.text;
+    lblEstadoCarga.textContent = "";
+  }
+
+  // --------------------------
+  // Modal
+  // --------------------------
+  function openModal(title){
+    modalTitle.innerHTML = title || '<i class="fas fa-file-invoice text-danger mr-2"></i> Cotizaciones';
+    setLoading(modalBody, "Cargando...");
+    $("#cotModal").modal("show");
+  }
+
+  async function abrirNuevo(){
+    openModal('<i class="fas fa-plus text-success mr-2"></i> Nueva cotización');
+    const r = await fetchHTML(URLS.nuevo, { headers: { "X-Requested-With": "XMLHttpRequest" } });
+    modalBody.innerHTML = r.text;
+    
+    // ✅ Asegurar que el modal se muestra primero, luego inicializar
+    $('#cotModal').off('shown.bs.modal').on('shown.bs.modal', function () {
+      const exito = bootCotForm();
+      bindFormInsideModal();
+      
+      // Si no hubo éxito, intentar una vez más después de 500ms
+      if (!exito) {
+        setTimeout(function() {
+          console.log("⏱️ Último intento de inicialización...");
+          bootCotForm();
+        }, 500);
+      }
+    });
+  }
+
+  async function abrirEditar(id){
+    openModal('<i class="fas fa-edit text-primary mr-2"></i> Editar cotización ' + id);
+    const r = await fetchHTML(urlEditar(id), { headers: { "X-Requested-With": "XMLHttpRequest" } });
+    modalBody.innerHTML = r.text;
+    
+    // ✅ Asegurar que el modal se muestra primero, luego inicializar
+    $('#cotModal').off('shown.bs.modal').on('shown.bs.modal', function () {
+      const exito = bootCotForm();
+      bindFormInsideModal();
+      
+      // Si no hubo éxito, intentar una vez más después de 500ms
+      if (!exito) {
+        setTimeout(function() {
+          console.log("⏱️ Último intento de inicialización...");
+          bootCotForm();
+        }, 500);
+      }
+    });
+  }
+
+  async function abrirDetalle(id){
+    openModal('<i class="far fa-eye text-primary mr-2"></i> Detalle cotización ' + id);
+    const r = await fetchHTML(urlDetalle(id), { headers: { "X-Requested-With": "XMLHttpRequest" } });
+    modalBody.innerHTML = r.text;
+    
+    // ✅ Para detalle, solo vincular acciones
+    $('#cotModal').off('shown.bs.modal').on('shown.bs.modal', function () {
+      bindDetalleInsideModal();
+    });
+  }
+
+  // --------------------------
+  // Acciones en tabla
+  // --------------------------
+  function bindTablaActions(){
+    tablaWrap.addEventListener("click", function(e){
+      const btn = e.target.closest(".btn-ver");
+      if (!btn) return;
+      const tr = btn.closest("tr[data-id]");
+      if (!tr) return;
+      const id = tr.getAttribute("data-id");
+      abrirDetalle(id);
+    });
+  }
+
+  // --------------------------
+  // Form submit (AJAX) dentro del modal
+  // --------------------------
+  function bindFormInsideModal(){
+    const form = modalBody.querySelector("form[data-cot-form]");
+    if (!form) return;
+
+    form.addEventListener("submit", async function(ev){
+      ev.preventDefault();
+
+      const fd = new FormData(form);
+
+      const r = await fetchJSON(form.action, {
+        method: "POST",
+        headers: {
+          "X-Requested-With": "XMLHttpRequest",
+          "X-CSRFToken": getCSRF() || ""
+        },
+        body: fd
+      });
+
+      if (r.ok && r.data && r.data.ok) {
+        await cargarTabla();
+        await abrirDetalle(r.data.id);
+        return;
+      }
+
+      // Si backend devuelve errores, recargamos el form para mostrar mensajes.
+      const html = await fetchHTML(form.action, { headers: { "X-Requested-With": "XMLHttpRequest" } });
+      modalBody.innerHTML = html.text;
+
+      // Re-inicializar el formulario en el modal
+      const exito = bootCotForm();
+      bindFormInsideModal();
+      
+      // Si falla, intentar nuevamente después de un breve retraso
+      if (!exito) {
+        setTimeout(function() {
+          bootCotForm();
+        }, 300);
+      }
+    });
+  }
+
+  function bindDetalleInsideModal(){
+    modalBody.addEventListener("click", async function(e){
+      const btnEdit = e.target.closest("[data-action='editar']");
+      if (btnEdit) {
+        const id = btnEdit.getAttribute("data-id");
+        if (id) abrirEditar(id);
+        return;
+      }
+
+      const btnDel = e.target.closest("[data-action='eliminar']");
+      if (btnDel) {
+        const id = btnDel.getAttribute("data-id");
+        if (!id) return;
+
+        if (!confirm("¿Eliminar esta cotización?")) return;
+
+        const r = await fetchJSON(urlEliminar(id), {
+          method: "POST",
+          headers: {
+            "X-Requested-With": "XMLHttpRequest",
+            "X-CSRFToken": getCSRF() || ""
+          }
+        });
+
+        if (r.ok && r.data && r.data.ok) {
+          $("#cotModal").modal("hide");
+          await cargarTabla();
+        } else {
+          alert("No se pudo eliminar.");
+        }
+      }
+    }, { once: true });
+  }
+
+  // ✅ Debug: Verificar estado del modal
+  $('#cotModal').on('show.bs.modal', function () {
+    console.log("🔄 Modal mostrándose...");
+  }).on('shown.bs.modal', function () {
+    console.log("✅ Modal completamente visible");
+    console.log("📊 window.inicializarCotizacionForm disponible:", typeof window.inicializarCotizacionForm);
+    console.log("📊 window.initCotizacionForm disponible:", typeof window.initCotizacionForm);
+  }).on('hide.bs.modal', function () {
+    console.log("❌ Modal ocultándose...");
+    // Limpiar eventos para evitar acumulación
+    $('#cotModal').off('shown.bs.modal.cotizaciones');
+  });
+
+  // --------------------------
+  // Init
+  // --------------------------
+  btnFiltrar.addEventListener("click", cargarTabla);
+  btnNuevo.addEventListener("click", abrirNuevo);
+
+  fBuscar.addEventListener("keydown", function(e){
+    if (e.key === "Enter") { e.preventDefault(); cargarTabla(); }
+  });
+
+  bindTablaActions();
+  cargarTabla();
+
+})();
+</script>
+{% endblock %}

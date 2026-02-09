@@ -1,0 +1,68 @@
+<table class="table table-hover table-sm mb-0">
+  <thead class="thead-light">
+    <tr>
+      <th style="width: 70px;">N°</th>
+      <th style="width: 120px;">Código</th>
+      <th style="width: 110px;">Fecha</th>
+      <th style="width: 120px;">Vigencia</th>
+      <th>Cliente</th>
+      <th>Glosa</th>
+      <th style="width: 120px;" class="text-right">Total</th>
+      <th style="width: 70px;" class="text-center"></th>
+    </tr>
+  </thead>
+
+  <tbody>
+    {% for c in cotizaciones %}
+      <tr data-id="{{ c.id }}">
+        <td>{{ forloop.counter }}</td>
+
+        <td><strong>{{ c.codigo }}</strong></td>
+
+        <td>
+          {% if c.fecha %}
+            {{ c.fecha|date:"d-m" }}-<br>{{ c.fecha|date:"Y" }}
+          {% endif %}
+        </td>
+
+        <td>
+          {% if c.vigencia_hasta %}
+            {{ c.vigencia_hasta|date:"d-m" }}-<br>{{ c.vigencia_hasta|date:"Y" }}
+          {% endif %}
+        </td>
+
+        <td>
+          {% if c.cliente %}
+            {{ c.cliente.razon_social|default:c.cliente }}
+          {% else %}
+            -
+          {% endif %}
+        </td>
+
+        <td class="text-muted">
+          {{ c.terminos|default:"-" }}
+        </td>
+
+        <td class="text-right">
+          $ {{ c.total_neto|default_if_none:"0" }}
+      </td>
+
+        <td class="text-center">
+          <button type="button" class="btn btn-link p-0 btn-ver" title="Ver">
+            <i class="far fa-eye text-primary"></i>
+          </button>
+
+          <button type="button" class="btn btn-link p-0 ml-2" title="PDF" disabled>
+            <i class="far fa-file-pdf text-danger"></i>
+          </button>
+        </td>
+      </tr>
+    {% empty %}
+      <tr>
+        <td colspan="8" class="text-center py-4">
+          <em>No hay cotizaciones.</em>
+        </td>
+      </tr>
+    {% endfor %}
+  </tbody>
+</table>

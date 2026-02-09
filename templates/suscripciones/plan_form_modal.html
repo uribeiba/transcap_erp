@@ -1,0 +1,52 @@
+{# templates/suscripciones/plan_form_modal.html #}
+<form method="post" action="" class="js-ajax-form">
+  {% csrf_token %}
+
+  <div class="row">
+    <div class="col-md-6">
+      <label class="mb-1">Nombre</label>
+      {{ form.nombre }}
+    </div>
+    <div class="col-md-3">
+      <label class="mb-1">Usuarios</label>
+      {{ form.max_usuarios }}
+    </div>
+    <div class="col-md-3">
+      <label class="mb-1">Orden</label>
+      {{ form.orden }}
+    </div>
+  </div>
+
+  <div class="row mt-2">
+    <div class="col-md-6">
+      <label class="mb-1">Precio mensual</label>
+      {{ form.precio_mensual }}
+      {% if form.precio_mensual.errors %}
+        <div class="text-danger small">{{ form.precio_mensual.errors }}</div>
+      {% endif %}
+    </div>
+    <div class="col-md-6 d-flex align-items-center">
+      <div class="form-check mt-4">
+        {{ form.activo }}
+        <label class="form-check-label">Activo</label>
+      </div>
+    </div>
+  </div>
+
+  <div class="mt-2">
+    <label class="mb-1">Descripción</label>
+    {{ form.descripcion }}
+  </div>
+
+  {% if form.non_field_errors %}
+    <div class="alert alert-danger mt-2 mb-0">
+      {{ form.non_field_errors }}
+    </div>
+  {% endif %}
+
+  <div class="d-flex justify-content-end mt-3">
+    <button class="btn btn-primary" type="submit">
+      <i class="fas fa-save"></i> Guardar
+    </button>
+  </div>
+</form>

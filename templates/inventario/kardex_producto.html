@@ -1,0 +1,117 @@
+{% extends "layout/base.html" %}
+
+{% block title %}Kardex {{ producto.codigo }}{% endblock %}
+{% block page_title %}Kardex de Producto{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <h3 class="card-title">
+            Kardex – {{ producto.codigo }} – {{ producto.nombre }}
+        </h3>
+        <div class="card-tools">
+            <a href="{% url 'inventario:kardex_producto_print' producto.pk %}?desde={{ fecha_desde }}&hasta={{ fecha_hasta }}"
+               target="_blank"
+               class="btn btn-sm btn-outline-primary">
+                <i class="fas fa-file-pdf"></i> Imprimir / PDF
+            </a>
+            <a href{% url 'inventario:lista_productos' %} class="btn btn-sm btn-secondary">
+                <i class="fas fa-arrow-left"></i> Volver a productos
+            </a>
+        </div>
+    </div>
+    <div class="card-body">
+
+        <!-- Datos del producto -->
+        <div class="mb-3">
+            <strong>Categoría:</strong> {{ producto.categoria|default:"-" }}<br>
+            <strong>Unidad:</strong> {{ producto.get_unidad_medida_display|default:producto.unidad_medida }}<br>
+            <strong>Stock mínimo:</strong> {{ producto.stock_minimo|floatformat:0 }}<br>
+            <strong>Stock actual:</strong> {{ producto.stock_actual|floatformat:0 }}
+        </div>
+
+        <!-- Filtros -->
+        <form method="get" class="mb-3">
+            <div class="form-row">
+                <div class="form-group col-md-3">
+                    <label for="id_desde">Desde (fecha)</label>
+                    <input type="date" name="desde" id="id_desde"
+                           value="{{ fecha_desde }}" class="form-control">
+                </div>
+                <div class="form-group col-md-3">
+                    <label for="id_hasta">Hasta (fecha)</label>
+                    <input type="date" name="hasta" id="id_hasta"
+                           value="{{ fecha_hasta }}" class="form-control">
+                </div>
+                <div class="form-group col-md-3 d-flex align-items-end">
+                    <button type="submit" class="btn btn-secondary mr-2">
+                        <i class="fas fa-search"></i> Filtrar
+                    </button>
+                    <a href="{% url 'inventario:kardex_producto' producto.pk %}"
+                       class="btn btn-outline-secondary">
+                        Limpiar
+                    </a>
+                </div>
+            </div>
+        </form>
+
+        <!-- Tabla kardex -->
+        <div class="table-responsive">
+            <table class="table table-sm table-striped table-hover">
+                <thead>
+                    <tr>
+                        <th>Fecha</th>
+                        <th>Tipo</th>
+                        <th>Bodega</th>
+                        <th class="text-right">Cantidad</th>
+                        <th class="text-right">Saldo</th>
+                        <th>Referencia</th>
+                        <th>Observación</th>
+                        <th>Usuario</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in kardex_rows %}
+                        {% with mov=row.mov saldo=row.saldo %}
+                        <tr>
+                            <td>{{ mov.fecha|date:"d/m/Y H:i" }}</td>
+                            <td>
+                                {% if mov.tipo == 'ING' %}
+                                    <span class="badge badge-success">Ingreso</span>
+                                {% elif mov.tipo == 'SAL' %}
+                                    <span class="badge badge-danger">Salida</span>
+                                {% elif mov.tipo == 'AJU' %}
+                                    <span class="badge badge-warning">Ajuste</span>
+                                {% else %}
+                                    {{ mov.get_tipo_display }}
+                                {% endif %}
+                            </td>
+                            <td>{{ mov.bodega }}</td>
+                            <td class="text-right">
+                                {{ mov.cantidad|floatformat:0 }}
+                            </td>
+                            <td class="text-right font-weight-bold">
+                                {{ saldo|floatformat:0 }}
+                            </td>
+                            <td>{{ mov.referencia }}</td>
+                            <td>{{ mov.observacion }}</td>
+                            <td>{{ mov.usuario_registro|default:"-" }}</td>
+                        </tr>
+                        {% endwith %}
+                    {% empty %}
+                        <tr>
+                            <td colspan="8" class="text-center py-3">
+                                No hay movimientos registrados para este producto
+                                {% if fecha_desde or fecha_hasta %}
+                                    en el rango seleccionado.
+                                {% endif %}
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+    </div>
+</div>
+{% endblock %}

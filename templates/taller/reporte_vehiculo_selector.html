@@ -1,0 +1,24 @@
+{% extends "layout/base.html" %}
+{% block title %}Reportes por Vehículo{% endblock %}
+{% block page_title %}Reportes por Vehículo{% endblock %}
+
+{% block content %}
+<div class="card">
+  <div class="card-body">
+    <form class="form-inline mb-3">
+      <input type="text" name="q" value="{{ q }}" class="form-control mr-2" placeholder="Buscar por patente...">
+      <button class="btn btn-outline-secondary">Buscar</button>
+    </form>
+    <div class="list-group">
+      {% for v in vehiculos %}
+        <a class="list-group-item list-group-item-action"
+           href="{% url 'taller_reporte_vehiculo' v.id %}">
+           <strong>{{ v.patente }}</strong> — {{ v.marca }} {{ v.modelo }}
+        </a>
+      {% empty %}
+        <div class="text-muted">No hay vehículos.</div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+{% endblock %}

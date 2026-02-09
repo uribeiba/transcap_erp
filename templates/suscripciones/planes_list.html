@@ -1,0 +1,201 @@
+{% extends "layout/base.html" %}
+{% load static %}
+
+{% block title %}Planes{% endblock %}
+{% block page_title %}Planes{% endblock %}
+
+{% block content %}
+<div class="row">
+  <div class="col-12">
+    <div class="card card-outline shadow-sm">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <div>
+          <h3 class="card-title font-weight-bold mb-0">
+            <i class="fas fa-layer-group mr-1"></i> Planes
+          </h3>
+          <small class="text-muted">Planes de suscripción del sistema.</small>
+        </div>
+
+        <a href="{% url 'suscripciones:plan_crear' %}"
+           class="btn btn-primary btn-sm js-open-modal"
+           data-modal-url="{% url 'suscripciones:plan_crear' %}">
+          <i class="fas fa-plus"></i> Nuevo Plan
+        </a>
+      </div>
+
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table table-hover mb-0">
+            <thead class="thead-light">
+              <tr>
+                <th>Nombre</th>
+                <th>Usuarios</th>
+                <th>Mensual</th>
+                <th>Anual</th>
+                <th>Activo</th>
+                <th class="text-right pr-3">Acción</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for p in planes %}
+              <tr>
+                <td class="font-weight-bold">{{ p.nombre }}</td>
+                <td>{{ p.max_usuarios }}</td>
+                <td>{{ p.precio_mensual }}</td>
+                <td>{{ p.precio_anual }}</td>
+                <td>
+                  {% if p.activo %}
+                    <span class="badge badge-success">Sí</span>
+                  {% else %}
+                    <span class="badge badge-secondary">No</span>
+                  {% endif %}
+                </td>
+                <td class="text-right pr-3">
+                  <a href="{% url 'suscripciones:plan_editar' p.id %}"
+                     class="btn btn-outline-primary btn-sm js-open-modal"
+                     data-modal-url="{% url 'suscripciones:plan_editar' p.id %}">
+                    <i class="fas fa-pen"></i>
+                  </a>
+                </td>
+              </tr>
+              {% empty %}
+              <tr>
+                <td colspan="6" class="text-center text-muted py-4">Sin planes</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- Modal universal (igual que tus paneles) -->
+<div class="modal fade" id="globalModal" tabindex="-1" role="dialog" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Cargando...</h5>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body">
+        <div class="text-center py-5">
+          <i class="fas fa-spinner fa-spin fa-2x text-primary"></i>
+          <p class="mt-2 text-muted">Cargando formulario...</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    const modal = document.getElementById("globalModal");
+    if (!modal) return;
+    const $modal = $(modal);
+  
+    function showLoading(modalBody, modalTitle) {
+      modalBody.innerHTML = `
+        <div class="text-center py-5">
+          <i class="fas fa-spinner fa-spin fa-2x text-primary"></i>
+          <p class="mt-2 text-muted">Cargando formulario...</p>
+        </div>
+      `;
+      if (modalTitle) modalTitle.textContent = "Cargando...";
+    }
+  
+    function setTitleFromBody(modalBody, modalTitle) {
+      if (!modalTitle) return;
+      const firstHeading = modalBody.querySelector('h1,h2,h3,h4,h5');
+      if (firstHeading && firstHeading.textContent.trim()) {
+        modalTitle.textContent = firstHeading.textContent.trim();
+        // ocultamos el heading para que no se vea doble dentro del modal
+        firstHeading.style.display = "none";
+      }
+    }
+  
+    // Abrir modal
+    document.addEventListener("click", function (e) {
+      const link = e.target.closest(".js-open-modal");
+      if (!link) return;
+      e.preventDefault();
+  
+      const url = link.getAttribute("data-modal-url") || link.getAttribute("href");
+      const modalBody = modal.querySelector(".modal-body");
+      const modalTitle = modal.querySelector(".modal-title");
+  
+      showLoading(modalBody, modalTitle);
+  
+      fetch(url, { headers: { "X-Requested-With": "XMLHttpRequest" } })
+        .then(async (r) => {
+          if (!r.ok) throw new Error(`HTTP ${r.status}: ${await r.text()}`);
+          const html = await r.text();
+          modalBody.innerHTML = html;
+  
+          // opcional: usar heading del form como título
+          setTitleFromBody(modalBody, modalTitle);
+  
+          $modal.modal("show");
+        })
+        .catch((err) => {
+          modalBody.innerHTML = `<div class="alert alert-danger">${err.message}</div>`;
+          if (modalTitle) modalTitle.textContent = "Error";
+          $modal.modal("show");
+        });
+    });
+  
+    // Submit dentro del modal (AJAX)
+    document.addEventListener("submit", function (e) {
+      const form = e.target;
+      if (!form.closest("#globalModal .modal-body")) return;
+  
+      e.preventDefault();
+  
+      const formData = new FormData(form);
+  
+      fetch(form.action || window.location.href, {
+        method: "POST",
+        headers: { "X-Requested-With": "XMLHttpRequest" },
+        body: formData,
+      })
+        .then(async (resp) => {
+          const ct = resp.headers.get("content-type") || "";
+  
+          // ✅ Caso ideal: backend devuelve JSON
+          if (ct.includes("application/json")) {
+            const data = await resp.json();
+  
+            if (resp.ok && data.ok) {
+              $modal.modal("hide");
+              setTimeout(() => window.location.reload(), 250);
+              return;
+            }
+  
+            // JSON pero ok=false
+            const msg = data.error || data.message || `Error (HTTP ${resp.status})`;
+            alert("❌ " + msg);
+            return;
+          }
+  
+          // ✅ Caso HTML: backend devuelve el formulario con errores
+          const html = await resp.text();
+          modal.querySelector(".modal-body").innerHTML = html;
+  
+          // opcional: recalcular título si el form trae heading
+          const modalTitle = modal.querySelector(".modal-title");
+          setTitleFromBody(modal.querySelector(".modal-body"), modalTitle);
+        })
+        .catch((err) => {
+          alert("❌ Error de conexión: " + (err.message || "Error"));
+        });
+    });
+  });
+  </script>
+  
+{% endblock %}

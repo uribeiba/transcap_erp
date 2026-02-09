@@ -1,0 +1,19 @@
+{% extends "layout/base.html" %}
+{% block title %}Bitácora{% endblock %}
+{% block page_title %}Bitácora{% endblock %}
+
+{% block content %}
+<div class="card">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    <h3 class="card-title mb-0">Panel Bitácora</h3>
+    <a href="{% url 'bitacora:crear' %}" class="btn btn-success btn-sm">
+      <i class="fas fa-plus"></i> Nuevo
+    </a>
+  </div>
+  <div class="card-body">
+    <div class="alert alert-success mb-0">
+      ✅ Listo: ya existe el módulo Bitácora.
+    </div>
+  </div>
+</div>
+{% endblock %}

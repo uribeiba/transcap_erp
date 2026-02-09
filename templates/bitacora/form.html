@@ -1,0 +1,476 @@
+{% extends "layout/base.html" %}
+{% block title %}Nueva Bitácora{% endblock %}
+{% block page_title %}Crear Agenda de Viaje{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <div class="row">
+    <!-- COLUMNA IZQUIERDA - FORMULARIO PRINCIPAL -->
+    <div class="col-md-8">
+      <div class="card card-primary">
+        <div class="card-header">
+          <h3 class="card-title">Datos del Viaje</h3>
+        </div>
+        <div class="card-body">
+          <form method="post" id="bitacora-form">
+            {% csrf_token %}
+
+            <!-- PRIMERA FILA: Tracto, Cliente, Tarifa -->
+            <div class="row">
+              <div class="col-md-4 form-group">
+                <label for="{{ form.tracto.id_for_label }}">{{ form.tracto.label }}</label>
+                {{ form.tracto }}
+                <small class="form-text text-muted">Seleccione un tracto</small>
+              </div>
+
+              <div class="col-md-4 form-group">
+                <label for="{{ form.cliente.id_for_label }}">{{ form.cliente.label }}</label>
+                {{ form.cliente }}
+                <small class="form-text text-muted">Busque cliente por RUT o razón social</small>
+              </div>
+
+              <div class="col-md-4 form-group">
+                <label for="{{ form.tarifa_flete.id_for_label }}">{{ form.tarifa_flete.label }}</label>
+                <div class="input-group">
+                  <div class="input-group-prepend">
+                    <span class="input-group-text">$</span>
+                  </div>
+                  {{ form.tarifa_flete }}
+                </div>
+              </div>
+            </div>
+
+            <!-- GUÍAS Y OC/EDP -->
+            <div class="row mt-3">
+              <div class="col-md-6 form-group">
+                <label for="{{ form.guias_raw.id_for_label }}">{{ form.guias_raw.label }}</label>
+                {{ form.guias_raw }}
+                <small class="form-text text-muted"><i class="fas fa-info-circle"></i> Separar con guiones (-)</small>
+              </div>
+              <div class="col-md-6 form-group">
+                <label for="{{ form.oc_edp_raw.id_for_label }}">{{ form.oc_edp_raw.label }}</label>
+                {{ form.oc_edp_raw }}
+                <small class="form-text text-muted"><i class="fas fa-info-circle"></i> Separar con guiones (-)</small>
+              </div>
+            </div>
+
+            <!-- RUTAS: Origen, Intermedio, Destino -->
+            <div class="row mt-3">
+              <div class="col-md-4 form-group">
+                <label for="{{ form.origen.id_for_label }}">{{ form.origen.label }}</label>
+                {{ form.origen }}
+              </div>
+              <div class="col-md-4 form-group">
+                <label for="{{ form.intermedio.id_for_label }}">{{ form.intermedio.label }}</label>
+                {{ form.intermedio }}
+                <small class="form-text text-muted"><i class="fas fa-info-circle"></i> Opcional</small>
+              </div>
+              <div class="col-md-4 form-group">
+                <label for="{{ form.destino.id_for_label }}">{{ form.destino.label }}</label>
+                {{ form.destino }}
+              </div>
+            </div>
+
+            <!-- FECHAS -->
+            <div class="row mt-3">
+              <div class="col-md-4 form-group">
+                <label for="{{ form.fecha.id_for_label }}">{{ form.fecha.label }}</label>
+                {{ form.fecha }}
+              </div>
+              <div class="col-md-4 form-group">
+                <label for="{{ form.fecha_arribo.id_for_label }}">{{ form.fecha_arribo.label }}</label>
+                {{ form.fecha_arribo }}
+              </div>
+              <div class="col-md-4 form-group">
+                <label for="{{ form.fecha_descarga.id_for_label }}">{{ form.fecha_descarga.label }}</label>
+                {{ form.fecha_descarga }}
+              </div>
+            </div>
+
+            <!-- PERSONAL Y EQUIPO -->
+            <div class="row mt-3">
+              <div class="col-md-4 form-group">
+                <label for="{{ form.conductor.id_for_label }}">{{ form.conductor.label }}</label>
+                {{ form.conductor }}
+                <small class="form-text text-muted">Seleccione un conductor</small>
+              </div>
+
+              <div class="col-md-4 form-group">
+                <label for="{{ form.rampla.id_for_label }}">{{ form.rampla.label }}</label>
+                {{ form.rampla }}
+                <small class="form-text text-muted">Seleccione una rampla</small>
+              </div>
+
+              <div class="col-md-4 form-group">
+                <label for="{{ form.estadia.id_for_label }}">{{ form.estadia.label }}</label>
+                <div class="input-group">
+                  <div class="input-group-prepend">
+                    <span class="input-group-text">$</span>
+                  </div>
+                  {{ form.estadia }}
+                </div>
+              </div>
+            </div>
+
+            <!-- COORDINADOR Y DESCRIPCIÓN -->
+            <div class="row mt-3">
+              <div class="col-md-6 form-group">
+                <label for="{{ form.coordinador.id_for_label }}">{{ form.coordinador.label }}</label>
+                <div class="input-group">
+                  {{ form.coordinador }}
+                  <div class="input-group-append">
+                    <span class="input-group-text">
+                      <i class="fas fa-user-check" title="Coordinador"></i>
+                    </span>
+                  </div>
+                </div>
+                <small class="form-text text-muted">Escriba el nombre del coordinador</small>
+              </div>
+
+              <div class="col-md-6 form-group">
+                <label for="{{ form.descripcion_trabajo.id_for_label }}">{{ form.descripcion_trabajo.label }}</label>
+                {{ form.descripcion_trabajo }}
+              </div>
+            </div>
+
+            <!-- ESTADO -->
+            <div class="row mt-3">
+              <div class="col-md-4 form-group">
+                <label for="{{ form.estado.id_for_label }}">{{ form.estado.label }}</label>
+                {{ form.estado }}
+              </div>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <!-- COLUMNA DERECHA - RESUMEN Y ACCIONES -->
+    <div class="col-md-4">
+      <!-- TARJETA DE RESUMEN -->
+      <div class="card card-info">
+        <div class="card-header">
+          <h3 class="card-title">Resumen Agenda</h3>
+        </div>
+        <div class="card-body">
+          <div class="form-group">
+            <label>Cliente:</label>
+            <p class="form-control-plaintext border rounded p-2 bg-light" id="resumen-cliente">---</p>
+          </div>
+
+          <div class="row">
+            <div class="col-6">
+              <label>Valor Flete:</label>
+              <p class="form-control-plaintext border rounded p-2 bg-light" id="resumen-flete">$0</p>
+            </div>
+            <div class="col-6">
+              <label>Estadía:</label>
+              <p class="form-control-plaintext border rounded p-2 bg-light" id="resumen-estadia">$0</p>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label>Coordinador:</label>
+            <p class="form-control-plaintext border rounded p-2 bg-light text-muted"
+               id="resumen-coordinador">Escriba un coordinador...</p>
+          </div>
+
+          <hr>
+
+          <!-- TABLA DE GUÍAS/OC -->
+          <div class="table-responsive">
+            <table class="table table-sm table-bordered" id="tabla-resumen">
+              <thead class="thead-light">
+                <tr>
+                  <th>N° Guía</th>
+                  <th>OC/EDP</th>
+                  <th>Origen</th>
+                  <th>Destino</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr class="text-muted">
+                  <td colspan="4" class="text-center">Sin datos</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <hr>
+
+          <!-- AGREGAR FACTURAS -->
+          <div class="form-group">
+            <div class="custom-control custom-switch">
+              <input type="checkbox" class="custom-control-input" id="agregar-facturas">
+              <label class="custom-control-label" for="agregar-facturas">
+                <i class="fas fa-file-invoice-dollar text-primary mr-1"></i>
+                <span>Agregar Facturas a cotización</span>
+              </label>
+              
+            </div>
+          </div>
+
+          <div id="seccion-facturas" style="display: none;">
+            <div class="form-group">
+              <label>N° Factura:</label>
+              <input type="text" class="form-control" placeholder="Ingrese número de factura">
+            </div>
+            <div class="form-group">
+              <label>Título:</label>
+              <input type="text" class="form-control" placeholder="Título de la factura">
+            </div>
+            <div class="form-group">
+              <label>Cliente:</label>
+              <input type="text" class="form-control" placeholder="Cliente asociado">
+            </div>
+            <div class="form-group">
+              <label>Descripción:</label>
+              <textarea class="form-control" rows="2" placeholder="Descripción de la factura"></textarea>
+            </div>
+            <div class="form-group">
+              <label>Archivos:</label>
+              <div class="custom-file">
+                <input type="file" class="custom-file-input" id="customFile">
+                <label class="custom-file-label" for="customFile">Seleccionar archivos</label>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- BOTONES DE ACCIÓN -->
+      <div class="card mt-3">
+        <div class="card-body">
+          <div class="d-grid gap-2">
+            <button type="submit" form="bitacora-form" class="btn btn-success btn-lg">
+              <i class="fas fa-calendar-plus"></i> Crear Agenda
+            </button>
+            <a href="{% url 'bitacora:panel' %}" class="btn btn-secondary btn-lg">
+              <i class="fas fa-times"></i> Cancelar
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  $(document).ready(function() {
+    // Configuración común para Select2
+    function initSelect2(selector, placeholder, allowClear = true) {
+      $(selector).select2({
+        theme: 'bootstrap4',
+        placeholder: placeholder,
+        allowClear: allowClear,
+        width: '100%',
+        dropdownParent: $(selector).closest('.form-group')
+      });
+    }
+
+    // Inicializar Select2 para los campos
+    initSelect2('#id_tracto', 'Seleccione tracto...');
+    initSelect2('#id_rampla', 'Seleccione rampla...');
+    initSelect2('#id_conductor', 'Seleccione conductor...');
+
+    // Inicializar el campo de cliente con búsqueda AJAX
+    $('#id_cliente').select2({
+      theme: 'bootstrap4',
+      placeholder: 'Seleccionar Cliente',
+      allowClear: true,
+      width: '100%',
+      dropdownParent: $('#id_cliente').closest('.form-group'),
+      ajax: {
+        url: "/bitacora/api/clientes/",
+        dataType: 'json',
+        delay: 250,
+        data: function (params) {
+          return { q: params.term || '' };
+        },
+        processResults: function (data) {
+          return { results: data.results || [] };
+        },
+        cache: true
+      }
+    });
+
+    // Mostrar/ocultar sección de facturas
+    $('#agregar-facturas').change(function() {
+      if($(this).is(':checked')) {
+        $('#seccion-facturas').slideDown();
+      } else {
+        $('#seccion-facturas').slideUp();
+      }
+    });
+
+    // Actualizar resumen cuando se selecciona cliente
+    $('#id_cliente').on('select2:select', function(e) {
+      var data = e.params.data;
+      if (data && data.text) {
+        var clienteName = data.text.split('(')[0].trim();
+        $('#resumen-cliente').text(clienteName);
+      }
+    });
+
+    $('#id_cliente').on('select2:clear', function() {
+      $('#resumen-cliente').text('---');
+    });
+
+    // Actualizar valores monetarios
+    function updateMonetaryValues() {
+      var flete = parseFloat($('#id_tarifa_flete').val()) || 0;
+      var estadia = parseFloat($('#id_estadia').val()) || 0;
+
+      $('#resumen-flete').text('$' + flete.toLocaleString('es-CL'));
+      $('#resumen-estadia').text('$' + estadia.toLocaleString('es-CL'));
+    }
+
+    $('#id_tarifa_flete, #id_estadia').on('input', updateMonetaryValues);
+    updateMonetaryValues();
+
+    // Procesar guías y OC para la tabla de resumen
+    function actualizarTablaResumen() {
+      var guias = $('#id_guias_raw').val().split('-').filter(g => g.trim());
+      var ocs = $('#id_oc_edp_raw').val().split('-').filter(o => o.trim());
+      var origen = $('#id_origen').val() || '---';
+      var destino = $('#id_destino').val() || '---';
+
+      var tbody = $('#tabla-resumen tbody');
+      tbody.empty();
+
+      if (guias.length === 0 && ocs.length === 0) {
+        tbody.append('<tr class="text-muted"><td colspan="4" class="text-center">Sin datos</td></tr>');
+        return;
+      }
+
+      var maxLength = Math.max(guias.length, ocs.length);
+      for (var i = 0; i < maxLength; i++) {
+        var guia = guias[i] || '---';
+        var oc = ocs[i] || '---';
+
+        var row = '<tr>' +
+                  '<td class="text-center">' + guia.trim() + '</td>' +
+                  '<td class="text-center">' + oc.trim() + '</td>' +
+                  '<td>' + origen + '</td>' +
+                  '<td>' + destino + '</td>' +
+                  '</tr>';
+        tbody.append(row);
+      }
+    }
+
+    $('#id_guias_raw, #id_oc_edp_raw, #id_origen, #id_destino').on('input', actualizarTablaResumen);
+    actualizarTablaResumen();
+
+    // Personalizar input file
+    $('.custom-file-input').on('change', function() {
+      var fileName = $(this).val().split('\\').pop();
+      $(this).next('.custom-file-label').html(fileName || 'Seleccionar archivos');
+    });
+
+    // ===============================
+    // ✅ Coordinador: sincronía en vivo + limpieza de basura "{{ ... }}"
+    // ===============================
+    function sanitizeCoord(val) {
+      val = (val || '').trim();
+      // Si viene como template tag, lo consideramos vacío y lo limpiamos
+      if (val.includes('{{') || val.includes('request.user.get_full_name')) {
+        return '';
+      }
+      return val;
+    }
+
+    function syncCoordinadorResumen() {
+      var raw = $('#id_coordinador').val();
+      var val = sanitizeCoord(raw);
+
+      // Si detectamos basura, limpiamos también el input para que no vuelva a verse
+      if (val === '' && sanitizeCoord(raw) === '' && (raw || '').includes('{{')) {
+        $('#id_coordinador').val('');
+      }
+
+      $('#resumen-coordinador')
+        .toggleClass('text-muted', !val)
+        .text(val ? val : 'Escriba un coordinador...');
+    }
+
+    syncCoordinadorResumen();
+    $('#id_coordinador').on('input', syncCoordinadorResumen);
+
+    $('#bitacora-form').on('reset', function() {
+      setTimeout(syncCoordinadorResumen, 0);
+    });
+  });
+</script>
+
+<style>
+/* Estilos para Select2 */
+.select2-container--bootstrap4 .select2-selection--single {
+  height: calc(2.25rem + 2px) !important;
+  border: 1px solid #ced4da !important;
+  border-radius: 0.25rem !important;
+}
+
+.select2-container--bootstrap4 .select2-selection--single .select2-selection__rendered {
+  line-height: 2.25rem !important;
+  padding-left: 0.75rem !important;
+  color: #495057 !important;
+}
+
+.select2-container--bootstrap4 .select2-selection--single .select2-selection__placeholder {
+  color: #6c757d !important;
+}
+
+.select2-container--bootstrap4 .select2-selection--single .select2-selection__arrow {
+  height: 2.25rem !important;
+}
+
+.select2-container--bootstrap4 .select2-selection--multiple {
+  min-height: calc(2.25rem + 2px) !important;
+  border: 1px solid #ced4da !important;
+}
+
+/* Campos del resumen */
+.form-control-plaintext {
+  background-color: #f8f9fa !important;
+  border-radius: 4px;
+  padding: 8px 12px;
+  border: 1px solid #e9ecef !important;
+  min-height: 38px;
+}
+
+/* Mejorar la apariencia de las etiquetas */
+.form-group label {
+  font-weight: 600;
+  margin-bottom: 0.25rem;
+  color: #495057;
+}
+
+/* Tabla de resumen */
+.table-sm th,
+.table-sm td {
+  padding: 0.5rem;
+  font-size: 0.85rem;
+}
+
+#tabla-resumen tbody tr:hover {
+  background-color: rgba(0,123,255,0.05);
+}/* Fix espaciado texto en custom-switch */
+.custom-control.custom-switch .custom-control-label {
+  padding-left: 0.75rem;   /* empuja el texto a la derecha */
+  cursor: pointer;
+  line-height: 1.4;
+}
+
+/* Ajuste fino del switch para que no choque */
+.custom-control.custom-switch .custom-control-label::before,
+.custom-control.custom-switch .custom-control-label::after {
+  left: -2.25rem; /* mueve el botón un poco a la izquierda */
+}
+
+
+
+
+</style>
+{% endblock %}

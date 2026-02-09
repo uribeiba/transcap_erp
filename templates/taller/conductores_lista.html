@@ -1,0 +1,59 @@
+{% extends "layout/base.html" %}
+
+{% block title %}Conductores{% endblock %}
+{% block page_title %}Conductores{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <h3 class="card-title">Conductores registrados</h3>
+        <div class="card-tools">
+            <a href="{% url 'taller_conductor_nuevo' %}" class="btn btn-primary btn-sm">
+                <i class="fas fa-plus"></i> Nuevo conductor
+            </a>
+        </div>
+    </div>
+    <div class="card-body table-responsive p-0">
+        <table class="table table-hover text-nowrap">
+            <thead>
+                <tr>
+                    <th>RUT</th>
+                    <th>Nombre</th>
+                    <th>Teléfono</th>
+                    <th>Licencia</th>
+                    <th>Vencimiento</th>
+                    <th>Estado</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for c in conductores %}
+                <tr>
+                    <td>{{ c.rut }}</td>
+                    <td>{{ c.nombres }} {{ c.apellidos }}</td>
+                    <td>{{ c.telefono|default:"-" }}</td>
+                    <td>{{ c.licencia_clase|default:"-" }}</td>
+                    <td>{{ c.licencia_vencimiento|date:"d/m/Y"|default:"-" }}</td>
+                    <td>
+                        {% if c.activo %}
+                            <span class="badge badge-success">Activo</span>
+                        {% else %}
+                            <span class="badge badge-secondary">Inactivo</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-right">
+                        <a href="{% url 'taller_conductor_editar' c.pk %}" class="btn btn-sm btn-outline-secondary">
+                            <i class="fas fa-edit"></i>
+                        </a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="7" class="text-center">No hay conductores registrados.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

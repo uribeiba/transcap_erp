@@ -1,0 +1,70 @@
+{% extends "layout/base.html" %}
+
+{% block title %}{% if modo == "editar" %}Editar ruta{% else %}Nueva ruta{% endif %}{% endblock %}
+{% block page_title %}{% if modo == "editar" %}Editar ruta{% else %}Nueva ruta{% endif %}{% endblock %}
+
+{% block content %}
+<div class="card">
+  <div class="card-header">
+    <h3 class="card-title">
+      {% if modo == "editar" %}Editar ruta{% else %}Crear nueva ruta{% endif %}
+    </h3>
+  </div>
+  <form method="post">
+    {% csrf_token %}
+    <div class="card-body">
+      <div class="form-row">
+        <div class="form-group col-md-6">
+          <label for="{{ form.nombre.id_for_label }}">Nombre</label>
+          {{ form.nombre }}
+        </div>
+        <div class="form-group col-md-3">
+          <label for="{{ form.origen.id_for_label }}">Origen</label>
+          {{ form.origen }}
+        </div>
+        <div class="form-group col-md-3">
+          <label for="{{ form.destino.id_for_label }}">Destino</label>
+          {{ form.destino }}
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group col-md-3">
+          <label for="{{ form.distancia_km.id_for_label }}">Distancia estimada (km)</label>
+          {{ form.distancia_km }}
+        </div>
+        <div class="form-group col-md-3">
+          <label for="{{ form.duracion_estimada.id_for_label }}">Duración estimada</label>
+          {{ form.duracion_estimada }}
+          <small class="form-text text-muted">Formato HH:MM:SS</small>
+        </div>
+        <div class="form-group col-md-3">
+          <label for="{{ form.peajes_aprox.id_for_label }}">Peajes aprox. ($)</label>
+          {{ form.peajes_aprox }}
+        </div>
+        <div class="form-group col-md-3">
+          <div class="form-check mt-4">
+            {{ form.activo }}
+            <label class="form-check-label" for="{{ form.activo.id_for_label }}">
+              Ruta activa
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="{{ form.observaciones.id_for_label }}">Observaciones</label>
+        {{ form.observaciones }}
+      </div>
+    </div>
+    <div class="card-footer text-right">
+      <a href="{% url 'taller_rutas_viaje_lista' %}" class="btn btn-secondary">
+        Cancelar
+      </a>
+      <button type="submit" class="btn btn-primary">
+        Guardar
+      </button>
+    </div>
+  </form>
+</div>
+{% endblock %}

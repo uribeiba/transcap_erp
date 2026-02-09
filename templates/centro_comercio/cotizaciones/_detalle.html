@@ -1,0 +1,54 @@
+<div class="card">
+    <div class="card-body">
+      <h4 class="text-primary text-center mb-3">Cotización N°: {{ c.codigo }}</h4>
+  
+      <div class="row">
+        <div class="col-md-4"><strong>Razón Social:</strong> {{ c.cliente.razon_social }}</div>
+        <div class="col-md-4"><strong>Rut:</strong> {{ c.cliente.rut }}</div>
+        <div class="col-md-4"><strong>Giro:</strong> {{ c.cliente.giro }}</div>
+      </div>
+  
+      <div class="row mt-2">
+        <div class="col-md-4"><strong>Fecha:</strong> {{ c.fecha|date:"d-m-Y" }}</div>
+        <div class="col-md-4"><strong>Válido hasta:</strong> {{ c.vigencia_hasta|date:"d-m-Y" }}</div>
+        <div class="col-md-4"><strong>Estado:</strong> {{ c.get_estado_display }}</div>
+      </div>
+  
+      <hr>
+  
+      <table class="table table-sm">
+        <thead>
+          <tr>
+            <th>N°</th><th>Título</th><th>Unidad</th><th class="text-right">Valor</th><th class="text-right">Total</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for it in c.items.all %}
+            <tr>
+              <td>{{ forloop.counter }}</td>
+              <td>{{ it.titulo }}</td>
+              <td>{{ it.unidad }}</td>
+              <td class="text-right">$ {{ it.valor_unitario }}</td>
+              <td class="text-right">$ {{ it.total }}</td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="5" class="text-center"><em>Sin ítems</em></td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+  
+      <div class="text-right">
+        <div><strong>Neto:</strong> $ {{ c.total_items }}</div>
+        <div class="text-danger"><strong>Descuento:</strong> $ {{ c.descuento }}</div>
+        <div class="text-primary"><strong>Total a pagar:</strong> $ {{ c.total_neto }}</div>
+      </div>
+  
+      <hr>
+  
+      <div>
+        <strong>Términos y Condiciones:</strong>
+        <div class="border rounded p-2 mt-1">{{ c.terminos|default:"-" }}</div>
+      </div>
+    </div>
+  </div>
+  

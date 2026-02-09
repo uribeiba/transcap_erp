@@ -1,0 +1,67 @@
+{% extends "layout/base.html" %}
+
+{% block title %}Movimiento de Inventario{% endblock %}
+{% block page_title %}Movimiento de Inventario{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <h3 class="card-title">Registrar Movimiento</h3>
+    </div>
+
+    <div class="card-body">
+        <form method="post">
+            {% csrf_token %}
+            <div class="row">
+                <!-- Columna izquierda -->
+                <div class="col-md-4">
+                    <div class="form-group">
+                        {{ form.tipo.label_tag }}
+                        {{ form.tipo }}
+                    </div>
+                    <div class="form-group">
+                        {{ form.producto.label_tag }}
+                        {{ form.producto }}
+                    </div>
+                </div>
+
+                <!-- Columna centro -->
+                <div class="col-md-4">
+                    <div class="form-group">
+                        {{ form.bodega.label_tag }}
+                        {{ form.bodega }}
+                    </div>
+                    <div class="form-group">
+                        {{ form.cantidad.label_tag }}
+                        {{ form.cantidad }}
+                    </div>
+                </div>
+
+                <!-- Columna derecha -->
+                <div class="col-md-4">
+                    <div class="form-group">
+                        {{ form.costo_unitario.label_tag }}
+                        {{ form.costo_unitario }}
+                    </div>
+                    <div class="form-group">
+                        {{ form.referencia.label_tag }}
+                        {{ form.referencia }}
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-group">
+                {{ form.observacion.label_tag }}
+                {{ form.observacion }}
+            </div>
+
+            <button type="submit" class="btn btn-success">
+                <i class="fas fa-check"></i> Guardar Movimiento
+            </button>
+            <a href="{% url 'inventario:lista_movimientos' %}" class="btn btn-secondary">
+                Volver
+            </a>
+        </form>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,55 @@
+{% extends "parametros/modal_simple_form.html" %}
+
+{% block modal_title %}
+Nuevo Usuario
+{% endblock %}
+
+{% block form_content %}
+<form method="post">
+    {% csrf_token %}
+
+    <div class="row">
+        <div class="col-md-6">
+            {{ form.first_name.label_tag }}
+            {{ form.first_name }}
+        </div>
+        <div class="col-md-6">
+            {{ form.last_name.label_tag }}
+            {{ form.last_name }}
+        </div>
+    </div>
+
+    <div class="mt-2">
+        {{ form.email.label_tag }}
+        {{ form.email }}
+    </div>
+
+    <div class="row mt-2">
+        <div class="col-md-6">
+            {{ form.rol.label_tag }}
+            {{ form.rol }}
+        </div>
+        <div class="col-md-6">
+            {{ form.sucursal.label_tag }}
+            {{ form.sucursal }}
+        </div>
+    </div>
+
+    <div class="row mt-2">
+        <div class="col-md-6">
+            {{ form.password1.label_tag }}
+            {{ form.password1 }}
+        </div>
+        <div class="col-md-6">
+            {{ form.password2.label_tag }}
+            {{ form.password2 }}
+        </div>
+    </div>
+
+    <div class="mt-3 text-end">
+        <button type="submit" class="btn btn-success">
+            <i class="fas fa-save"></i> Crear usuario
+        </button>
+    </div>
+</form>
+{% endblock %}

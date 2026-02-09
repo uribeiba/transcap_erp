@@ -1,0 +1,33 @@
+{% extends "parametros/modal_simple_form.html" %}
+
+{% block modal_title %}Editar Empresa{% endblock %}
+
+{% block form_content %}
+<form method="post" action="{{ request.path }}">
+    {% csrf_token %}
+    {{ form.non_field_errors }}
+  
+    <div class="form-group">
+      <label>Razón Social</label>
+      {{ form.razon_social }}
+      {{ form.razon_social.errors }}
+    </div>
+  
+    <div class="form-group">
+      <label>RUT</label>
+      {{ form.rut }}
+      {{ form.rut.errors }}
+    </div>
+  
+    <div class="form-group">
+      <label>Dirección</label>
+      {{ form.direccion }}
+      {{ form.direccion.errors }}
+    </div>
+  
+    <button type="submit" class="btn btn-primary">
+      <i class="fas fa-save"></i> Guardar
+    </button>
+  </form>
+  
+{% endblock %}

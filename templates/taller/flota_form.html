@@ -1,0 +1,48 @@
+<div class="row">
+    <div class="col-md-6">
+      <div class="form-group">
+        <label for="{{ form.estado_equipo.id_for_label }}">Estado equipo</label>
+        {{ form.estado_equipo }}
+      </div>
+    </div>
+  </div>
+  
+  <div class="row">
+    <div class="col-md-6">
+      <div class="form-group">
+        <label for="{{ form.descripcion_equipo.id_for_label }}">Descripción equipo</label>
+        {{ form.descripcion_equipo }}
+        <small class="form-text text-muted">
+          Ej: Plataforma plana IT 163, equipo sin neumático, baranda Ecoplate, etc.
+        </small>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="form-group">
+        <label for="{{ form.it_codigo.id_for_label }}">IT / Código</label>
+        {{ form.it_codigo }}
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="form-group">
+        <label for="{{ form.familia_equipo.id_for_label }}">Familia</label>
+        {{ form.familia_equipo }}
+      </div>
+    </div>
+  </div>
+  
+  <div class="row">
+    <div class="col-md-3">
+      <div class="form-group">
+        <label for="{{ form.anio_comercial.id_for_label }}">Año comercial</label>
+        {{ form.anio_comercial }}
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="form-group">
+        <label for="{{ form.precio_neto.id_for_label }}">Precio neto</label>
+        {{ form.precio_neto }}
+      </div>
+    </div>
+  </div>
+  

@@ -1,0 +1,287 @@
+{% extends "layout/base.html" %}
+{% load humanize %}
+
+{% block title %}Reporte Conductor {{ conductor.rut }}{% endblock %}
+{% block page_title %}Reporte Conductor — {{ conductor.apellidos }} {{ conductor.nombres }}{% endblock %}
+
+{% block content %}
+<div class="row">
+  <div class="col-md-12 mb-3">
+    <div class="card">
+      <div class="card-body d-flex justify-content-between align-items-center">
+        <div>
+          <h5 class="mb-1">{{ conductor.apellidos }} {{ conductor.nombres }}</h5>
+          {% if conductor.rut %}
+          <div class="text-muted">RUT: <strong>{{ conductor.rut }}</strong></div>
+          {% endif %}
+        </div>
+        <div>
+          <a href="{% url 'taller_reporte_conductor_selector' %}" class="btn btn-outline-secondary btn-sm">
+            <i class="fas fa-chevron-left"></i> Elegir otro conductor
+          </a>
+          <a href="{% url 'taller_reporte_conductor_pdf' conductor.id %}" target="_blank"
+             class="btn btn-outline-primary btn-sm">
+            <i class="fas fa-file-pdf"></i> PDF
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== KPIs DOCUMENTOS ===================== -->
+<div class="row">
+  <div class="col-md-4 mb-3">
+    <div class="card bg-light">
+      <div class="card-body">
+        <div class="text-muted">Documentos vencidos</div>
+        <div class="h3 mb-0 text-danger">{{ vencidos }}</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-4 mb-3">
+    <div class="card bg-light">
+      <div class="card-body">
+        <div class="text-muted">Por vencer ≤30 días</div>
+        <div class="h3 mb-0 text-warning">{{ por_vencer }}</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-4 mb-3">
+    <div class="card bg-light">
+      <div class="card-body">
+        <div class="text-muted">Vigentes &gt;30 días</div>
+        <div class="h3 mb-0 text-success">{{ vigentes }}</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- KPIs adicionales documentos -->
+<div class="row">
+  <!-- Total de documentos -->
+  <div class="col-md-4 mb-3">
+    <div class="card bg-white border">
+      <div class="card-body">
+        <div class="text-muted">Total de documentos</div>
+        <div class="h3 mb-0">{{ total_docs }}</div>
+        <small class="text-muted">Todos los tipos registrados para este conductor.</small>
+      </div>
+    </div>
+  </div>
+
+  <!-- % Vigentes -->
+  <div class="col-md-4 mb-3">
+    <div class="card bg-white border">
+      <div class="card-body">
+        <div class="d-flex justify-content-between">
+          <span class="text-muted">% documentos vigentes</span>
+          <strong>{{ porc_vigentes }}%</strong>
+        </div>
+        <div class="progress mt-2" style="height: 8px;">
+          <div class="progress-bar bg-success"
+               role="progressbar"
+               style="width: {{ porc_vigentes }}%;"
+               aria-valuenow="{{ porc_vigentes }}"
+               aria-valuemin="0"
+               aria-valuemax="100">
+          </div>
+        </div>
+        <small class="text-muted d-block mt-1">
+          Calculado sobre el total de documentos.
+        </small>
+      </div>
+    </div>
+  </div>
+
+  <!-- Documento más crítico -->
+  <div class="col-md-4 mb-3">
+    <div class="card bg-white border">
+      <div class="card-body">
+        <div class="text-muted">Documento más crítico</div>
+        {% if doc_critico %}
+          <div class="font-weight-bold">
+            {{ doc_critico.get_tipo_display|default:doc_critico.tipo }}
+          </div>
+          <div class="small">
+            Vence:
+            {% if doc_critico.fecha_vencimiento %}
+              {{ doc_critico.fecha_vencimiento|date:"d/m/Y" }}
+            {% else %}
+              —
+            {% endif %}
+          </div>
+          {% if dias_doc_critico is not None %}
+            <div class="small mt-1">
+              {% if dias_doc_critico < 0 %}
+              <span class="text-danger">Vencido hace {{ dias_doc_critico }} día(s)</span>
+              {% elif dias_doc_critico == 0 %}
+                <span class="text-warning">Vence hoy</span>
+              {% else %}
+                <span class="text-warning">Vence en {{ dias_doc_critico }} día(s)</span>
+              {% endif %}
+            </div>
+          {% endif %}
+        {% else %}
+          <div class="small"><em>No hay documentos con fecha de vencimiento.</em></div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== KPIs MULTAS ===================== -->
+<div class="row">
+  <!-- Total multas histórico -->
+  <div class="col-md-4 mb-3">
+    <div class="card border-left border-danger">
+      <div class="card-body">
+        <div class="text-muted">Multas históricas</div>
+        <div class="h4 mb-0">
+          {{ total_multas }} multa(s)
+        </div>
+        <div class="small text-muted">
+          Monto total: ${{ total_monto_multas|floatformat:0|intcomma }}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Multas año actual -->
+  <div class="col-md-4 mb-3">
+    <div class="card border-left border-warning">
+      <div class="card-body">
+        <div class="text-muted">Multas año actual</div>
+        <div class="h4 mb-0">
+          {{ multas_ano_actual }} multa(s)
+        </div>
+        <div class="small text-muted">
+          Monto año: ${{ monto_ano_actual|floatformat:0|intcomma }}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Multas pendientes -->
+  <div class="col-md-4 mb-3">
+    <div class="card border-left border-danger">
+      <div class="card-body">
+        <div class="text-muted">Multas pendientes (no pagadas)</div>
+        <div class="h4 mb-0 text-danger">
+          {{ multas_pendientes }} multa(s)
+        </div>
+        <div class="small text-muted">
+          {{ monto_pendiente|floatformat:0|intcomma }}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Últimas multas -->
+<div class="row">
+  <div class="col-md-12 mb-3">
+    <div class="card">
+      <div class="card-header">
+        <h3 class="card-title">Últimas multas del conductor</h3>
+      </div>
+      <div class="card-body table-responsive p-0">
+        <table class="table table-hover table-sm">
+          <thead>
+            <tr>
+              <th>Fecha</th>
+              <th>Motivo / Tipo</th>
+              <th>Monto</th>
+              <th>Estado</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for m in ultimas_multas %}
+              <tr>
+                <td>
+                  {% if m.fecha %}{{ m.fecha|date:"d/m/Y" }}{% else %}—{% endif %}
+                </td>
+                <td>
+                  <strong>
+                    {% if m.get_tipo_display %}
+                      {{ m.get_tipo_display }}
+                    {% else %}
+                      {{ m.tipo|default:"Multa" }}
+                    {% endif %}
+                  </strong>
+                  <br>
+                  <small class="text-muted">
+                    {{ m.motivo|default:m.descripcion|default:"—" }}
+                  </small>
+                </td>
+                <td>${{ m.monto|floatformat:0|intcomma }}</td>
+                <td>
+                  {% if m.pagada %}
+                    <span class="badge badge-success">Pagada</span>
+                  {% else %}
+                    <span class="badge badge-danger">Pendiente</span>
+                  {% endif %}
+                </td>
+              </tr>
+            {% empty %}
+              <tr>
+                <td colspan="4"><em>Este conductor no registra multas.</em></td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== TABLA DOCUMENTOS ===================== -->
+<div class="row">
+  <div class="col-md-12">
+    <div class="card">
+      <div class="card-header">
+        <h3 class="card-title">Detalle de documentos</h3>
+        <div class="card-tools small text-muted">
+          Rango “por vencer”: hasta {{ limite|date:"d/m/Y" }}
+        </div>
+      </div>
+      <div class="card-body table-responsive p-0">
+        <table class="table table-hover table-sm">
+          <thead>
+            <tr>
+              <th>Tipo</th>
+              <th>Descripción</th>
+              <th>Emisión</th>
+              <th>Vencimiento</th>
+              <th>Estado</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for d in docs %}
+              <tr>
+                <td>{{ d.get_tipo_display|default:d.tipo }}</td>
+                <td>{{ d.descripcion|default:"—" }}</td>
+                <td>{% if d.fecha_emision %}{{ d.fecha_emision|date:"d/m/Y" }}{% else %}—{% endif %}</td>
+                <td>{% if d.fecha_vencimiento %}{{ d.fecha_vencimiento|date:"d/m/Y" }}{% else %}—{% endif %}</td>
+                <td>
+                  {% if d.fecha_vencimiento and d.fecha_vencimiento < hoy %}
+                    <span class="badge badge-danger">Vencido</span>
+                  {% elif d.fecha_vencimiento and d.fecha_vencimiento <= limite %}
+                    <span class="badge badge-warning">Por vencer</span>
+                  {% else %}
+                    <span class="badge badge-success">Vigente</span>
+                  {% endif %}
+                </td>
+              </tr>
+            {% empty %}
+              <tr>
+                <td colspan="5"><em>Este conductor no tiene documentos registrados.</em></td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

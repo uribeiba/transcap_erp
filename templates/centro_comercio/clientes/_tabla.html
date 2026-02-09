@@ -1,0 +1,82 @@
+{% csrf_token %}
+<table class="table table-hover table-sm mb-0">
+  <thead class="thead-light">
+    <tr>
+      <th style="width: 70px;">N°</th>
+      <th>Razón Social</th>
+      <th style="width: 140px;">RUT</th>
+      <th>Giro</th>
+      <th style="width: 140px;">Teléfono</th>
+      <th style="width: 200px;">E-Mail</th>
+      <th style="width: 100px;" class="text-center">Estado</th>
+      <th style="width: 120px;" class="text-center">Acciones</th>
+    </tr>
+  </thead>
+
+  <tbody>
+    {% for c in clientes %}
+      <tr data-id="{{ c.id }}">
+        <td>{{ forloop.counter }}</td>
+        <td>
+          <strong>{{ c.razon_social }}</strong>
+          {% if c.localidad %}
+            <br><small class="text-muted">{{ c.localidad }}</small>
+          {% endif %}
+        </td>
+        <td><code>{{ c.rut }}</code></td>
+        <td>
+          {% if c.giro %}
+            <small>{{ c.giro|truncatechars:40 }}</small>
+          {% else %}
+            <span class="text-muted">-</span>
+          {% endif %}
+        </td>
+        <td>{{ c.telefono|default:"-" }}</td>
+        <td>
+          {% if c.email %}
+            <a href="mailto:{{ c.email }}" class="text-primary">
+              {{ c.email|truncatechars:25 }}
+            </a>
+          {% else %}
+            <span class="text-muted">-</span>
+          {% endif %}
+        </td>
+        <td class="text-center">
+          {% if c.activo %}
+            <span class="badge badge-success">Activo</span>
+          {% else %}
+            <span class="badge badge-secondary">Inactivo</span>
+          {% endif %}
+        </td>
+        <td class="text-center">
+          <button type="button" class="btn btn-link p-0 btn-ver" title="Ver detalle">
+            <i class="far fa-eye text-primary"></i>
+          </button>
+          
+          <button type="button" class="btn btn-link p-0 ml-2" 
+                  data-action="editar" 
+                  data-id="{{ c.id }}"
+                  title="Editar">
+            <i class="fas fa-edit text-info"></i>
+          </button>
+          
+          <button type="button" class="btn btn-link p-0 ml-2" 
+                  data-action="eliminar" 
+                  data-id="{{ c.id }}"
+                  title="Eliminar">
+            <i class="fas fa-trash-alt text-danger"></i>
+          </button>
+        </td>
+      </tr>
+    {% empty %}
+      <tr>
+        <td colspan="8" class="text-center py-4">
+          <div class="text-muted">
+            <i class="fas fa-users fa-2x mb-2"></i><br>
+            <em>No hay clientes registrados.</em>
+          </div>
+        </td>
+      </tr>
+    {% endfor %}
+  </tbody>
+</table>

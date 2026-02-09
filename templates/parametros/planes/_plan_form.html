@@ -1,0 +1,47 @@
+<h4 class="mb-3">{{ accion }} Plan</h4>
+
+<form method="post" action="">
+  {% csrf_token %}
+
+  <div class="form-group">
+    <label>Nombre</label>
+    {{ form.nombre }}
+    {% for e in form.nombre.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+  </div>
+
+  <div class="form-row">
+    <div class="form-group col-md-4">
+      <label>Max usuarios</label>
+      {{ form.max_usuarios }}
+      {% for e in form.max_usuarios.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+    </div>
+    <div class="form-group col-md-4">
+      <label>Precio mensual</label>
+      {{ form.precio_mensual }}
+      {% for e in form.precio_mensual.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+    </div>
+    <div class="form-group col-md-4">
+      <label>Orden</label>
+      {{ form.orden }}
+      {% for e in form.orden.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+    </div>
+  </div>
+
+  <div class="form-group">
+    <label>Descripción</label>
+    {{ form.descripcion }}
+  </div>
+
+  <div class="form-group">
+    <div class="custom-control custom-switch">
+      {{ form.activo }}
+      <label class="custom-control-label" for="{{ form.activo.id_for_label }}">Activo</label>
+    </div>
+  </div>
+
+  <div class="d-flex justify-content-end">
+    <button class="btn btn-primary" type="submit">
+      <i class="fas fa-save"></i> Guardar
+    </button>
+  </div>
+</form>

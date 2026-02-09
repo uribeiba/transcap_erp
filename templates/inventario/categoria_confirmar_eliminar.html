@@ -1,0 +1,30 @@
+{% extends "layout/base.html" %}
+
+{% block title %}Eliminar categoría{% endblock %}
+{% block page_title %}Eliminar categoría{% endblock %}
+
+{% block content %}
+<div class="card card-danger">
+    <div class="card-header">
+        <h3 class="card-title">Confirmar eliminación</h3>
+    </div>
+    <div class="card-body">
+        <p>
+            ¿Seguro que deseas eliminar la categoría
+            <strong>{{ categoria.nombre }}</strong>?
+        </p>
+        <p class="text-muted">
+            Si hay productos asociados, es mejor cambiar su categoría antes de eliminarla.
+        </p>
+        <form method="post">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-danger">
+                <i class="fas fa-trash-alt"></i> Eliminar
+            </button>
+            <a href="{% url 'inventario:lista_categorias' %}" class="btn btn-secondary">
+                Cancelar
+            </a>
+        </form>
+    </div>
+</div>
+{% endblock %}

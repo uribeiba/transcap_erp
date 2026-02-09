@@ -1,0 +1,49 @@
+{% extends "layout/base.html" %}
+{% block title %}{% if modo == 'crear' %}Nuevo Plan{% else %}Editar Plan{% endif %}{% endblock %}
+{% block page_title %}{% if modo == 'crear' %}Nuevo Plan{% else %}Editar Plan{% endif %}{% endblock %}
+
+{% block content %}
+<div class="card card-outline shadow-sm">
+  <div class="card-header d-flex align-items-center justify-content-between">
+    <h3 class="card-title font-weight-bold mb-0">
+      {% if modo == 'crear' %}<i class="fas fa-plus mr-1"></i> Crear Plan{% else %}<i class="fas fa-pen mr-1"></i> Editar Plan{% endif %}
+    </h3>
+    <a href="{% url 'suscripciones:planes_list' %}" class="btn btn-outline-secondary btn-sm">
+      <i class="fas fa-arrow-left"></i> Volver
+    </a>
+  </div>
+
+  <form method="post">
+    {% csrf_token %}
+    <div class="card-body">
+      <div class="row">
+        <div class="col-md-6">{{ form.nombre.label_tag }} {{ form.nombre }}</div>
+        <div class="col-md-3">{{ form.orden.label_tag }} {{ form.orden }}</div>
+        <div class="col-md-3">{{ form.activo.label_tag }} {{ form.activo }}</div>
+      </div>
+
+      <div class="row mt-2">
+        <div class="col-md-3">{{ form.max_usuarios.label_tag }} {{ form.max_usuarios }}</div>
+        <div class="col-md-3">{{ form.precio_mensual.label_tag }} {{ form.precio_mensual }}</div>
+      </div>
+
+      <div class="mt-2">
+        {{ form.descripcion.label_tag }}
+        {{ form.descripcion }}
+      </div>
+
+      {% if form.errors %}
+      <div class="alert alert-danger mt-3 mb-0">
+        Revisa el formulario.
+      </div>
+      {% endif %}
+    </div>
+
+    <div class="card-footer">
+      <button class="btn btn-primary" type="submit">
+        <i class="fas fa-save"></i> Guardar
+      </button>
+    </div>
+  </form>
+</div>
+{% endblock %}

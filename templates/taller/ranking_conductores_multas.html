@@ -1,0 +1,88 @@
+{% extends "layout/base.html" %}
+{% load humanize %}
+
+{% block title %}Ranking Multas por Conductor{% endblock %}
+{% block page_title %}Ranking de Multas — Conductores{% endblock %}
+
+{% block content %}
+
+<div class="row mb-3">
+    <div class="col-12">
+        <div class="card card-outline card-danger">
+            <div class="card-body">
+                <h4 class="mb-0">
+                    <i class="fas fa-exclamation-triangle text-danger"></i>
+                    Conductores con más multas
+                </h4>
+                <p class="text-muted mb-0">Ordenado por monto total → cantidad de multas.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header"><h3 class="card-title">Ranking General</h3></div>
+            <div class="card-body table-responsive p-0">
+                <table class="table table-hover table-sm">
+                    <thead class="bg-dark text-white">
+                        <tr>
+                            <th>#</th>
+                            <th>Conductor</th>
+                            <th>Total multas</th>
+                            <th>Monto total</th>
+                            <th>Monto pendiente</th>
+                            <th>Última multa</th>
+                            <th>Reporte</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for c in ranking %}
+                        <tr>
+                            <td>{{ forloop.counter }}</td>
+                            <td>
+                                <strong>{{ c.apellidos }} {{ c.nombres }}</strong>
+                                {% if c.rut %}<br><small class="text-muted">{{ c.rut }}</small>{% endif %}
+                            </td>
+                            <td>{{ c.total_multas }}</td>
+                            <td>${{ c.monto_total|floatformat:0|intcomma }}</td>
+
+                            <td>
+                                {% if c.monto_pendiente > 0 %}
+                                    <span class="text-danger">
+                                        ${{ c.monto_pendiente|floatformat:0|intcomma }}
+                                    </span>
+                                {% else %}
+                                    <span class="text-success">$0</span>
+                                {% endif %}
+                            </td>
+
+                            <td>
+                                {% if c.ultima_multa %}
+                                {{ c.ultima_multa|date:"d/m/Y" }}
+                                {% else %}
+                                —
+                                {% endif %}
+                            </td>
+
+                            <td>
+                                <a href="{% url 'taller_reporte_conductor_pdf' c.id %}" class="btn btn-sm btn-outline-primary" target="_blank">
+                                    <i class="fas fa-file-pdf"></i>
+                                </a>
+                                <a href="{% url 'taller_reporte_conductor' c.id %}" class="btn btn-sm btn-outline-secondary">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="7" class="text-center">No hay conductores registrados.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

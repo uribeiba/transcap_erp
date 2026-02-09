@@ -1,0 +1,101 @@
+{% csrf_token %}
+<div class="card">
+  <div class="card-body">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <h5 class="mb-0">
+        <i class="fas fa-user-tie text-primary mr-2"></i>
+        {{ c.razon_social }}
+      </h5>
+      <span class="badge {% if c.activo %}badge-success{% else %}badge-secondary{% endif %}">
+        {{ c.activo|yesno:"Activo,Inactivo" }}
+      </span>
+    </div>
+
+    <div class="row">
+      <div class="col-md-6">
+        <div class="card border-0 bg-light mb-3">
+          <div class="card-body">
+            <h6 class="card-title text-muted mb-3">
+              <i class="fas fa-id-card mr-2"></i> Información Principal
+            </h6>
+            
+            <div class="form-group row mb-2">
+              <label class="col-sm-4 col-form-label font-weight-bold">RUT:</label>
+              <div class="col-sm-8">
+                <input type="text" class="form-control-plaintext" value="{{ c.rut }}" readonly>
+              </div>
+            </div>
+            
+            <div class="form-group row mb-2">
+              <label class="col-sm-4 col-form-label font-weight-bold">Giro:</label>
+              <div class="col-sm-8">
+                <input type="text" class="form-control-plaintext" value="{{ c.giro|default:'-' }}" readonly>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <div class="col-md-6">
+        <div class="card border-0 bg-light mb-3">
+          <div class="card-body">
+            <h6 class="card-title text-muted mb-3">
+              <i class="fas fa-address-book mr-2"></i> Contacto
+            </h6>
+            
+            <div class="form-group row mb-2">
+              <label class="col-sm-4 col-form-label font-weight-bold">Teléfono:</label>
+              <div class="col-sm-8">
+                <input type="text" class="form-control-plaintext" value="{{ c.telefono|default:'-' }}" readonly>
+              </div>
+            </div>
+            
+            <div class="form-group row mb-2">
+              <label class="col-sm-4 col-form-label font-weight-bold">E-Mail:</label>
+              <div class="col-sm-8">
+                <input type="text" class="form-control-plaintext" value="{{ c.email|default:'-' }}" readonly>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card border-0 bg-light mb-3">
+      <div class="card-body">
+        <h6 class="card-title text-muted mb-3">
+          <i class="fas fa-map-marker-alt mr-2"></i> Dirección
+        </h6>
+        
+        <div class="form-group row mb-2">
+          <label class="col-sm-3 col-form-label font-weight-bold">Dirección:</label>
+          <div class="col-sm-9">
+            <input type="text" class="form-control-plaintext" value="{{ c.direccion|default:'-' }}" readonly>
+          </div>
+        </div>
+        
+        <div class="form-group row mb-0">
+          <label class="col-sm-3 col-form-label font-weight-bold">Localidad:</label>
+          <div class="col-sm-9">
+            <input type="text" class="form-control-plaintext" value="{{ c.localidad|default:'-' }}" readonly>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="d-flex justify-content-between">
+      <button class="btn btn-secondary" data-action="volver">
+        <i class="fas fa-arrow-left mr-1"></i> Volver
+      </button>
+      
+      <div>
+        <button class="btn btn-info" data-action="editar" data-id="{{ c.id }}">
+          <i class="fas fa-edit mr-1"></i> Editar
+        </button>
+        <button class="btn btn-danger ml-2" data-action="eliminar" data-id="{{ c.id }}">
+          <i class="fas fa-trash-alt mr-1"></i> Eliminar
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

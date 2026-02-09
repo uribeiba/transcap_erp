@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Reporte Vehículo {{ vehiculo.patente }}</title>
+  <style>
+    body { font-family: DejaVu Sans, Arial, sans-serif; font-size: 11px; }
+    h1, h2, h3, h4 { margin: 4px 0; }
+    .header { border-bottom: 1px solid #333; padding-bottom: 6px; margin-bottom: 10px; }
+    .logo { font-size: 16px; font-weight: bold; }
+    .small { font-size: 9px; color: #555; }
+    table { width: 100%; border-collapse: collapse; margin-top: 6px; }
+    th, td { border: 1px solid #999; padding: 3px 4px; }
+    th { background: #eee; }
+    .kpi-table td { border: none; }
+    .kpi-title { color: #555; font-size: 10px; }
+    .kpi-value { font-size: 14px; font-weight: bold; }
+  </style>
+</head>
+<body>
+
+  <!-- Encabezado -->
+  <div class="header">
+    <table class="kpi-table">
+      <tr>
+        <td>
+          <div class="logo">Transcap ERP</div>
+          <div class="small">Reporte de Vehículo</div>
+        </td>
+        <td align="right">
+          <div class="small">Fecha emisión: {{ hoy|date:"d/m/Y" }}</div>
+        </td>
+      </tr>
+    </table>
+  </div>
+
+  <!-- Datos del vehículo -->
+  <h3>Vehículo</h3>
+  <table>
+    <tr>
+      <th style="width: 25%;">Patente</th>
+      <td>{{ vehiculo.patente }}</td>
+      <th style="width: 25%;">Marca / Modelo</th>
+      <td>{{ vehiculo.marca }} {{ vehiculo.modelo }}</td>
+    </tr>
+    <tr>
+      <th>Año</th>
+      <td>{{ vehiculo.anio|default:"-" }}</td>
+      <th>Estado</th>
+      <td>{{ vehiculo.get_estado_display|default:"-" }}</td>
+    </tr>
+  </table>
+
+  <!-- KPIs -->
+  <h3>Resumen de Mantenimiento</h3>
+  <table class="kpi-table">
+    <tr>
+      <td>
+        <div class="kpi-title">Costo mantenciones últimos 12 meses</div>
+        <div class="kpi-value">${{ total_12m|floatformat:0 }}</div>
+      </td>
+      <td>
+        <div class="kpi-title">Total mantenciones registradas</div>
+        <div class="kpi-value">{{ total_mantenimientos }}</div>
+      </td>
+      <td>
+        <div class="kpi-title">Documentos vencidos / por vencer / vigentes</div>
+        <div class="kpi-value">
+          {{ docs.vencidos }} / {{ docs.por_vencer }} / {{ docs.vigentes }}
+        </div>
+      </td>
+    </tr>
+  </table>
+
+  <!-- Últimos mantenimientos -->
+  <h3>Últimos mantenimientos</h3>
+  <table>
+    <thead>
+      <tr>
+        <th style="width: 15%;">Fecha prog.</th>
+        <th style="width: 15%;">Fecha real</th>
+        <th style="width: 15%;">Tipo</th>
+        <th>Descripción</th>
+        <th style="width: 15%;">Costo total</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for m in ultimos_mantenimientos %}
+      <tr>
+        <td>{{ m.fecha_programada|date:"d/m/Y"|default:"-" }}</td>
+        <td>{{ m.fecha_real|date:"d/m/Y"|default:"-" }}</td>
+        <td>{{ m.get_tipo_display|default:m.tipo }}</td>
+        <td>{{ m.descripcion|default:"-" }}</td>
+        <td>${{ m.costo_total|floatformat:0 }}</td>
+      </tr>
+      {% empty %}
+      <tr>
+        <td colspan="5" align="center">No hay mantenimientos registrados.</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <!-- Documentos -->
+  <h3>Documentos del vehículo</h3>
+  <table>
+    <thead>
+      <tr>
+        <th style="width: 20%;">Tipo</th>
+        <th style="width: 15%;">Emisión</th>
+        <th style="width: 15%;">Vencimiento</th>
+        <th>Estado</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for d in docs_lista %}
+      <tr>
+        <td>{{ d.get_tipo_display }}</td>
+        <td>{{ d.fecha_emision|date:"d/m/Y"|default:"-" }}</td>
+        <td>{{ d.fecha_vencimiento|date:"d/m/Y"|default:"-" }}</td>
+        <td>
+          {% if d.fecha_vencimiento and d.fecha_vencimiento < hoy %}
+            Vencido
+          {% elif d.fecha_vencimiento and d.fecha_vencimiento <= docs.limite %}
+            Por vencer
+          {% else %}
+            Vigente
+          {% endif %}
+        </td>
+      </tr>
+      {% empty %}
+      <tr>
+        <td colspan="4" align="center">No hay documentos registrados.</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+</body>
+</html>

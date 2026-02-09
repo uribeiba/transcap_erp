@@ -1,0 +1,351 @@
+from datetime import timedelta
+
+from django.contrib import messages
+from django.contrib.auth.decorators import login_required
+from django.db import models
+from django.db.models import Sum
+from django.shortcuts import get_object_or_404, redirect, render
+from django.utils import timezone
+
+from .forms import ProductoForm, MovimientoInventarioForm, FiltroProductoForm
+from .forms_categoria import CategoriaProductoForm
+from .models import (
+    Producto,
+    MovimientoInventario,
+    CategoriaProducto,
+    TipoMovimiento,
+    
+)
+
+
+@login_required
+def dashboard_inventario(request):
+    """
+    Panel resumen de inventario con:
+    - totales de productos
+    - productos sin stock
+    - productos bajo mínimo
+    - movimientos hoy / últimos 7 días
+    - top productos con más movimiento
+    - datos para gráfico (cantidad movida últimos 7 días)
+    """
+    hoy = timezone.localdate()
+    hace_7_dias = hoy - timedelta(days=7)
+
+    # Productos activos
+    productos_activos_qs = Producto.objects.filter(activo=True).select_related(
+        "categoria"
+    )
+    productos_activos = productos_activos_qs.count()
+    total_productos = Producto.objects.count()
+
+    # Cálculos de stock por producto
+    productos_sin_stock = 0
+    productos_bajo_minimo_lista = []
+
+    for p in productos_activos_qs:
+        stock = p.stock_actual()
+        if stock <= 0:
+            productos_sin_stock += 1
+        elif stock < p.stock_minimo:
+            productos_bajo_minimo_lista.append((p, stock))
+
+    productos_bajo_minimo = len(productos_bajo_minimo_lista)
+
+    # Movimientos
+    movimientos_hoy = MovimientoInventario.objects.filter(
+        fecha__date=hoy
+    ).count()
+
+    movimientos_ultimos_7 = MovimientoInventario.objects.filter(
+        fecha__date__gte=hace_7_dias
+    ).count()
+
+    # Gráfico: cantidad total movida por día (últimos 7 días)
+    dias = [hoy - timedelta(days=i) for i in range(6, -1, -1)]
+    chart_labels = [d.strftime("%d-%m") for d in dias]
+    chart_movimientos = []
+
+    base_qs = MovimientoInventario.objects.all()
+
+    for d in dias:
+        total_dia = base_qs.filter(fecha__date=d).aggregate(
+            total=Sum("cantidad")
+        )["total"] or 0
+        chart_movimientos.append(float(total_dia))
+
+    # Top productos con más movimiento
+    top_movimientos = (
+        MovimientoInventario.objects.values(
+            "producto__codigo", "producto__nombre"
+        )
+        .annotate(total_mov=Sum("cantidad"))
+        .order_by("-total_mov")[:5]
+    )
+
+    context = {
+        "total_productos": total_productos,
+        "productos_activos": productos_activos,
+        "productos_sin_stock": productos_sin_stock,
+        "productos_bajo_minimo": productos_bajo_minimo,
+        "movimientos_hoy": movimientos_hoy,
+        "movimientos_ultimos_7": movimientos_ultimos_7,
+        "top_movimientos": top_movimientos,
+        "productos_bajo_minimo_lista": productos_bajo_minimo_lista,
+        "chart_labels": chart_labels,
+        "chart_movimientos": chart_movimientos,
+    }
+    return render(request, "inventario/dashboard.html", context)
+
+
+@login_required
+def lista_productos(request):
+    """
+    Listado de productos con filtro.
+    El stock se calcula en el template usando producto.stock_actual().
+    """
+    productos = Producto.objects.all().select_related("categoria")
+    filtro_form = FiltroProductoForm(request.GET or None)
+
+    if filtro_form.is_valid():
+        buscar = filtro_form.cleaned_data.get("buscar")
+        categoria = filtro_form.cleaned_data.get("categoria")
+
+        if buscar:
+            productos = productos.filter(
+                models.Q(codigo__icontains=buscar)
+                | models.Q(nombre__icontains=buscar)
+            )
+        if categoria:
+            productos = productos.filter(categoria=categoria)
+
+    context = {
+        "productos": productos,
+        "filtro_form": filtro_form,
+    }
+    return render(request, "inventario/lista_productos.html", context)
+
+
+@login_required
+def crear_producto(request):
+    if request.method == "POST":
+        form = ProductoForm(request.POST)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "Producto creado correctamente.")
+            return redirect("inventario:lista_productos")
+    else:
+        form = ProductoForm()
+
+    context = {
+        "form": form,
+        "producto": None,
+    }
+    return render(request, "inventario/producto_form.html", context)
+
+
+@login_required
+def editar_producto(request, pk):
+    producto = get_object_or_404(Producto, pk=pk)
+    if request.method == "POST":
+        form = ProductoForm(request.POST, instance=producto)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "Producto actualizado correctamente.")
+            return redirect("inventario:lista_productos")
+    else:
+        form = ProductoForm(instance=producto)
+
+    context = {
+        "form": form,
+        "producto": producto,
+    }
+    return render(request, "inventario/producto_form.html", context)
+
+
+@login_required
+def lista_movimientos(request):
+    movimientos = MovimientoInventario.objects.select_related(
+        "producto", "bodega", "usuario_registro"
+    ).all()
+
+    producto_id = request.GET.get("producto")
+    tipo = request.GET.get("tipo")
+
+    if producto_id:
+        movimientos = movimientos.filter(producto_id=producto_id)
+    if tipo:
+        movimientos = movimientos.filter(tipo=tipo)
+
+    context = {
+        "movimientos": movimientos,
+    }
+    return render(request, "inventario/lista_movimientos.html", context)
+
+
+@login_required
+def registrar_movimiento(request):
+    if request.method == "POST":
+        form = MovimientoInventarioForm(request.POST)
+        if form.is_valid():
+            movimiento = form.save(commit=False)
+            movimiento.usuario_registro = request.user
+            movimiento.save()
+            messages.success(
+                request,
+                "Movimiento registrado y stock actualizado.",
+            )
+            return redirect("inventario:lista_movimientos")
+    else:
+        form = MovimientoInventarioForm()
+
+    context = {
+        "form": form,
+    }
+    return render(request, "inventario/movimiento_form.html", context)
+
+
+# ==============================
+#  CRUD de Categorías de Producto
+# ==============================
+
+@login_required
+def lista_categorias(request):
+    categorias = CategoriaProducto.objects.all().order_by("nombre")
+    context = {
+        "categorias": categorias,
+    }
+    return render(request, "inventario/categorias_lista.html", context)
+
+
+@login_required
+def crear_categoria(request):
+    if request.method == "POST":
+        form = CategoriaProductoForm(request.POST)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "Categoría creada correctamente.")
+            return redirect("inventario:lista_categorias")
+    else:
+        form = CategoriaProductoForm()
+
+    context = {
+        "form": form,
+        "categoria": None,
+    }
+    return render(request, "inventario/categoria_form.html", context)
+
+
+@login_required
+def editar_categoria(request, pk):
+    categoria = get_object_or_404(CategoriaProducto, pk=pk)
+    if request.method == "POST":
+        form = CategoriaProductoForm(request.POST, instance=categoria)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "Categoría actualizada correctamente.")
+            return redirect("inventario:lista_categorias")
+    else:
+        form = CategoriaProductoForm(instance=categoria)
+
+    context = {
+        "form": form,
+        "categoria": categoria,
+    }
+    return render(request, "inventario/categoria_form.html", context)
+
+
+@login_required
+def eliminar_categoria(request, pk):
+    categoria = get_object_or_404(CategoriaProducto, pk=pk)
+    if request.method == "POST":
+        categoria.delete()
+        messages.success(request, "Categoría eliminada correctamente.")
+        return redirect("inventario:lista_categorias")
+
+    context = {
+        "categoria": categoria,
+    }
+    return render(
+        request,
+        "inventario/categoria_confirmar_eliminar.html",
+        context,
+    )
+
+
+# ==============================
+#  KARDEX POR PRODUCTO
+# ==============================
+
+def _build_kardex_rows(producto, fecha_desde=None, fecha_hasta=None):
+    """
+    Helper interno: arma queryset y lista con saldo acumulado.
+    Lo usamos en la vista normal y en la vista de impresión.
+    """
+    movimientos_qs = MovimientoInventario.objects.filter(
+        producto=producto
+    ).select_related("bodega", "usuario_registro")
+
+    if fecha_desde:
+        movimientos_qs = movimientos_qs.filter(fecha__date__gte=fecha_desde)
+    if fecha_hasta:
+        movimientos_qs = movimientos_qs.filter(fecha__date__lte=fecha_hasta)
+
+    movimientos_qs = movimientos_qs.order_by("fecha", "pk")
+
+    saldo = 0
+    kardex_rows = []
+    for mov in movimientos_qs:
+        if mov.tipo == TipoMovimiento.INGRESO:
+            saldo += mov.cantidad
+        elif mov.tipo == TipoMovimiento.SALIDA:
+            saldo -= mov.cantidad
+        elif mov.tipo == TipoMovimiento.AJUSTE:
+            saldo = mov.cantidad
+
+        kardex_rows.append({"mov": mov, "saldo": saldo})
+
+    return kardex_rows
+
+
+@login_required
+def kardex_producto(request, pk):
+    """
+    Historial de movimientos (kardex) para un producto.
+    Permite filtrar por rango de fechas.
+    Calcula saldo acumulado en cada fila.
+    """
+    producto = get_object_or_404(Producto, pk=pk)
+    fecha_desde = request.GET.get("desde") or None
+    fecha_hasta = request.GET.get("hasta") or None
+
+    kardex_rows = _build_kardex_rows(producto, fecha_desde, fecha_hasta)
+
+    context = {
+        "producto": producto,
+        "kardex_rows": kardex_rows,
+        "fecha_desde": fecha_desde or "",
+        "fecha_hasta": fecha_hasta or "",
+    }
+    return render(request, "inventario/kardex_producto.html", context)
+
+
+@login_required
+def kardex_producto_print(request, pk):
+    """
+    Vista amigable para impresión / PDF del kardex.
+    Usa el mismo cálculo de filas que la vista normal.
+    """
+    producto = get_object_or_404(Producto, pk=pk)
+    fecha_desde = request.GET.get("desde") or None
+    fecha_hasta = request.GET.get("hasta") or None
+
+    kardex_rows = _build_kardex_rows(producto, fecha_desde, fecha_hasta)
+
+    context = {
+        "producto": producto,
+        "kardex_rows": kardex_rows,
+        "fecha_desde": fecha_desde or "",
+        "fecha_hasta": fecha_hasta or "",
+    }
+    return render(request, "inventario/kardex_producto_print.html", context)

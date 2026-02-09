@@ -1,0 +1,24 @@
+{% extends "parametros/modal_simple_form.html" %}
+
+{% block modal_title %}
+  {% if modo == "editar" %}Editar Sucursal{% else %}Nueva Sucursal{% endif %}
+{% endblock %}
+
+{% block form_content %}
+<form method="post" novalidate>
+  {% csrf_token %}
+
+  <div class="form-group">
+    <label class="font-weight-bold">Nombre</label>
+    {{ form.nombre }}
+    {% if form.nombre.errors %}
+      <div class="text-danger mt-1">{{ form.nombre.errors|striptags }}</div>
+    {% endif %}
+    <small class="text-muted">Ej: matriz, Los Vilos, Santiago… (sin repetir)</small>
+  </div>
+
+  <button class="btn btn-primary btn-block">
+    Grabar <i class="far fa-save ml-1"></i>
+  </button>
+</form>
+{% endblock %}

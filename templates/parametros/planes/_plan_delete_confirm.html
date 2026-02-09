@@ -1,0 +1,14 @@
+<h4 class="mb-3">Eliminar Plan</h4>
+
+<div class="alert alert-warning">
+  ¿Seguro que deseas eliminar el plan <b>{{ plan.nombre }}</b>?
+</div>
+
+<form method="post" action="">
+  {% csrf_token %}
+  <div class="d-flex justify-content-end">
+    <button class="btn btn-danger" type="submit">
+      <i class="fas fa-trash"></i> Sí, eliminar
+    </button>
+  </div>
+</form>

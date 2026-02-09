@@ -1,0 +1,19 @@
+<div class="container-fluid p-0">
+  <h5 class="modal-title font-weight-bold text-success mb-3">
+    {% block modal_title %}Formulario{% endblock %}
+  </h5>
+  
+  {% if form.errors %}
+    <div class="alert alert-danger">
+      <strong>Errores:</strong>
+      {{ form.non_field_errors }}
+      {% for field in form %}
+        {% if field.errors %}
+          <div>{{ field.label }}: {{ field.errors|striptags }}</div>
+        {% endif %}
+      {% endfor %}
+    </div>
+  {% endif %}
+  
+  {% block form_content %}{% endblock %}
+</div>

@@ -1,0 +1,302 @@
+{% extends "layout/base.html" %}
+{% load static %}
+
+{% block title %}Centro de Comercio — Clientes{% endblock %}
+{% block page_title %}Clientes{% endblock %}
+
+{% block content %}
+<div class="card shadow-sm">
+  <div class="card-body p-3">
+    <div class="d-flex align-items-center justify-content-between">
+      <div class="d-flex align-items-center">
+        <i class="fas fa-users text-primary mr-2"></i>
+        <h5 class="mb-0 font-weight-bold">Clientes</h5>
+      </div>
+
+      <button id="btnNuevoCliente" class="btn btn-success">
+        <i class="fas fa-user-plus"></i> Nuevo Cliente
+      </button>
+    </div>
+
+    <hr class="my-3">
+
+    <!-- Filtros de búsqueda -->
+    <div class="form-row align-items-center">
+      <div class="col-auto mb-2">
+        <div class="input-group input-group-sm">
+          <div class="input-group-prepend">
+            <span class="input-group-text"><i class="fas fa-search"></i></span>
+          </div>
+          <input id="clientesSearch" type="text" class="form-control form-control-sm" placeholder="Buscar por RUT, razón social, giro..." style="min-width: 320px;">
+        </div>
+      </div>
+
+      <div class="col-auto mb-2">
+        <button id="btnFiltrar" class="btn btn-sm btn-secondary">
+          <i class="fas fa-filter"></i> Filtrar
+        </button>
+      </div>
+
+      <div class="col mb-2 text-right">
+        <small class="text-muted" id="lblEstadoCarga"></small>
+      </div>
+    </div>
+
+    <!-- Tabla dinámica de clientes -->
+    <div id="tablaWrap" class="mt-2">
+      <div class="text-center py-4 text-muted">
+        <i class="fas fa-spinner fa-spin mr-1"></i> Cargando clientes...
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal para formulario y detalles -->
+<div class="modal fade" id="clienteModal" tabindex="-1" role="dialog" aria-hidden="true">
+  <div class="modal-dialog modal-lg" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="clienteModalTitle">
+          <i class="fas fa-user-tie text-primary mr-2"></i> Cliente
+        </h5>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Cerrar">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body" id="clienteModalBody">
+        <div class="text-center py-4 text-muted">
+          <i class="fas fa-spinner fa-spin mr-1"></i> Cargando...
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+  // --------------------------
+  // Helpers
+  // --------------------------
+  function qs(sel, root){ return (root || document).querySelector(sel); }
+  function qsa(sel, root){ return Array.from((root || document).querySelectorAll(sel)); }
+
+  function setLoading(el, msg){
+    el.innerHTML = `
+      <div class="text-center py-4 text-muted">
+        <i class="fas fa-spinner fa-spin mr-1"></i> ${msg || 'Cargando...'}
+      </div>`;
+  }
+
+  async function fetchHTML(url, opts){
+    const res = await fetch(url, opts || {});
+    const text = await res.text();
+    return { ok: res.ok, status: res.status, text };
+  }
+
+  async function fetchJSON(url, opts){
+    const res = await fetch(url, opts || {});
+    const data = await res.json().catch(() => null);
+    return { ok: res.ok, status: res.status, data };
+  }
+
+  function getCSRF(){
+    const input = document.querySelector('input[name="csrfmiddlewaretoken"]');
+    return input ? input.value : null;
+  }
+
+  // --------------------------
+  // URLs
+  // --------------------------
+  const URLS = {
+    lista: "{% url 'centro_comercio:clientes_lista' %}",
+    nuevo: "{% url 'centro_comercio:cliente_nuevo' %}",
+  };
+
+  function urlDetalle(id){ return "{% url 'centro_comercio:cliente_detalle' 0 %}".replace("/0/", "/" + id + "/"); }
+  function urlEditar(id){ return "{% url 'centro_comercio:cliente_editar' 0 %}".replace("/0/", "/" + id + "/"); }
+  function urlEliminar(id){ return "{% url 'centro_comercio:cliente_eliminar' 0 %}".replace("/0/", "/" + id + "/"); }
+
+  // --------------------------
+  // Estado UI
+  // --------------------------
+  const tablaWrap = qs("#tablaWrap");
+  const clientesSearch = qs("#clientesSearch");
+  const btnFiltrar = qs("#btnFiltrar");
+  const btnNuevoCliente = qs("#btnNuevoCliente");
+  const lblEstadoCarga = qs("#lblEstadoCarga");
+
+  const modalBody = qs("#clienteModalBody");
+  const modalTitle = qs("#clienteModalTitle");
+
+  function currentQuery(){
+    const q = (clientesSearch.value || "").trim();
+    const params = new URLSearchParams();
+    if (q) params.set("q", q);
+    return params.toString();
+  }
+
+  // --------------------------
+  // Tabla
+  // --------------------------
+  async function cargarTabla(){
+    lblEstadoCarga.textContent = "Actualizando...";
+    setLoading(tablaWrap, "Cargando clientes...");
+    const url = URLS.lista + (currentQuery() ? ("?" + currentQuery()) : "");
+    const r = await fetchHTML(url, {
+      headers: { "X-Requested-With": "XMLHttpRequest" }
+    });
+    tablaWrap.innerHTML = r.text;
+    lblEstadoCarga.textContent = "";
+  }
+
+  // --------------------------
+  // Modal
+  // --------------------------
+  function openModal(title){
+    modalTitle.innerHTML = title || '<i class="fas fa-user-tie text-primary mr-2"></i> Cliente';
+    setLoading(modalBody, "Cargando...");
+    $("#clienteModal").modal("show");
+  }
+
+  async function abrirNuevo(){
+    openModal('<i class="fas fa-user-plus text-success mr-2"></i> Nuevo Cliente');
+    const r = await fetchHTML(URLS.nuevo, { headers: { "X-Requested-With": "XMLHttpRequest" } });
+    modalBody.innerHTML = r.text;
+    
+    // Vincular formulario dentro del modal
+    $('#clienteModal').off('shown.bs.modal').on('shown.bs.modal', function () {
+      bindFormInsideModal();
+    });
+  }
+
+  async function abrirEditar(id){
+    openModal('<i class="fas fa-edit text-primary mr-2"></i> Editar Cliente');
+    const r = await fetchHTML(urlEditar(id), { headers: { "X-Requested-With": "XMLHttpRequest" } });
+    modalBody.innerHTML = r.text;
+    
+    // Vincular formulario dentro del modal
+    $('#clienteModal').off('shown.bs.modal').on('shown.bs.modal', function () {
+      bindFormInsideModal();
+    });
+  }
+
+  async function abrirDetalle(id){
+    openModal('<i class="far fa-eye text-primary mr-2"></i> Detalle Cliente');
+    const r = await fetchHTML(urlDetalle(id), { headers: { "X-Requested-With": "XMLHttpRequest" } });
+    modalBody.innerHTML = r.text;
+    
+    // Para detalle, solo vincular acciones
+    $('#clienteModal').off('shown.bs.modal').on('shown.bs.modal', function () {
+      bindDetalleInsideModal();
+    });
+  }
+
+  // --------------------------
+  // Acciones en tabla
+  // --------------------------
+  function bindTablaActions(){
+    tablaWrap.addEventListener("click", function(e){
+      const btn = e.target.closest(".btn-ver");
+      if (!btn) return;
+      const tr = btn.closest("tr[data-id]");
+      if (!tr) return;
+      const id = tr.getAttribute("data-id");
+      abrirDetalle(id);
+    });
+  }
+
+  // --------------------------
+  // Form submit (AJAX) dentro del modal
+  // --------------------------
+  function bindFormInsideModal(){
+    const form = modalBody.querySelector("form");
+    if (!form) return;
+
+    form.addEventListener("submit", async function(ev){
+      ev.preventDefault();
+
+      const fd = new FormData(form);
+
+      const r = await fetchJSON(form.action, {
+        method: "POST",
+        headers: {
+          "X-Requested-With": "XMLHttpRequest",
+          "X-CSRFToken": getCSRF() || ""
+        },
+        body: fd
+      });
+
+      if (r.ok && r.data && r.data.ok) {
+        await cargarTabla();
+        await abrirDetalle(r.data.id);
+        return;
+      }
+
+      // Si backend devuelve errores, recargamos el form para mostrar mensajes.
+      const html = await fetchHTML(form.action, { headers: { "X-Requested-With": "XMLHttpRequest" } });
+      modalBody.innerHTML = html.text;
+
+      // Re-vincular el formulario
+      bindFormInsideModal();
+    });
+  }
+
+  function bindDetalleInsideModal(){
+    modalBody.addEventListener("click", async function(e){
+      const btnEdit = e.target.closest("[data-action='editar']");
+      if (btnEdit) {
+        const id = btnEdit.getAttribute("data-id");
+        if (id) abrirEditar(id);
+        return;
+      }
+
+      const btnDel = e.target.closest("[data-action='eliminar']");
+      if (btnDel) {
+        const id = btnDel.getAttribute("data-id");
+        if (!id) return;
+
+        if (!confirm("¿Eliminar este cliente?")) return;
+
+        const r = await fetchJSON(urlEliminar(id), {
+          method: "POST",
+          headers: {
+            "X-Requested-With": "XMLHttpRequest",
+            "X-CSRFToken": getCSRF() || ""
+          }
+        });
+
+        if (r.ok && r.data && r.data.ok) {
+          $("#clienteModal").modal("hide");
+          await cargarTabla();
+        } else {
+          alert("No se pudo eliminar.");
+        }
+      }
+    }, { once: true });
+  }
+
+  // --------------------------
+  // Init
+  // --------------------------
+  btnFiltrar.addEventListener("click", cargarTabla);
+  btnNuevoCliente.addEventListener("click", abrirNuevo);
+
+  clientesSearch.addEventListener("keydown", function(e){
+    if (e.key === "Enter") { e.preventDefault(); cargarTabla(); }
+  });
+
+  // Búsqueda en tiempo real con debounce
+  let searchTimeout;
+  clientesSearch.addEventListener("input", function() {
+    clearTimeout(searchTimeout);
+    searchTimeout = setTimeout(cargarTabla, 350);
+  });
+
+  bindTablaActions();
+  cargarTabla();
+
+})();
+</script>
+{% endblock %}

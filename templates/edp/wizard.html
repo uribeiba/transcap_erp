@@ -1,0 +1,241 @@
+{% extends "layout/base.html" %}
+{% block title %}Estado de Pago - {{ step|title }}{% endblock %}
+{% block page_title %}Estado de Pago{% endblock %}
+
+{% block extra_css %}
+<!-- Select2 para múltiples servicios -->
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+<style>
+    .wizard-steps {
+        display: flex;
+        justify-content: center;
+        margin-bottom: 2rem;
+    }
+    .step {
+        padding: 10px 20px;
+        margin: 0 5px;
+        background-color: #f8f9fa;
+        border-radius: 5px;
+        cursor: pointer;
+    }
+    .step.active {
+        background-color: #007bff;
+        color: white;
+    }
+    .step.completed {
+        background-color: #28a745;
+        color: white;
+    }
+    .step.disabled {
+        background-color: #e9ecef;
+        color: #6c757d;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-body">
+        <!-- Pasos del wizard -->
+        <div class="wizard-steps">
+            {% for s in steps %}
+                <div class="step 
+                    {% if s == step %}active
+                    {% elif forloop.counter0 < forloop.parentloop.counter0 %}completed
+                    {% else %}disabled
+                    {% endif %}"
+                    onclick="location.href='{% url "edp:wizard" edp.id s %}'">
+                    {{ s|title }}
+                </div>
+            {% endfor %}
+        </div>
+
+        <!-- Contenido del paso actual -->
+        <div class="wizard-content">
+            {% if step == "edp" %}
+                <h5>Información EDP</h5>
+                <form method="post" id="edp-form">
+                    {% csrf_token %}
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="form-group">
+                                <label>Código EDP</label>
+                                {{ form.codigo }}
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-group">
+                                <label>Fecha Pago</label>
+                                {{ form.fecha_pago }}
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-group">
+                                <label>Estado</label>
+                                {{ form.estado }}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Glosa</label>
+                        {{ form.glosa }}
+                    </div>
+                    <button type="submit" class="btn btn-primary">Guardar y Continuar</button>
+                </form>
+
+            {% elif step == "servicios" %}
+                <h5>Asignar Servicios</h5>
+                <form method="post" id="servicios-form">
+                    {% csrf_token %}
+                    <div class="form-group">
+                        <label>Seleccionar Servicios</label>
+                        {{ form_servicios.servicios }}
+                    </div>
+                    <button type="submit" class="btn btn-primary">Guardar y Continuar</button>
+                </form>
+
+            {% elif step == "pagos" %}
+                <h5>Listado de Pagos</h5>
+                <form method="post" id="pagos-form">
+                    {% csrf_token %}
+                    {{ formset.management_form }}
+                    
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Fecha</th>
+                                <th>Medio Pago</th>
+                                <th>Monto</th>
+                                <th>Referencia</th>
+                                <th>Eliminar</th>
+                            </tr>
+                        </thead>
+                        <tbody id="formset-container">
+                            {% for form in formset %}
+                            <tr class="form-row">
+                                <td>{{ form.fecha }}</td>
+                                <td>{{ form.medio_pago }}</td>
+                                <td>{{ form.monto }}</td>
+                                <td>{{ form.referencia }}</td>
+                                <td>{{ form.DELETE }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                    <button type="button" class="btn btn-secondary" onclick="addForm()">+ Agregar Pago</button>
+                    <button type="submit" class="btn btn-primary">Guardar y Continuar</button>
+                </form>
+
+            {% elif step == "finalizar" %}
+                <h5>Resumen</h5>
+                
+                <h6>Servicios</h6>
+                <table class="table table-sm">
+                    <thead>
+                        <tr>
+                            <th>Servicio</th>
+                            <th class="text-right">Tarifa</th>
+                            <th class="text-right">Estadía</th>
+                            <th class="text-right">Total</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in items %}
+                        <tr>
+                            <td>{{ item.servicio }}</td>
+                            <td class="text-right">$ {{ item.tarifa }}</td>
+                            <td class="text-right">$ {{ item.estadia }}</td>
+                            <td class="text-right">$ {{ item.total_linea }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="4" class="text-center">No hay servicios</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+
+                <h6>Pagos</h6>
+                <table class="table table-sm">
+                    <thead>
+                        <tr>
+                            <th>Fecha</th>
+                            <th>Medio</th>
+                            <th class="text-right">Monto</th>
+                            <th>Referencia</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for pago in pagos %}
+                        <tr>
+                            <td>{{ pago.fecha|date:"d/m/Y" }}</td>
+                            <td>{{ pago.get_medio_pago_display }}</td>
+                            <td class="text-right">$ {{ pago.monto }}</td>
+                            <td>{{ pago.referencia }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="4" class="text-center">No hay pagos</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+
+                <div class="text-right mt-4">
+                    <div>Neto: <strong>$ {{ edp.neto }}</strong></div>
+                    <div>IVA: <strong>$ {{ edp.iva }}</strong></div>
+                    <div>Total a Pagar: <strong>$ {{ edp.total }}</strong></div>
+                </div>
+
+                <div class="mt-4">
+                    <a href="{% url 'edp:detalle' edp.id %}" class="btn btn-primary">Ver Detalle</a>
+                    <a href="{% url 'edp:panel' %}" class="btn btn-success">Finalizar y Volver al Panel</a>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+<script>
+    // Inicializar Select2 para múltiples servicios
+    $(document).ready(function() {
+        $('.select2').select2({
+            placeholder: "Seleccionar servicios",
+            allowClear: true
+        });
+    });
+
+    // Función para agregar más filas de pagos
+    function addForm() {
+        const formCount = $('#id_form-TOTAL_FORMS').val();
+        const newForm = $('.form-row:first').clone();
+        
+        newForm.find(':input').each(function() {
+            const name = $(this).attr('name').replace('-0-', '-' + formCount + '-');
+            const id = 'id_' + name;
+            $(this).attr({'name': name, 'id': id}).val('').removeAttr('checked');
+        });
+        
+        $('#formset-container').append(newForm);
+        $('#id_form-TOTAL_FORMS').val(parseInt(formCount) + 1);
+    }
+
+    // Manejar envíos AJAX si es necesario
+    $('#edp-form, #servicios-form, #pagos-form').on('submit', function(e) {
+        e.preventDefault();
+        const form = $(this);
+        $.ajax({
+            url: form.attr('action') || window.location.href,
+            method: 'POST',
+            data: form.serialize(),
+            success: function(data) {
+                if (data.ok) {
+                    window.location.href = '{% url "edp:wizard" edp.id "next_step" %}'.replace('next_step', data.next);
+                }
+            },
+            error: function(xhr) {
+                alert('Error: ' + xhr.responseJSON.errors);
+            }
+        });
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,273 @@
+{% extends "layout/base.html" %}
+
+{% block title %}{{ modo|capfirst }} viaje{% endblock %}
+{% block page_title %}{{ modo|capfirst }} coordinación de viaje{% endblock %}
+
+{% block extra_css %}
+<!-- Bootstrap Datepicker CSS -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-datepicker/1.9.0/css/bootstrap-datepicker.min.css">
+<style>
+    .datepicker {
+        z-index: 1151 !important; /* Asegura que esté sobre otros elementos */
+    }
+    .datepicker-dropdown {
+        padding: 10px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="card">
+  <div class="card-header">
+    <h3 class="card-title">{{ modo|capfirst }} viaje</h3>
+  </div>
+  <form method="post" id="coordinacion-form">
+    {% csrf_token %}
+    <div class="card-body">
+      <div class="form-row">
+        <!-- Fecha Carga con Datepicker -->
+        <div class="form-group col-md-3">
+          <label for="{{ form.fecha_carga.id_for_label }}">Fecha carga *</label>
+          <div class="input-group date" id="fecha_carga_picker" data-target-input="nearest">
+            {{ form.fecha_carga }}
+            <div class="input-group-append" data-target="#fecha_carga_picker" data-toggle="datetimepicker">
+              <div class="input-group-text">
+                <i class="fas fa-calendar"></i>
+              </div>
+            </div>
+          </div>
+          {% if form.fecha_carga.errors %}
+            <div class="text-danger small">{{ form.fecha_carga.errors.0 }}</div>
+          {% endif %}
+        </div>
+
+        <!-- Fecha Descarga con Datepicker -->
+        <div class="form-group col-md-3">
+          <label for="{{ form.fecha_descarga.id_for_label }}">Fecha descarga</label>
+          <div class="input-group date" id="fecha_descarga_picker" data-target-input="nearest">
+            {{ form.fecha_descarga }}
+            <div class="input-group-append" data-target="#fecha_descarga_picker" data-toggle="datetimepicker">
+              <div class="input-group-text">
+                <i class="fas fa-calendar"></i>
+              </div>
+            </div>
+          </div>
+          {% if form.fecha_descarga.errors %}
+            <div class="text-danger small">{{ form.fecha_descarga.errors.0 }}</div>
+          {% endif %}
+        </div>
+
+        <div class="form-group col-md-3">
+          <label for="{{ form.sobreestadia_dias.id_for_label }}">Sobreest. (días)</label>
+          {{ form.sobreestadia_dias }}
+          <small class="form-text text-muted">Días adicionales estimados</small>
+        </div>
+        
+        <div class="form-group col-md-3">
+          <label for="{{ form.estado.id_for_label }}">Estado</label>
+          {{ form.estado }}
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group col-md-4">
+          <label for="{{ form.ruta.id_for_label }}">Ruta</label>
+          {{ form.ruta }}
+          <small class="form-text text-muted">Seleccione una ruta predefinida</small>
+        </div>
+        
+        <!-- Origen se llena automáticamente si se selecciona ruta -->
+        <div class="form-group col-md-4">
+          <label for="{{ form.origen.id_for_label }}">Origen</label>
+          {{ form.origen }}
+          <small class="form-text text-muted">Se completa automáticamente al seleccionar ruta</small>
+        </div>
+        
+        <!-- Destino se llena automáticamente si se selecciona ruta -->
+        <div class="form-group col-md-4">
+          <label for="{{ form.destino.id_for_label }}">Destino</label>
+          {{ form.destino }}
+          <small class="form-text text-muted">Se completa automáticamente al seleccionar ruta</small>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group col-md-4">
+          <label for="{{ form.conductor.id_for_label }}">Conductor</label>
+          {{ form.conductor }}
+        </div>
+        
+        <div class="form-group col-md-4">
+          <label for="{{ form.tracto_camion.id_for_label }}">Tracto camión</label>
+          {{ form.tracto_camion }}
+          {% if form.tracto_camion.help_text %}
+            <small class="form-text text-muted">{{ form.tracto_camion.help_text }}</small>
+          {% endif %}
+        </div>
+        
+        <div class="form-group col-md-4">
+          <label for="{{ form.semirremolque.id_for_label }}">Semirremolque</label>
+          {{ form.semirremolque }}
+          {% if form.semirremolque.help_text %}
+            <small class="form-text text-muted">{{ form.semirremolque.help_text }}</small>
+          {% endif %}
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="{{ form.observaciones.id_for_label }}">Observaciones</label>
+        {{ form.observaciones }}
+        <small class="form-text text-muted">Detalles adicionales del viaje</small>
+      </div>
+    </div>
+    
+    <div class="card-footer text-right">
+      {% if modo == "editar" %}
+      <!-- Botón para ver PDF en modo edición -->
+      <a href="{% url 'taller_coordinacion_viaje_pdf' viaje.id %}" 
+         class="btn btn-danger" 
+         target="_blank"
+         title="Generar PDF de esta coordinación">
+          <i class="fas fa-file-pdf"></i> Ver PDF
+      </a>
+      {% endif %}
+      
+      <a href="{% url 'taller_coordinacion_viajes_lista' %}" class="btn btn-secondary">
+          <i class="fas fa-times"></i> Cancelar
+      </a>
+      <button type="submit" class="btn btn-primary">
+          <i class="fas fa-save"></i> Guardar viaje
+      </button>
+  </div>
+  </form>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<!-- Bootstrap Datepicker JS -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-datepicker/1.9.0/js/bootstrap-datepicker.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-datepicker/1.9.0/locales/bootstrap-datepicker.es.min.js"></script>
+
+<script>
+$(document).ready(function() {
+    // Configuración del datepicker para fecha carga
+    $('#fecha_carga_picker').datepicker({
+        format: 'dd/mm/yyyy',
+        language: 'es',
+        autoclose: true,
+        todayHighlight: true,
+        weekStart: 1, // Lunes
+        startDate: new Date() // No permite fechas anteriores a hoy
+    });
+    
+    // Configuración del datepicker para fecha descarga
+    $('#fecha_descarga_picker').datepicker({
+        format: 'dd/mm/yyyy',
+        language: 'es',
+        autoclose: true,
+        todayHighlight: true,
+        weekStart: 1 // Lunes
+    });
+    
+    // Si se selecciona fecha carga, establecer como fecha mínima para descarga
+    $('#{{ form.fecha_carga.id_for_label }}').on('change', function() {
+        var fechaCarga = $(this).val();
+        if (fechaCarga) {
+            // Convertir dd/mm/yyyy a objeto Date
+            var parts = fechaCarga.split('/');
+            var fecha = new Date(parts[2], parts[1] - 1, parts[0]);
+            $('#fecha_descarga_picker').datepicker('setStartDate', fecha);
+        }
+    });
+    
+    // SOLUCIÓN SIMPLE SIN AJAX - Auto-completar origen y destino
+    $('#{{ form.ruta.id_for_label }}').on('change', function() {
+        var selectedOption = $(this).find('option:selected');
+        var optionText = selectedOption.text();
+        
+        console.log('Texto de la opción seleccionada:', optionText);
+        
+        // Método 1: Buscar patrones comunes
+        if (optionText.includes('(') && optionText.includes(')')) {
+            var match = optionText.match(/\((.*?) → (.*?)\)/);
+            if (match) {
+                console.log('Encontrado con patrón 1:', match[1], match[2]);
+                $('#{{ form.origen.id_for_label }}').val(match[1].trim());
+                $('#{{ form.destino.id_for_label }}').val(match[2].trim());
+                return;
+            }
+            
+            // Intentar otro patrón común: "(Origen a Destino)"
+            match = optionText.match(/\((.*?) a (.*?)\)/);
+            if (match) {
+                console.log('Encontrado con patrón 2:', match[1], match[2]);
+                $('#{{ form.origen.id_for_label }}').val(match[1].trim());
+                $('#{{ form.destino.id_for_label }}').val(match[2].trim());
+                return;
+            }
+        }
+        
+        // Método 2: Si el texto contiene " - " o " a "
+        if (optionText.includes(' - ') || optionText.includes(' a ')) {
+            var separator = optionText.includes(' - ') ? ' - ' : ' a ';
+            var parts = optionText.split(separator);
+            if (parts.length >= 2) {
+                // Tomar el primer y último elemento
+                var origen = parts[0].trim();
+                var destino = parts[parts.length - 1].trim();
+                
+                // Limpiar paréntesis si existen
+                origen = origen.replace(/\(|\)/g, '').trim();
+                destino = destino.replace(/\(|\)/g, '').trim();
+                
+                console.log('Encontrado con separador:', origen, destino);
+                $('#{{ form.origen.id_for_label }}').val(origen);
+                $('#{{ form.destino.id_for_label }}').val(destino);
+                return;
+            }
+        }
+        
+        // Si no se pudo extraer, limpiar campos
+        console.log('No se pudo extraer origen/destino, limpiando campos');
+        $('#{{ form.origen.id_for_label }}').val('');
+        $('#{{ form.destino.id_for_label }}').val('');
+    });
+    
+    // Si ya hay una ruta seleccionada al cargar (modo edición), disparar el evento
+    var rutaSeleccionada = $('#{{ form.ruta.id_for_label }}').val();
+    if (rutaSeleccionada) {
+        $('#{{ form.ruta.id_for_label }}').trigger('change');
+    }
+    
+    // Calcular automáticamente sobrestadía si hay ambas fechas
+    function calcularSobrestadia() {
+        var fechaCarga = $('#{{ form.fecha_carga.id_for_label }}').val();
+        var fechaDescarga = $('#{{ form.fecha_descarga.id_for_label }}').val();
+        
+        if (fechaCarga && fechaDescarga) {
+            // Convertir fechas a objetos Date
+            var partsCarga = fechaCarga.split('/');
+            var partsDescarga = fechaDescarga.split('/');
+            
+            var dateCarga = new Date(partsCarga[2], partsCarga[1] - 1, partsCarga[0]);
+            var dateDescarga = new Date(partsDescarga[2], partsDescarga[1] - 1, partsDescarga[0]);
+            
+            // Calcular diferencia en días
+            var diffTime = Math.abs(dateDescarga - dateCarga);
+            var diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+            
+            // Establecer en el campo (solo si es mayor a 0)
+            if (diffDays > 0) {
+                $('#{{ form.sobreestadia_dias.id_for_label }}').val(diffDays);
+            }
+        }
+    }
+    
+    // Calcular sobrestadía cuando cambian las fechas
+    $('#{{ form.fecha_carga.id_for_label }}, #{{ form.fecha_descarga.id_for_label }}').on('change', calcularSobrestadia);
+    
+    // Inicializar tooltips
+    $('[data-toggle="tooltip"]').tooltip();
+});
+</script>
+{% endblock %}

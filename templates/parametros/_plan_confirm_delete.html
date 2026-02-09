@@ -1,0 +1,17 @@
+<h4 class="mb-3">
+    <i class="fas fa-trash mr-1"></i> Eliminar Plan
+  </h4>
+  
+  <div class="alert alert-warning">
+    ¿Seguro que deseas eliminar el plan <b>{{ plan.nombre }}</b>?
+  </div>
+  
+  <form method="post">
+    {% csrf_token %}
+    <div class="text-right">
+      <button type="submit" class="btn btn-danger">
+        <i class="fas fa-trash"></i> Sí, eliminar
+      </button>
+    </div>
+  </form>
+  

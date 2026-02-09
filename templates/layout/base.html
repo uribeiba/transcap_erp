@@ -1,0 +1,523 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>{% block title %}Transcap ERP{% endblock %}</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <!-- Bootstrap -->
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    >
+
+    <!-- Font Awesome -->
+    <link
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css"
+      rel="stylesheet"
+    >
+
+    <!-- AdminLTE CSS -->
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/admin-lte@3.2/dist/css/adminlte.min.css"
+    >
+    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@ttskch/select2-bootstrap4-theme@1.5.2/dist/select2-bootstrap4.min.css">
+
+    <!-- Estilos propios -->
+    <link rel="stylesheet" href="{% static 'css/main.css' %}">
+
+    <style>
+        :root{
+          --brand-primary: {{ EMPRESA_THEME.primary|default:"#048B36" }};
+          --brand-primary-dark: {{ EMPRESA_THEME.primary_dark|default:"#03682A" }};
+          --brand-accent: {{ EMPRESA_THEME.accent|default:"#18B85A" }};
+          --brand-sidebar: {{ EMPRESA_THEME.sidebar|default:"#03140A" }};
+          --brand-text-on-primary: #ffffff;
+        }
+      </style>
+      
+    {% block extra_css %}{% endblock %}
+    
+</head>
+<body class="hold-transition sidebar-mini layout-fixed">
+
+<div class="wrapper">
+
+    <!-- Navbar superior -->
+    <nav class="main-header navbar navbar-expand navbar-transcap">
+        <ul class="navbar-nav">
+            <li class="nav-item">
+                <a class="nav-link" data-widget="pushmenu" href="#" role="button">
+                    <i class="fas fa-bars"></i>
+                </a>
+            </li>
+            <li class="nav-item d-none d-sm-inline-block">
+                <span class="nav-link font-weight-bold">TRANSCAP ERP</span>
+            </li>
+        </ul>
+
+        <ul class="navbar-nav ml-auto">
+            <!-- Notificaciones -->
+            <li class="nav-item dropdown">
+                <a class="nav-link" data-toggle="dropdown" href="#">
+                    <i class="far fa-bell"></i>
+                    <span class="badge badge-warning navbar-badge">3</span>
+                </a>
+                <div class="dropdown-menu dropdown-menu-lg dropdown-menu-right">
+                    <span class="dropdown-item dropdown-header">3 notificaciones</span>
+                    <div class="dropdown-divider"></div>
+                    <a href="#" class="dropdown-item">
+                        <i class="fas fa-exclamation-circle mr-2 text-danger"></i>
+                        Documento de vehículo por vencer
+                    </a>
+                    <div class="dropdown-divider"></div>
+                    <a href="#" class="dropdown-item dropdown-footer">Ver todas</a>
+                </div>
+            </li>
+
+            <!-- Usuario -->
+            <li class="nav-item dropdown">
+                <a class="nav-link" data-toggle="dropdown" href="#">
+                    <i class="far fa-user-circle"></i>
+{{ request.user.get_full_name|default:request.user.username }}
+
+                </a>
+                <div class="dropdown-menu dropdown-menu-right">
+                    <a href="#" class="dropdown-item">Perfil</a>
+                    <div class="dropdown-divider"></div>
+                    <a href="{% url 'logout' %}" class="dropdown-item">Cerrar sesión</a>
+                </div>
+            </li>
+        </ul>
+    </nav>
+
+    <!-- Sidebar izquierda -->
+    <aside class="main-sidebar elevation-4 sidebar-transcap">
+
+        <!-- Logo -->
+        <a href="{% url 'dashboard' %}" class="brand-link text-center">
+            <span class="brand-text font-weight-light">
+                {{ request.user.perfil.empresa.razon_social|default:"Transcap SPA" }}
+              </span>
+              
+        </a>
+
+        <!-- Menú -->
+        <div class="sidebar">
+            <nav class="mt-2">
+                <!-- data-accordion="false" para que varios grupos puedan abrirse -->
+                <ul class="nav nav-pills nav-sidebar flex-column"
+                    data-widget="treeview"
+                    data-accordion="false"
+                    role="menu">
+
+                    <!-- DASHBOARD -->
+                    <li class="nav-item">
+                        <a href="{% url 'dashboard' %}" class="nav-link">
+                            <i class="nav-icon fas fa-tachometer-alt"></i>
+                            <p>Panel de Control</p>
+                        </a>
+                    </li>
+
+
+                    <li class="nav-item has-treeview">
+                        <a href="#" class="nav-link">
+                          <i class="nav-icon fas fa-store"></i>
+                          <p>
+                            Centro de Comercio
+                            <i class="right fas fa-angle-left"></i>
+                          </p>
+                        </a>
+                        <ul class="nav nav-treeview">
+                          <li class="nav-item">
+                            <a href="{% url 'centro_comercio:clientes_panel' %}" class="nav-link">
+                              <i class="far fa-circle nav-icon"></i>
+                              <p>Clientes</p>
+                            </a>
+                          </li>
+                          
+                          <li class="nav-item">
+                            <a href="{% url 'centro_comercio:cotizaciones_panel' %}" class="nav-link">
+                              <i class="far fa-circle nav-icon"></i>
+                              <p>Cotización</p>
+                            </a>
+                          </li>
+                          
+                          
+                          </li>
+                          
+                      
+                          <li class="nav-item">
+                            <a href="{% url 'servicios:servicios_panel' %}" class="nav-link">
+                                <i class="far fa-circle nav-icon"></i>
+                                <p>Servicios</p>
+                            </a>
+                        </li>
+                      
+                          <!-- Dentro del menú Centro de Comercio en base.html -->
+<li class="nav-item">
+    <a href="{% url 'edp:panel' %}" class="nav-link">
+        <i class="far fa-circle nav-icon"></i>
+        <p>EDP</p>
+    </a>
+</li>
+                        </ul>
+                      </li>
+                      
+                      
+
+
+
+
+                     <!-- Operaciones -->
+                     <li class="nav-item has-treeview">
+                        <a href="#" class="nav-link">
+                          <i class="nav-icon fas fa-clipboard-list"></i>
+                          <p>Operaciones<i class="right fas fa-angle-left"></i></p>
+                        </a>
+                        <ul class="nav nav-treeview">
+                          <li class="nav-item">
+                            <a href="{% url 'operaciones:tablero_diario' %}" class="nav-link">
+                              <i class="far fa-circle nav-icon"></i>
+                              <p>Tablero Facturación / Guías</p>
+                            </a>
+                          </li>
+
+                          <li class="nav-item">
+                            <a href="{% url 'bitacora:panel' %}" class="nav-link">
+                                <i class="far fa-circle nav-icon"></i>
+                                <p>Bitácora</p>
+                            </a>
+                        </li>
+                        
+                        </ul>
+                      </li>
+                      
+
+
+                    <!-- Gestión Comercial -->
+                    <li class="nav-item has-treeview">
+                        <a href="#" class="nav-link">
+                            <i class="nav-icon fas fa-file-invoice-dollar"></i>
+                            <p>
+                                Ventas / Compras
+                                <i class="right fas fa-angle-left"></i>
+                            </p>
+                        </a>
+                        <ul class="nav nav-treeview">
+                            <li class="nav-item">
+                                <a href="#" class="nav-link">
+                                    <i class="far fa-circle nav-icon"></i>
+                                    <p>Cotizaciones y pedidos</p>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="#" class="nav-link">
+                                    <i class="far fa-circle nav-icon"></i>
+                                    <p>Facturación Programada</p>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="#" class="nav-link">
+                                    <i class="far fa-circle nav-icon"></i>
+                                    <p>Órdenes de Compra</p>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="#" class="nav-link">
+                                    <i class="far fa-circle nav-icon"></i>
+                                    <p>Ventas</p>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="#" class="nav-link">
+                                    <i class="far fa-circle nav-icon"></i>
+                                    <p>Compras</p>
+                                </a>
+                            </li>
+                        </ul>
+                    </li>
+
+                    <!-- Finanzas -->
+                    <li class="nav-item has-treeview">
+                        <a href="#" class="nav-link">
+                            <i class="nav-icon fas fa-coins"></i>
+                            <p>
+                                Finanzas
+                                <i class="right fas fa-angle-left"></i>
+                            </p>
+                        </a>
+                        <ul class="nav nav-treeview">
+                            <li class="nav-item">
+                                <a href="#" class="nav-link">
+                                    <i class="far fa-circle nav-icon"></i>
+                                    <p>Cobros y Pagos</p>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="#" class="nav-link">
+                                    <i class="far fa-circle nav-icon"></i>
+                                    <p>Flujo de Caja</p>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="#" class="nav-link">
+                                    <i class="far fa-circle nav-icon"></i>
+                                    <p>Conciliación Bancaria</p>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="#" class="nav-link">
+                                    <i class="far fa-circle nav-icon"></i>
+                                    <p>Presupuestos</p>
+                                </a>
+                            </li>
+                        </ul>
+                    </li>
+
+                    <!-- Contabilidad -->
+                    <li class="nav-item">
+                        <a href="#" class="nav-link">
+                            <i class="nav-icon fas fa-book"></i>
+                            <p>Contabilidad</p>
+                        </a>
+                    </li>
+
+                    <!-- Inventario -->
+<li class="nav-item has-treeview">
+    <a href="#" class="nav-link">
+        <i class="nav-icon fas fa-boxes"></i>
+        <p>
+            Inventario
+            <i class="right fas fa-angle-left"></i>
+        </p>
+    </a>
+    <ul class="nav nav-treeview">
+        <li class="nav-item">
+            <a href="{% url 'inventario:dashboard' %}" class="nav-link">
+                <i class="far fa-circle nav-icon"></i>
+                <p>Panel de Inventario</p>
+            </a>
+        </li>
+        <li class="nav-item">
+            <a href="{% url 'inventario:lista_categorias' %}" class="nav-link">
+                <i class="far fa-circle nav-icon"></i>
+                <p>Categorías</p>
+            </a>
+        </li>
+        <li class="nav-item">
+            <a href="{% url 'inventario:lista_productos' %}" class="nav-link">
+                <i class="far fa-circle nav-icon"></i>
+                <p>Productos</p>
+            </a>
+        </li>
+        <li class="nav-item">
+            <a href="{% url 'inventario:lista_movimientos' %}" class="nav-link">
+                <i class="far fa-circle nav-icon"></i>
+                <p>Movimientos</p>
+            </a>
+        </li>
+    </ul>
+</li>
+
+
+                    <!-- Taller y Transporte -->
+                    <li class="nav-item has-treeview">
+                        <a href="#" class="nav-link">
+                            <i class="nav-icon fas fa-tools"></i>
+                            <p>
+                                Taller / Flota
+                                <i class="right fas fa-angle-left"></i>
+                            </p>
+                        </a>
+                        <ul class="nav nav-treeview">
+                            <li class="nav-item">
+                                <a href="{% url 'taller_flota' %}" class="nav-link">
+                                    <i class="far fa-circle nav-icon"></i>
+                                    <p>Flota de Vehículos</p>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="{% url 'taller_conductores' %}" class="nav-link">
+                                    <i class="far fa-circle nav-icon"></i>
+                                    <p>Conductores</p>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="{% url 'taller_mantenimientos' %}" class="nav-link">
+                                    <i class="far fa-circle nav-icon"></i>
+                                    <p>Mantenimientos</p>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="{% url 'taller_docs_vehiculos' %}" class="nav-link">
+                                    <i class="far fa-circle nav-icon"></i>
+                                    <p>Documentos y Seguros</p>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="{% url 'taller_rutas_viaje_lista' %}" class="nav-link">
+                                    <i class="far fa-circle nav-icon"></i>
+                                    <p>Rutas de Viajes</p>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="#" class="nav-link">
+                                    <i class="far fa-circle nav-icon"></i>
+                                    <p>Multas Conductores</p>
+                                </a>
+                            </li>
+                            <!-- Reportes -->
+                            <li class="nav-item">
+                                <a href="{% url 'taller_reporte_vehiculo_selector' %}" class="nav-link">
+                                    <i class="far fa-circle nav-icon"></i>
+                                    <p>Reporte por Vehículo</p>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="{% url 'taller_reporte_conductor_selector' %}" class="nav-link">
+                                    <i class="far fa-circle nav-icon"></i>
+                                    <p>Reporte por Conductor</p>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="{% url 'taller_ranking_multas' %}" class="nav-link">
+                                    <i class="far fa-circle nav-icon"></i>
+                                    <p>Ranking Multas</p>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="{% url 'taller_coordinacion_viajes_lista' %}" class="nav-link">
+                                    <i class="far fa-circle nav-icon"></i>
+                                    <p>Coordinación viajes</p>
+                                </a>
+                            </li>
+                        </ul>
+                    </li>
+
+                    <!-- RRHH -->
+                    <li class="nav-item has-treeview">
+                        <a href="#" class="nav-link">
+                            <i class="nav-icon fas fa-users"></i>
+                            <p>
+                                Remuneraciones
+                                <i class="right fas fa-angle-left"></i>
+                            </p>
+                        </a>
+                        <ul class="nav nav-treeview">
+                            <li class="nav-item">
+                                <a href="#" class="nav-link">
+                                    <i class="far fa-circle nav-icon"></i>
+                                    <p>Sueldos y Honorarios</p>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="#" class="nav-link">
+                                    <i class="far fa-circle nav-icon"></i>
+                                    <p>Vacaciones</p>
+                                </a>
+                            </li>
+                        </ul>
+                    </li>
+
+                    <!-- Licitaciones -->
+                    <li class="nav-item">
+                        <a href="#" class="nav-link">
+                            <i class="nav-icon fas fa-file-contract"></i>
+                            <p>Licitaciones</p>
+                        </a>
+                    </li>
+
+                    <!-- Config / módulos opcionales -->
+                    <li class="nav-item">
+                        <a href="#" class="nav-link">
+                            <i class="nav-icon fas fa-cogs"></i>
+                            <p>Maestros / Configuración</p>
+                        </a>
+                    </li><li class="nav-header">SaaS</li>
+
+                    <li class="nav-item">
+                      <a href="{% url 'parametros:empresas_panel' %}" class="nav-link">
+                        <i class="nav-icon fas fa-building"></i>
+                        <p>Empresas</p>
+                      </a>
+                    </li>
+                    
+                    <li class="nav-item">
+                      <a href="{% url 'parametros:planes_panel' %}" class="nav-link">
+                        <i class="nav-icon fas fa-layer-group"></i>
+                        <p>Planes</p>
+                      </a>
+                    </li>
+                    
+
+
+
+
+
+                    {# --- PARÁMETROS / CONFIGURACIÓN (Multiempresa) --- #}
+<li class="nav-item">
+  <a href="{% url 'parametros:panel' %}"
+     class="nav-link {% if request.path|slice:":12" == '/parametros/' %}active{% endif %}">
+    <i class="nav-icon fas fa-sliders-h"></i>
+    <p>Parámetros</p>
+  </a>
+</li>
+
+
+                </ul>
+            </nav>
+        </div>
+    </aside>
+
+    <!-- Contenido principal -->
+    <div class="content-wrapper">
+        <section class="content-header">
+            <div class="container-fluid">
+                {% block content_header %}
+                <div class="row mb-2">
+                    <div class="col-sm-6">
+                        <h1>{% block page_title %}Dashboard{% endblock %}</h1>
+                    </div>
+                </div>
+                {% endblock %}
+            </div>
+        </section>
+
+        <section class="content">
+            <div class="container-fluid">
+                {% block content %}{% endblock %}
+            </div>
+        </section>
+    </div>
+
+    <footer class="main-footer text-center py-2">
+        <small>Transcap ERP &copy; {{ now|date:"Y" }} - Desarrollado en Django</small>
+    </footer>
+</div>
+
+<!-- JS -->
+<script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.bundle.min.js"></script>
+
+
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+
+
+<!-- AdminLTE JS (habilita treeview/pushmenu) -->
+<script src="https://cdn.jsdelivr.net/npm/admin-lte@3.2/dist/js/adminlte.min.js"></script>
+
+
+
+
+<!-- Tu JS -->
+<script src="{% static 'js/main.js' %}"></script>
+<script src="{% static 'js/cotizaciones.js' %}"></script>
+<script src="{% static 'js/bitacora.js' %}"></script>
+
+{% block extra_js %}{% endblock %}
+</body>
+</html>

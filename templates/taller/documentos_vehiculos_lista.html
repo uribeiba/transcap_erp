@@ -1,0 +1,103 @@
+{% extends "layout/base.html" %}
+{% load humanize %}
+
+{% block title %}Documentos de Vehículos{% endblock %}
+{% block page_title %}Documentos de Vehículos{% endblock %}
+
+{% block content %}
+<div class="card">
+  <div class="card-header p-2">
+    <ul class="nav nav-pills">
+      <li class="nav-item"><a class="nav-link active" href="{% url 'taller_docs_vehiculos' %}">Vehículos</a></li>
+      <li class="nav-item"><a class="nav-link" href="{% url 'taller_docs_conductores' %}">Conductores</a></li>
+    </ul>
+  </div>
+
+  <div class="card-body">
+    <form class="mb-3">
+      <div class="form-row">
+        <div class="col-md-3">
+          <label>Vehículo</label>
+          <select name="vehiculo" class="form-control">
+            <option value="">-- Todos --</option>
+            {% for v in vehiculos %}
+            <option value="{{ v.id }}" {% if f.vehiculo == v.id|stringformat:'s' %}selected{% endif %}>
+              {{ v.patente }} - {{ v.marca }} {{ v.modelo }}
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-3">
+          <label>Tipo</label>
+          <select name="tipo" class="form-control">
+            <option value="">-- Todos --</option>
+            <option value="PERMISO" {% if f.tipo == 'PERMISO' %}selected{% endif %}>Permiso de circulación</option>
+            <option value="REVISION" {% if f.tipo == 'REVISION' %}selected{% endif %}>Revisión técnica</option>
+            <option value="SEGURO_OBL" {% if f.tipo == 'SEGURO_OBL' %}selected{% endif %}>Seguro obligatorio</option>
+            <option value="SEGURO_VOL" {% if f.tipo == 'SEGURO_VOL' %}selected{% endif %}>Seguro voluntario</option>
+            <option value="OTRO" {% if f.tipo == 'OTRO' %}selected{% endif %}>Otro</option>
+          </select>
+        </div>
+        <div class="col-md-3">
+          <label>Estado</label>
+          <select name="estado" class="form-control">
+            <option value="">-- Todos --</option>
+            <option value="vencido" {% if f.estado == 'vencido' %}selected{% endif %}>Vencido</option>
+            <option value="por_vencer" {% if f.estado == 'por_vencer' %}selected{% endif %}>Por vencer (≤30d)</option>
+            <option value="vigente" {% if f.estado == 'vigente' %}selected{% endif %}>Vigente</option>
+          </select>
+        </div>
+        <div class="col-md-2 d-flex align-items-end">
+          <button class="btn btn-outline-secondary btn-block"><i class="fas fa-sync"></i> Filtrar</button>
+        </div>
+        <div class="col-md-1 d-flex align-items-end">
+          <a href="{% url 'taller_doc_vehiculo_nuevo' %}" class="btn btn-primary btn-block">
+            <i class="fas fa-plus"></i>
+          </a>
+        </div>
+      </div>
+    </form>
+
+    <div class="table-responsive">
+      <table class="table table-hover">
+        <thead>
+          <tr>
+            <th>Vehículo</th>
+            <th>Tipo</th>
+            <th>Emisión</th>
+            <th>Vencimiento</th>
+            <th>Estado</th>
+            <th>Archivo</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for d in docs %}
+          <tr>
+            <td>{{ d.vehiculo.patente }}</td>
+            <td>{{ d.get_tipo_display }}</td>
+            <td>{{ d.fecha_emision|date:"d/m/Y"|default:"-" }}</td>
+            <td>{{ d.fecha_vencimiento|date:"d/m/Y"|default:"-" }}</td>
+            <td>{% include "taller/_badges_doc.html" with d=d %}</td>
+            <td>
+              {% if d.archivo %}
+                <a href="{{ d.archivo.url }}" target="_blank" class="btn btn-xs btn-outline-secondary">
+                  <i class="fas fa-file"></i>
+                </a>
+              {% else %}-{% endif %}
+            </td>
+            <td class="text-right">
+              <a href="{% url 'taller_doc_vehiculo_editar' d.id %}" class="btn btn-sm btn-outline-secondary">
+                <i class="fas fa-edit"></i>
+              </a>
+            </td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="7" class="text-center">Sin documentos.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

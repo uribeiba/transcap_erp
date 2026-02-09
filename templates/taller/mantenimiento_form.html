@@ -1,0 +1,60 @@
+{% extends "layout/base.html" %}
+
+{% block title %}{{ modo }} Mantenimiento{% endblock %}
+{% block page_title %}{{ modo }} Mantenimiento{% endblock %}
+
+{% block content %}
+<div class="card">
+  <div class="card-header">
+    <h3 class="card-title">{{ modo }} mantenimiento</h3>
+  </div>
+  <div class="card-body">
+    <form method="post">
+      {% csrf_token %}
+      <div class="row">
+        {% for field in form %}
+          <div class="col-md-4">
+            <div class="form-group">
+              <label>{{ field.label }}</label>
+              {{ field }}
+              {% if field.help_text %}
+                <small class="form-text text-muted">{{ field.help_text }}</small>
+              {% endif %}
+              {% for error in field.errors %}
+                <div class="text-danger small">{{ error }}</div>
+              {% endfor %}
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+
+      <div class="alert alert-light">
+        <strong>Total estimado: </strong>
+        $<span id="total_est">0</span>
+      </div>
+
+      <button class="btn btn-primary"><i class="fas fa-save"></i> Guardar</button>
+      <a href="{% url 'taller_mantenimientos' %}" class="btn btn-secondary">Volver</a>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  function parseMoney(v){ var n = parseFloat((v||'').toString().replace(',', '.')); return isNaN(n)?0:n; }
+  function updateTotal(){
+    var mano = parseMoney(document.getElementById('id_costo_mano_obra')?.value);
+    var rep = parseMoney(document.getElementById('id_costo_repuestos')?.value);
+    var tot = (mano + rep).toFixed(0);
+    document.getElementById('total_est').innerText = new Intl.NumberFormat('es-CL').format(tot);
+  }
+  ['id_costo_mano_obra','id_costo_repuestos'].forEach(id=>{
+    var el = document.getElementById(id);
+    if(el){ el.addEventListener('input', updateTotal); }
+  });
+  updateTotal();
+});
+</script>
+{% endblock %}

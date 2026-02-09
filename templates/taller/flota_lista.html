@@ -1,0 +1,61 @@
+{% extends "layout/base.html" %}
+
+{% block title %}Flota de Vehículos{% endblock %}
+{% block page_title %}Flota de Vehículos{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <h3 class="card-title">Vehículos registrados</h3>
+        <div class="card-tools">
+            <a href="{% url 'taller_vehiculo_nuevo' %}" class="btn btn-primary btn-sm">
+                <i class="fas fa-plus"></i> Nuevo vehículo
+            </a>
+        </div>
+    </div>
+    <div class="card-body table-responsive p-0">
+        <table class="table table-hover text-nowrap">
+            <thead>
+                <tr>
+                    <th>Patente</th>
+                    <th>Marca / Modelo</th>
+                    <th>Año</th>
+                    <th>Kilometraje</th>
+                    <th>Estado</th>
+                    <th>Aseguradora</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for v in vehiculos %}
+                <tr>
+                    <td>{{ v.patente }}</td>
+                    <td>{{ v.marca }} {{ v.modelo }}</td>
+                    <td>{{ v.anio }}</td>
+                    <td>{{ v.km_actual|default:"-" }}</td>
+                    <td>
+                        {% if v.estado == "ACTIVO" %}
+                            <span class="badge badge-success">Activo</span>
+                        {% elif v.estado == "EN_TALLER" %}
+                            <span class="badge badge-warning">En taller</span>
+                        {% else %}
+                            <span class="badge badge-secondary">Fuera de servicio</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ v.aseguradora|default:"-" }}</td>
+                    <td class="text-right">
+                        <a href="{% url 'taller_vehiculo_editar' v.pk %}" class="btn btn-sm btn-outline-secondary">
+                            <i class="fas fa-edit"></i>
+                        </a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="7" class="text-center">No hay vehículos registrados.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

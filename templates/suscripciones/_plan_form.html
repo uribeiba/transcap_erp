@@ -1,0 +1,42 @@
+<form method="post" action="">
+    {% csrf_token %}
+  
+    <div class="form-group">
+      <label>Nombre</label>
+      {{ form.nombre }}
+    </div>
+  
+    <div class="form-row">
+      <div class="form-group col-md-6">
+        <label>Máx. usuarios</label>
+        {{ form.max_usuarios }}
+      </div>
+      <div class="form-group col-md-6">
+        <label>Máx. empresas</label>
+        {{ form.max_empresas }}
+      </div>
+    </div>
+  
+    <div class="form-row">
+      <div class="form-group col-md-6">
+        <label>Precio mensual</label>
+        {{ form.precio_mensual }}
+      </div>
+      <div class="form-group col-md-6">
+        <label>Precio anual</label>
+        {{ form.precio_anual }}
+      </div>
+    </div>
+  
+    <div class="form-group form-check">
+      {{ form.activo }}
+      <label class="form-check-label">Activo</label>
+    </div>
+  
+    <div class="text-right">
+      <button type="submit" class="btn btn-primary">
+        <i class="fas fa-save"></i> Guardar
+      </button>
+    </div>
+  </form>
+  
