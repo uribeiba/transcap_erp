@@ -80,17 +80,29 @@
 
             <!-- Usuario -->
             <li class="nav-item dropdown">
-                <a class="nav-link" data-toggle="dropdown" href="#">
-                    <i class="far fa-user-circle"></i>
-{{ request.user.get_full_name|default:request.user.username }}
+    <a class="nav-link" data-toggle="dropdown" href="#">
+        <i class="far fa-user-circle"></i>
+        {{ request.user.get_full_name|default:request.user.username }}
+    </a>
 
-                </a>
-                <div class="dropdown-menu dropdown-menu-right">
-                    <a href="#" class="dropdown-item">Perfil</a>
-                    <div class="dropdown-divider"></div>
-                    <a href="{% url 'logout' %}" class="dropdown-item">Cerrar sesión</a>
-                </div>
-            </li>
+    <div class="dropdown-menu dropdown-menu-right">
+        <a href="#" class="dropdown-item">
+            <i class="fas fa-user mr-2"></i> Perfil
+        </a>
+
+        <div class="dropdown-divider"></div>
+
+        <!-- Logout correcto por POST -->
+        <form method="post" action="{% url 'logout' %}" style="margin:0;">
+    {% csrf_token %}
+    <button type="submit" class="dropdown-item" style="width:100%; text-align:left;">
+        <i class="fas fa-sign-out-alt mr-2"></i> Cerrar sesión
+    </button>
+</form>
+
+    </div>
+</li>
+
         </ul>
     </nav>
 
@@ -495,7 +507,7 @@
     </div>
 
     <footer class="main-footer text-center py-2">
-        <small>Transcap ERP &copy; {{ now|date:"Y" }} - Desarrollado en Django</small>
+        <small>Transcap ERP &copy; {{ now|date:"Y" }} - Desarrollado by uribe.services</small>
     </footer>
 </div>
 

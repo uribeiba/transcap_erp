@@ -1,9 +1,11 @@
+from django.contrib.auth.decorators import login_required
 from django.utils import timezone
 from taller.models import DocumentoVehiculo, DocumentoConductor
 from django.shortcuts import render  # <-- necesario para render()
+from django.contrib.auth import logout
+from django.shortcuts import redirect
 
-
-
+@login_required(login_url="login")
 def dashboard(request):
     # Métricas demo (luego las conectamos a la BD)
     context = {
@@ -37,3 +39,7 @@ def dashboard(request):
     })
 
     return render(request, "core/dashboard.html", context)
+
+def salir(request):
+    logout(request)
+    return redirect("login")
