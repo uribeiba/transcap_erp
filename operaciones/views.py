@@ -14,6 +14,12 @@ from django.views.decorators.http import require_GET, require_POST
 from .forms import EstadoFacturacionGuiaForm
 from .models import EstadoFacturacionGuia, EstadoRegistro
 
+from django.db import models  # <- si no lo tienes
+from .forms import EstadoFacturacionGuiaForm, EstatusOperacionalViajeForm
+from .models import EstadoFacturacionGuia, EstadoRegistro, EstatusOperacionalViaje, TurnoEstatus
+
+from django.http import HttpResponse
+from taller.models import Conductor
 
 # ------------------------------------------------------------
 # Helpers
@@ -66,12 +72,83 @@ def tablero_diario(request):
 
     base_qs = _base_qs_por_fecha_y_q(fecha, q)
 
+    # -----------------------------
+    # Conteos por estado (YA EXISTENTE)
+    # -----------------------------
     conteos = dict(
         base_qs.values("estado").annotate(c=Count("id")).values_list("estado", "c")
     )
     total_monto = base_qs.aggregate(total=Sum("monto"))["total"] or 0
-
     registros = base_qs.filter(estado=tab).order_by("prioridad", "-id")[:400]
+
+    # -----------------------------
+    # PANEL PRO++ (ya lo habíamos agregado)
+    # -----------------------------
+    total_registros = base_qs.count()
+    pendientes = conteos.get(getattr(EstadoRegistro, "PENDIENTE", "PEND"), 0)
+    en_proceso = conteos.get(getattr(EstadoRegistro, "EN_PROCESO", "PROC"), 0)
+    completados = conteos.get(getattr(EstadoRegistro, "COMPLETADO", "DONE"), 0)
+    cancelados = conteos.get(getattr(EstadoRegistro, "CANCELADO", "CANC"), 0)
+
+    # -----------------------------
+    # ✅ ALERTAS PRO+++ (nuevas)
+    # -----------------------------
+    # Nota: usamos tu base_qs (respeta fecha + búsqueda q)
+    # Si quieres que las alertas IGNOREN q, lo cambiamos a _base_qs_por_fecha_y_q(fecha, "")
+    qs_alerta = _base_qs_por_fecha_y_q(fecha, "")
+
+    sin_guia = qs_alerta.filter(models.Q(nro_guia__isnull=True) | models.Q(nro_guia="")).count()
+    sin_factura = qs_alerta.filter(models.Q(nro_factura__isnull=True) | models.Q(nro_factura="")).count()
+    sin_viaje = qs_alerta.filter(models.Q(referencia_viaje__isnull=True) | models.Q(referencia_viaje="")).count()
+    sin_monto = qs_alerta.filter(models.Q(monto__isnull=True) | models.Q(monto=0)).count()
+    urgentes_pend = qs_alerta.filter(prioridad="URG", estado=getattr(EstadoRegistro, "PENDIENTE", "PEND")).count()
+
+    # Cada alerta tiene:
+    # - label: texto
+    # - count: número
+    # - level: color (info/warning/danger)
+    # - href: link directo a tablero con filtro
+    alertas = []
+    if sin_guia:
+        alertas.append({
+            "label": "Registros sin guía",
+            "count": sin_guia,
+            "level": "warning",
+            "href": f"?fecha={fecha:%Y-%m-%d}&tab={tab}&q=",
+            "hint": "Completar N° Guía",
+        })
+    if sin_factura:
+        alertas.append({
+            "label": "Registros sin factura",
+            "count": sin_factura,
+            "level": "warning",
+            "href": f"?fecha={fecha:%Y-%m-%d}&tab={tab}&q=",
+            "hint": "Completar N° Factura",
+        })
+    if sin_viaje:
+        alertas.append({
+            "label": "Registros sin viaje",
+            "count": sin_viaje,
+            "level": "info",
+            "href": f"?fecha={fecha:%Y-%m-%d}&tab={tab}&q=",
+            "hint": "Completar referencia viaje",
+        })
+    if sin_monto:
+        alertas.append({
+            "label": "Registros sin monto",
+            "count": sin_monto,
+            "level": "danger",
+            "href": f"?fecha={fecha:%Y-%m-%d}&tab={tab}&q=",
+            "hint": "Completar monto",
+        })
+    if urgentes_pend:
+        alertas.append({
+            "label": "Urgentes pendientes",
+            "count": urgentes_pend,
+            "level": "danger",
+            "href": f"?fecha={fecha:%Y-%m-%d}&tab={getattr(EstadoRegistro, 'PENDIENTE', 'PEND')}&q=",
+            "hint": "Revisar urgencias",
+        })
 
     context = {
         "fecha": fecha,
@@ -81,6 +158,16 @@ def tablero_diario(request):
         "conteos": conteos,
         "total_monto": total_monto,
         "estados": EstadoRegistro.choices,
+
+        # Panel PRO++
+        "total_registros": total_registros,
+        "pendientes": pendientes,
+        "en_proceso": en_proceso,
+        "completados": completados,
+        "cancelados": cancelados,
+
+        # Alertas PRO+++
+        "alertas": alertas,
     }
     return render(request, "operaciones/tablero_diario.html", context)
 
@@ -362,3 +449,356 @@ def tablero_refresh(request):
         "filas": filas,
         "server_time": timezone.now().isoformat(),
     })
+
+
+# ============================================================
+# Estatus de Viajes (AM/PM) - reemplazo planilla Excel (Opción A)
+# ============================================================
+
+@login_required
+@permission_required("operaciones.puede_ver_estatus_viajes", raise_exception=True)
+def estatus_viajes_panel(request):
+    hoy = timezone.localdate()
+    fecha = _parse_fecha(request.GET.get("fecha")) or hoy
+    turno = request.GET.get("turno") or "TODOS"
+    q = (request.GET.get("q") or "").strip()
+
+    qs = EstatusOperacionalViaje.objects.select_related("conductor", "tracto", "rampla").filter(fecha=fecha)
+
+    if turno in [TurnoEstatus.AM, TurnoEstatus.PM]:
+        qs = qs.filter(turno=turno)
+
+    if q:
+        qs = qs.filter(
+            models.Q(conductor__nombres__icontains=q)
+            | models.Q(conductor__apellidos__icontains=q)
+            | models.Q(conductor__rut__icontains=q)
+            | models.Q(tracto__patente__icontains=q)
+            | models.Q(rampla__patente__icontains=q)
+            | models.Q(estado_texto__icontains=q)
+        )
+
+    qs = qs.order_by("conductor__apellidos", "conductor__nombres", "turno")
+
+    form = EstatusOperacionalViajeForm(initial={
+        "fecha": fecha,
+        "turno": TurnoEstatus.AM if turno == "TODOS" else turno
+    })
+
+    return render(request, "operaciones/estatus_viajes.html", {
+        "fecha": fecha,
+        "turno": turno,
+        "q": q,
+        "items": qs,
+        "form": form,
+        "turnos": ["TODOS", TurnoEstatus.AM, TurnoEstatus.PM],
+    })
+
+
+def _estatus_redirect(request):
+    fecha = request.POST.get("fecha") or request.GET.get("fecha") or ""
+    turno = request.POST.get("turno") or request.GET.get("turno") or "TODOS"
+    q = request.POST.get("q") or request.GET.get("q") or ""
+
+    params = {}
+    if fecha:
+        params["fecha"] = fecha
+    if turno:
+        params["turno"] = turno
+    if q:
+        params["q"] = q
+
+    url = reverse("operaciones:estatus_viajes_panel")
+    return f"{url}?{urlencode(params)}" if params else url
+
+
+@login_required
+@permission_required("operaciones.puede_editar_estatus_viajes", raise_exception=True)
+@require_POST
+def estatus_viajes_guardar(request):
+    form = EstatusOperacionalViajeForm(request.POST)
+    if not form.is_valid():
+        messages.error(request, "Revisa el formulario: hay campos inválidos.")
+        return redirect(_estatus_redirect(request))
+
+    d = form.cleaned_data
+
+    with transaction.atomic():
+        obj, created = EstatusOperacionalViaje.objects.select_for_update().get_or_create(
+            fecha=d["fecha"],
+            turno=d["turno"],
+            conductor=d["conductor"],
+            defaults={
+                "tracto": d.get("tracto"),
+                "rampla": d.get("rampla"),
+                "estado_texto": d.get("estado_texto"),
+                "creado_por": request.user,
+                "actualizado_por": request.user,
+            },
+        )
+
+        if not created:
+            obj.tracto = d.get("tracto")
+            obj.rampla = d.get("rampla")
+            obj.estado_texto = d.get("estado_texto")
+            obj.actualizado_por = request.user
+            obj.save()
+
+    messages.success(request, "Estatus guardado ✅")
+    return redirect(_estatus_redirect(request))
+
+
+@login_required
+@permission_required("operaciones.puede_editar_estatus_viajes", raise_exception=True)
+@require_POST
+def estatus_viajes_eliminar(request, pk: int):
+    obj = get_object_or_404(EstatusOperacionalViaje, pk=pk)
+    obj.delete()
+    messages.success(request, "Estatus eliminado.")
+    return redirect(_estatus_redirect(request))
+
+
+@login_required
+@permission_required("operaciones.puede_ver_estatus_viajes", raise_exception=True)
+@require_GET
+def estatus_viajes_export(request):
+    import csv
+    from django.http import HttpResponse
+
+    hoy = timezone.localdate()
+    fecha = _parse_fecha(request.GET.get("fecha")) or hoy
+    turno = request.GET.get("turno") or "TODOS"
+    q = (request.GET.get("q") or "").strip()
+
+    qs = EstatusOperacionalViaje.objects.select_related("conductor", "tracto", "rampla").filter(fecha=fecha)
+
+    if turno in [TurnoEstatus.AM, TurnoEstatus.PM]:
+        qs = qs.filter(turno=turno)
+
+    if q:
+        qs = qs.filter(
+            models.Q(conductor__nombres__icontains=q)
+            | models.Q(conductor__apellidos__icontains=q)
+            | models.Q(conductor__rut__icontains=q)
+            | models.Q(tracto__patente__icontains=q)
+            | models.Q(rampla__patente__icontains=q)
+            | models.Q(estado_texto__icontains=q)
+        )
+
+    qs = qs.order_by("conductor__apellidos", "conductor__nombres", "turno")
+
+    filename = f"estatus_viajes_{fecha.strftime('%Y%m%d')}_{turno if turno!='TODOS' else 'ALL'}.csv"
+    resp = HttpResponse(content_type="text/csv; charset=utf-8")
+    resp["Content-Disposition"] = f'attachment; filename="{filename}"'
+
+    writer = csv.writer(resp)
+    writer.writerow(["Fecha", "Turno", "Chofer", "RUT", "Tracto", "Rampla", "Estado", "Actualizado"])
+
+    for r in qs:
+        writer.writerow([
+            r.fecha.strftime("%d-%m-%Y"),
+            r.turno,
+            f"{r.conductor.nombres} {r.conductor.apellidos}",
+            r.conductor.rut,
+            getattr(r.tracto, "patente", "") or "",
+            getattr(r.rampla, "patente", "") or "",
+            (r.estado_texto or "").strip(),
+            timezone.localtime(r.actualizado_el).strftime("%d-%m-%Y %H:%M"),
+        ])
+
+    return resp
+
+
+def _turnos_a_mostrar(turno_param: str):
+    turno_param = (turno_param or "TODOS").upper()
+    if turno_param in [TurnoEstatus.AM, TurnoEstatus.PM]:
+        return [turno_param]
+    return [TurnoEstatus.AM, TurnoEstatus.PM]
+
+
+@login_required
+@permission_required("operaciones.puede_ver_estatus_viajes", raise_exception=True)
+def estatus_viajes_panel(request):
+    fecha = _parse_fecha(request.GET.get("fecha"))
+    turno = (request.GET.get("turno") or "TODOS").upper()
+    q = (request.GET.get("q") or "").strip()
+    turnos = _turnos_a_mostrar(turno)
+
+    qs = (EstatusOperacionalViaje.objects
+          .select_related("conductor", "tracto", "rampla")
+          .filter(fecha=fecha, turno__in=turnos)
+          .order_by("conductor__apellidos", "conductor__nombres", "turno"))
+
+    if q:
+        qs = qs.filter(
+            models.Q(conductor__nombres__icontains=q) |
+            models.Q(conductor__apellidos__icontains=q) |
+            models.Q(conductor__rut__icontains=q) |
+            models.Q(tracto__patente__icontains=q) |
+            models.Q(rampla__patente__icontains=q) |
+            models.Q(estado_texto__icontains=q)
+        )
+
+    # ✅ choferes faltantes
+    conductores_activos = Conductor.objects.filter(activo=True).order_by("apellidos", "nombres")
+    existentes_am = set(EstatusOperacionalViaje.objects.filter(fecha=fecha, turno=TurnoEstatus.AM).values_list("conductor_id", flat=True))
+    existentes_pm = set(EstatusOperacionalViaje.objects.filter(fecha=fecha, turno=TurnoEstatus.PM).values_list("conductor_id", flat=True))
+    missing_am = [c for c in conductores_activos if c.id not in existentes_am]
+    missing_pm = [c for c in conductores_activos if c.id not in existentes_pm]
+
+    form = EstatusOperacionalViajeForm(initial={"fecha": fecha, "turno": turnos[0]})
+
+    return render(request, "operaciones/estatus_viajes.html", {
+        "fecha": fecha,
+        "turno": turno,
+        "q": q,
+        "items": qs,
+        "form": form,
+        "turnos": ["TODOS", TurnoEstatus.AM, TurnoEstatus.PM],
+        "missing_am": missing_am,
+        "missing_pm": missing_pm,
+    })
+
+
+@login_required
+@permission_required("operaciones.puede_editar_estatus_viajes", raise_exception=True)
+@require_POST
+def estatus_viajes_guardar(request):
+    form = EstatusOperacionalViajeForm(request.POST)
+    if not form.is_valid():
+        messages.error(request, "Revisa el formulario: hay campos inválidos.")
+        return redirect("operaciones:estatus_viajes_panel")
+
+    d = form.cleaned_data
+    obj, created = EstatusOperacionalViaje.objects.get_or_create(
+        fecha=d["fecha"], turno=d["turno"], conductor=d["conductor"],
+        defaults={
+            "tracto": d.get("tracto"),
+            "rampla": d.get("rampla"),
+            "estado_texto": (d.get("estado_texto") or "").strip(),
+            "creado_por": request.user,
+            "actualizado_por": request.user,
+        }
+    )
+    if not created:
+        obj.tracto = d.get("tracto")
+        obj.rampla = d.get("rampla")
+        obj.estado_texto = (d.get("estado_texto") or "").strip()
+        obj.actualizado_por = request.user
+        obj.save()
+
+    messages.success(request, "Estatus guardado ✅")
+    return redirect("operaciones:estatus_viajes_panel")
+
+
+@login_required
+@permission_required("operaciones.puede_editar_estatus_viajes", raise_exception=True)
+@require_POST
+def estatus_viajes_eliminar(request, pk):
+    obj = get_object_or_404(EstatusOperacionalViaje, pk=pk)
+    obj.delete()
+    messages.success(request, "Estatus eliminado.")
+    return redirect("operaciones:estatus_viajes_panel")
+
+
+@login_required
+@permission_required("operaciones.puede_editar_estatus_viajes", raise_exception=True)
+@require_POST
+def estatus_viajes_copiar_am_a_pm(request):
+    fecha = _parse_fecha(request.POST.get("fecha"))
+
+    am_rows = list(EstatusOperacionalViaje.objects.filter(fecha=fecha, turno=TurnoEstatus.AM))
+    creados = 0
+    actualizados = 0
+
+    for r in am_rows:
+        obj, created = EstatusOperacionalViaje.objects.get_or_create(
+            fecha=fecha, turno=TurnoEstatus.PM, conductor=r.conductor,
+            defaults={
+                "tracto": r.tracto,
+                "rampla": r.rampla,
+                "estado_texto": (r.estado_texto or "").strip(),
+                "creado_por": request.user,
+                "actualizado_por": request.user,
+            }
+        )
+        if created:
+            creados += 1
+        else:
+            changed = False
+            if not (obj.estado_texto or "").strip() and (r.estado_texto or "").strip():
+                obj.estado_texto = (r.estado_texto or "").strip()
+                changed = True
+            if obj.tracto_id is None and r.tracto_id is not None:
+                obj.tracto = r.tracto
+                changed = True
+            if obj.rampla_id is None and r.rampla_id is not None:
+                obj.rampla = r.rampla
+                changed = True
+            if changed:
+                obj.actualizado_por = request.user
+                obj.save()
+                actualizados += 1
+
+    messages.success(request, f"Copiado AM → PM. Nuevos: {creados} | Actualizados: {actualizados}")
+    return redirect("operaciones:estatus_viajes_panel")
+
+
+@login_required
+@permission_required("operaciones.puede_ver_estatus_viajes", raise_exception=True)
+@require_GET
+def estatus_viajes_export_xlsx(request):
+    fecha = _parse_fecha(request.GET.get("fecha"))
+    turno = (request.GET.get("turno") or "TODOS").upper()
+    q = (request.GET.get("q") or "").strip()
+    turnos = _turnos_a_mostrar(turno)
+
+    qs = (EstatusOperacionalViaje.objects.select_related("conductor", "tracto", "rampla")
+          .filter(fecha=fecha, turno__in=turnos)
+          .order_by("conductor__apellidos", "conductor__nombres", "turno"))
+
+    if q:
+        qs = qs.filter(
+            models.Q(conductor__nombres__icontains=q) |
+            models.Q(conductor__apellidos__icontains=q) |
+            models.Q(conductor__rut__icontains=q) |
+            models.Q(tracto__patente__icontains=q) |
+            models.Q(rampla__patente__icontains=q) |
+            models.Q(estado_texto__icontains=q)
+        )
+
+    try:
+        from openpyxl import Workbook
+    except Exception:
+        messages.error(request, "Falta openpyxl. Instala con: pip install openpyxl")
+        return redirect("operaciones:estatus_viajes_panel")
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Estatus"
+    ws.append(["Fecha", "Turno", "Chofer", "RUT", "Tracto", "Rampla", "Estado", "Actualizado"])
+
+    for r in qs:
+        ws.append([
+            r.fecha.strftime("%d-%m-%Y"),
+            r.turno,
+            f"{r.conductor.nombres} {r.conductor.apellidos}",
+            r.conductor.rut,
+            getattr(r.tracto, "patente", "") or "",
+            getattr(r.rampla, "patente", "") or "",
+            (r.estado_texto or "").strip(),
+            timezone.localtime(r.actualizado_el).strftime("%d-%m-%Y %H:%M"),
+        ])
+
+    from io import BytesIO
+    bio = BytesIO()
+    wb.save(bio)
+    bio.seek(0)
+
+    filename = f"estatus_viajes_{fecha.strftime('%Y%m%d')}_{turno if turno!='TODOS' else 'ALL'}.xlsx"
+    resp = HttpResponse(
+        bio.getvalue(),
+        content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    )
+    resp["Content-Disposition"] = f'attachment; filename="{filename}"'
+    return resp

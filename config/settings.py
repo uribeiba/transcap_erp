@@ -4,7 +4,9 @@ from pathlib import Path
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-def _load_dotenv(path):
+
+def _load_dotenv(path: str) -> None:
+    """Carga un .env simple (KEY=VALUE) sin dependencias externas."""
     if not os.path.exists(path):
         return
     with open(path, "r", encoding="utf-8") as f:
@@ -15,33 +17,54 @@ def _load_dotenv(path):
             k, v = line.split("=", 1)
             os.environ.setdefault(k.strip(), v.strip().strip('"').strip("'"))
 
+
+# Busca .env en BASE_DIR (por defecto: /.../transcap_erp/config/.env)
 _load_dotenv(os.path.join(BASE_DIR, ".env"))
 
 
-# Quick-start development settings - unsuitable for production
-DEBUG = os.getenv("DEBUG", "0") == "1"
+# =========================
+# CORE SETTINGS
+# =========================
+
+def _env_bool(key: str, default: str = "0") -> bool:
+    return os.getenv(key, default).strip().lower() in ("1", "true", "yes", "on")
+
+
+DEBUG = _env_bool("DEBUG", "0")
 
 SECRET_KEY = os.getenv("SECRET_KEY")
 if not SECRET_KEY:
-    raise RuntimeError("SECRET_KEY no está definido en .env")
+    # En local (DEBUG=True) no bloqueamos el arranque.
+    if DEBUG:
+        SECRET_KEY = "django-insecure-local-dev-key-change-me"
+    else:
+        raise RuntimeError("SECRET_KEY no está definido en .env")
 
-ALLOWED_HOSTS = [h.strip() for h in os.getenv("ALLOWED_HOSTS", "").split(",") if h.strip()]
+
+ALLOWED_HOSTS = [
+    h.strip()
+    for h in os.getenv("ALLOWED_HOSTS", "127.0.0.1,localhost").split(",")
+    if h.strip()
+]
 
 
-
+# =========================
 # Application definition
+# =========================
 
 INSTALLED_APPS = [
-    'django.contrib.admin',
-    'django.contrib.auth',
-    'django.contrib.contenttypes',
-    'django.contrib.sessions',
-    'django.contrib.messages',
-    'django.contrib.staticfiles',
-    'django.contrib.humanize',
+    "django.contrib.admin",
+    "django.contrib.auth",
+    "django.contrib.contenttypes",
+    "django.contrib.sessions",
+    "django.contrib.messages",
+    "django.contrib.staticfiles",
+    "django.contrib.humanize",
+
     "bitacora.apps.BitacoraConfig",
     "parametros.apps.ParametrosConfig",
     "suscripciones.apps.SuscripcionesConfig",
+
     "core",
     "taller",
     "inventario",
@@ -49,22 +72,19 @@ INSTALLED_APPS = [
     "centro_comercio",
     "servicios",
     "edp",
-    
-
-    
 ]
 
 MIDDLEWARE = [
-    'django.middleware.security.SecurityMiddleware',
-    'django.contrib.sessions.middleware.SessionMiddleware',
-    'django.middleware.common.CommonMiddleware',
-    'django.middleware.csrf.CsrfViewMiddleware',
-    'django.contrib.auth.middleware.AuthenticationMiddleware',
-    'django.contrib.messages.middleware.MessageMiddleware',
-    'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    "django.middleware.security.SecurityMiddleware",
+    "django.contrib.sessions.middleware.SessionMiddleware",
+    "django.middleware.common.CommonMiddleware",
+    "django.middleware.csrf.CsrfViewMiddleware",
+    "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "django.contrib.messages.middleware.MessageMiddleware",
+    "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
 
-ROOT_URLCONF = 'config.urls'
+ROOT_URLCONF = "config.urls"
 
 TEMPLATES = [
     {
@@ -78,58 +98,75 @@ TEMPLATES = [
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
                 "parametros.context_processors.empresa_theme",
-
             ],
         },
     },
 ]
 
+WSGI_APPLICATION = "config.wsgi.application"
 
 
-WSGI_APPLICATION = 'config.wsgi.application'
-
-
+# =========================
 # Database
-# https://docs.djangoproject.com/en/4.2/ref/settings/#databases
+# =========================
+# Para local:
+#   DB_ENGINE=sqlite
+#
+# Para postgres:
+#   DB_ENGINE=postgres
+#   DB_NAME=...
+#   DB_USER=...
+#   DB_PASS=...
+#   DB_HOST=...
+#   DB_PORT=5432
 
-DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.postgresql",
-        "NAME": os.getenv("DB_NAME", ""),
-        "USER": os.getenv("DB_USER", ""),
-        "PASSWORD": os.getenv("DB_PASS", ""),
-        "HOST": os.getenv("DB_HOST", "127.0.0.1"),
-        "PORT": os.getenv("DB_PORT", "5432"),
+DB_ENGINE = os.getenv("DB_ENGINE", "postgres").strip().lower()
+
+if DB_ENGINE == "sqlite":
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.sqlite3",
+            # Queda en /.../transcap_erp/config/db.sqlite3
+            "NAME": BASE_DIR / "db.sqlite3",
+        }
     }
-}
+else:
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.postgresql",
+            "NAME": os.getenv("DB_NAME", ""),
+            "USER": os.getenv("DB_USER", ""),
+            "PASSWORD": os.getenv("DB_PASS", ""),
+            "HOST": os.getenv("DB_HOST", "127.0.0.1"),
+            "PORT": os.getenv("DB_PORT", "5432"),
+        }
+    }
 
 
+# =========================
 # Password validation
-# https://docs.djangoproject.com/en/4.2/ref/settings/#auth-password-validators
+# =========================
 
 AUTH_PASSWORD_VALIDATORS = [
-    {
-        'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
-    },
-    {
-        'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
-    },
-    {
-        'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator',
-    },
-    {
-        'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
-    },
+    {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
+    {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator"},
+    {"NAME": "django.contrib.auth.password_validation.CommonPasswordValidator"},
+    {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
 ]
 
+
+# =========================
+# Auth redirects
+# =========================
 
 LOGIN_URL = "login"
 LOGIN_REDIRECT_URL = "dashboard"
 LOGOUT_REDIRECT_URL = "login"
 
 
+# =========================
 # Internationalization
-# https://docs.djangoproject.com/en/4.2/topics/i18n/
+# =========================
 
 LANGUAGE_CODE = "es-cl"
 TIME_ZONE = "America/Santiago"
@@ -137,17 +174,20 @@ USE_I18N = True
 USE_TZ = True
 
 
-# Static files (CSS, JavaScript, Images)
-# https://docs.djangoproject.com/en/4.2/howto/static-files/
-
+# =========================
+# Static & Media
+# =========================
 
 STATIC_URL = "/static/"
 STATICFILES_DIRS = [BASE_DIR / "static"]
 STATIC_ROOT = BASE_DIR / "staticfiles"
+
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
 
-# Default primary key field type
-# https://docs.djangoproject.com/en/4.2/ref/settings/#default-auto-field
 
-DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+# =========================
+# Default primary key
+# =========================
+
+DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"

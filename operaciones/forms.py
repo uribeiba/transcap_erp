@@ -1,6 +1,6 @@
 from django import forms
 from .models import EstadoFacturacionGuia
-
+from .models import EstatusOperacionalViaje, TurnoEstatus
 
 class EstadoFacturacionGuiaForm(forms.ModelForm):
     class Meta:
@@ -22,4 +22,20 @@ class EstadoFacturacionGuiaForm(forms.ModelForm):
             "estado": forms.Select(attrs={"class": "form-control form-control-sm"}),
             "prioridad": forms.Select(attrs={"class": "form-control form-control-sm"}),
             "observaciones": forms.Textarea(attrs={"class": "form-control form-control-sm", "rows": 2}),
+        }
+
+
+
+
+class EstatusOperacionalViajeForm(forms.ModelForm):
+    class Meta:
+        model = EstatusOperacionalViaje
+        fields = ["fecha", "turno", "conductor", "tracto", "rampla", "estado_texto"]
+        widgets = {
+            "fecha": forms.DateInput(attrs={"class": "form-control form-control-sm", "type": "date"}),
+            "turno": forms.Select(attrs={"class": "form-control form-control-sm"}),
+            "conductor": forms.Select(attrs={"class": "form-control form-control-sm"}),
+            "tracto": forms.Select(attrs={"class": "form-control form-control-sm"}),
+            "rampla": forms.Select(attrs={"class": "form-control form-control-sm"}),
+            "estado_texto": forms.Textarea(attrs={"class": "form-control form-control-sm", "rows": 3, "placeholder": "Ej: EN RUTA A STGO. / CARGA LISTA / DESCANSO..."}),
         }

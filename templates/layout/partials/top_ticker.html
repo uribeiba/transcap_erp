@@ -1,0 +1,40 @@
+{# templates/layout/partials/top_ticker.html #}
+<div class="kame-ticker">
+  <div class="kame-ticker__left">
+    <span class="kame-ticker__brand">
+      <i class="fas fa-chart-line mr-1"></i>
+      <strong>KAME</strong><span class="opacity-75">/ERP</span>
+    </span>
+
+    <span class="kame-pill kame-pill--brand">
+      {{ request.user.perfil.empresa.razon_social|default:"Transcap SPA" }}
+    </span>
+
+    <span class="kame-pill kame-pill--plan">
+      PLAN KAME CONTADOR
+    </span>
+  </div>
+
+  <div class="kame-ticker__mid">
+    {# Valores por defecto para NO romper nada (luego los alimentamos por backend) #}
+    <span class="kame-ind"><span class="kame-ind__k">UF</span> <span class="kame-ind__v">{{ INDICATORS.uf|default:"-" }}</span></span>
+    <span class="kame-ind"><span class="kame-ind__k">DÓLAR</span> <span class="kame-ind__v">{{ INDICATORS.dolar|default:"-" }}</span></span>
+    <span class="kame-ind"><span class="kame-ind__k">EURO</span> <span class="kame-ind__v">{{ INDICATORS.euro|default:"-" }}</span></span>
+    <span class="kame-ind"><span class="kame-ind__k">UTM</span> <span class="kame-ind__v">{{ INDICATORS.utm|default:"-" }}</span></span>
+    <span class="kame-ind d-none d-md-inline-flex"><span class="kame-ind__k">IPC</span> <span class="kame-ind__v">{{ INDICATORS.ipc|default:"-" }}</span></span>
+  </div>
+
+  <div class="kame-ticker__right">
+    <a class="kame-ticker__link" href="#" title="Informes">
+      <i class="fas fa-info-circle mr-1"></i> Informes
+    </a>
+    <a class="kame-ticker__link" href="#" title="Maestros">
+      <i class="fas fa-tools mr-1"></i> Maestros
+    </a>
+
+    <span class="kame-pill kame-pill--muted">
+      <i class="far fa-user mr-1"></i>
+      {{ request.user.username }}
+    </span>
+  </div>
+</div>

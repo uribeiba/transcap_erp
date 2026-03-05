@@ -163,3 +163,109 @@ class SessionOperaciones(models.Model):
 
     def __str__(self):
         return f"{self.user} ({self.tab}) {self.fecha} - {self.last_seen}"
+    
+   # ============================================================
+# Estatus Operacional de Viajes (AM/PM) - reemplaza planilla Excel
+# ============================================================
+
+from taller.models import Conductor, Vehiculo  # noqa: E402
+
+
+class TurnoEstatus(models.TextChoices):
+    AM = "AM", "AM"
+    PM = "PM", "PM"
+
+
+class EstatusOperacionalViaje(models.Model):
+    """
+    Registro diario por chofer, por fecha y turno (AM/PM).
+    Independiente de 'CoordinacionViaje' (opción A).
+    """
+
+    fecha = models.DateField(default=timezone.localdate)
+    turno = models.CharField(max_length=2, choices=TurnoEstatus.choices, default=TurnoEstatus.AM)
+
+    conductor = models.ForeignKey(
+        Conductor, on_delete=models.PROTECT, related_name="estatus_operacional"
+    )
+
+    tracto = models.ForeignKey(
+        Vehiculo, on_delete=models.PROTECT, null=True, blank=True,
+        related_name="estatus_tracto",
+        limit_choices_to={"tipo": "TRACTO"},
+        help_text="Vehículo tipo TRACTO (patente)."
+    )
+    rampla = models.ForeignKey(
+        Vehiculo, on_delete=models.PROTECT, null=True, blank=True,
+        related_name="estatus_rampla",
+        limit_choices_to={"tipo": "SEMIRREMOLQUE"},
+        help_text="Vehículo tipo SEMIRREMOLQUE (rampla)."
+    )
+
+    estado_texto = models.TextField(blank=True, null=True)
+
+    creado_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
+        null=True, blank=True, related_name="estatus_viajes_creados"
+    )
+    actualizado_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
+        null=True, blank=True, related_name="estatus_viajes_actualizados"
+    )
+    creado_el = models.DateTimeField(auto_now_add=True)
+    actualizado_el = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-fecha", "turno", "conductor__apellidos", "conductor__nombres"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["fecha", "turno", "conductor"],
+                name="uniq_estatus_fecha_turno_conductor",
+            )
+        ]
+        permissions = [
+            ("puede_ver_estatus_viajes", "Puede ver Estatus de Viajes (Operaciones)"),
+            ("puede_editar_estatus_viajes", "Puede editar Estatus de Viajes (Operaciones)"),
+        ]
+
+    def __str__(self):
+        return f"{self.fecha} {self.turno} - {self.conductor}"
+
+
+# ============================================================
+# Estatus de viajes (AM/PM)
+# ============================================================
+
+class TurnoEstatus(models.TextChoices):
+    AM = "AM", "AM"
+    PM = "PM", "PM"
+
+
+class EstatusOperacionalViaje(models.Model):
+    fecha = models.DateField(db_index=True)
+    turno = models.CharField(max_length=2, choices=TurnoEstatus.choices, db_index=True)
+
+    # Choferes (tú ya tienes choferes en el sistema)
+    conductor = models.ForeignKey("taller.Conductor", on_delete=models.PROTECT, related_name="estatus_viajes")
+
+    # Patentes (si tienes modelos de flota, apuntamos ahí)
+    tracto = models.ForeignKey("taller.Vehiculo", on_delete=models.SET_NULL, null=True, blank=True, related_name="estatus_tracto")
+    rampla = models.ForeignKey("taller.Vehiculo", on_delete=models.SET_NULL, null=True, blank=True, related_name="estatus_rampla")
+
+    estado_texto = models.TextField(blank=True, default="")
+
+    creado_por = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="estatus_viajes_creados")
+    actualizado_por = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="estatus_viajes_actualizados")
+    creado_el = models.DateTimeField(auto_now_add=True)
+    actualizado_el = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ("fecha", "turno", "conductor")
+        ordering = ["fecha", "turno", "conductor__apellidos", "conductor__nombres"]
+        permissions = [
+            ("puede_ver_estatus_viajes", "Puede ver estatus de viajes"),
+            ("puede_editar_estatus_viajes", "Puede editar estatus de viajes"),
+        ]
+
+    def __str__(self):
+        return f"{self.fecha} {self.turno} - {self.conductor}"

@@ -2,7 +2,6 @@
 {% load static %}
 
 {% block title %}Centro de Comercio — Cotizaciones{% endblock %}
-
 {% block page_title %}Cotizaciones{% endblock %}
 
 {% block content %}
@@ -88,7 +87,6 @@
   // Helpers
   // --------------------------
   function qs(sel, root){ return (root || document).querySelector(sel); }
-  function qsa(sel, root){ return Array.from((root || document).querySelectorAll(sel)); }
 
   function setLoading(el, msg){
     el.innerHTML = `
@@ -100,22 +98,114 @@
   async function fetchHTML(url, opts){
     const res = await fetch(url, opts || {});
     const text = await res.text();
-    return { ok: res.ok, status: res.status, text };
+    return { ok: res.ok, status: res.status, text, res };
   }
 
   async function fetchJSON(url, opts){
     const res = await fetch(url, opts || {});
     const data = await res.json().catch(() => null);
-    return { ok: res.ok, status: res.status, data };
+    return { ok: res.ok, status: res.status, data, res };
   }
 
-  function getCSRF(){
-    const input = document.querySelector('input[name="csrfmiddlewaretoken"]');
+  function getCSRF(fromEl){
+    const root = fromEl || document;
+    const input = root.querySelector('input[name="csrfmiddlewaretoken"]');
     return input ? input.value : null;
   }
 
+  function clearValidation(root){
+    root.querySelectorAll(".is-invalid").forEach(el => el.classList.remove("is-invalid"));
+    const alert = root.querySelector("[data-cot-errors]");
+    if (alert) alert.remove();
+  }
+
+  function humanizeErrors(errorsObj){
+    // errorsObj típico Django: { campo: ["msg1", "msg2"] }
+    const lines = [];
+    if (!errorsObj) return lines;
+    Object.keys(errorsObj).forEach((k) => {
+      const msgs = errorsObj[k];
+      if (Array.isArray(msgs)) {
+        msgs.forEach(m => lines.push(`${k}: ${m}`));
+      } else {
+        lines.push(`${k}: ${msgs}`);
+      }
+    });
+    return lines;
+  }
+
+  function showErrorsInModal(form, payload){
+    // payload: { errors, formset_errors, non_form_errors }
+    clearValidation(form);
+
+    const lines = [];
+
+    // errores del form principal
+    lines.push(...humanizeErrors(payload && payload.errors));
+
+    // non form errors del formset (ej: "Debe haber al menos 1 item")
+    if (payload && payload.non_form_errors) {
+      // Django suele devolver lista/ul. Lo convertimos a texto
+      if (Array.isArray(payload.non_form_errors)) {
+        payload.non_form_errors.forEach(e => lines.push(`Items: ${e}`));
+      } else {
+        lines.push(`Items: ${payload.non_form_errors}`);
+      }
+    }
+
+    // errores del formset (lista por fila)
+    if (payload && Array.isArray(payload.formset_errors)) {
+      payload.formset_errors.forEach((rowErr, idx) => {
+        const rowLines = humanizeErrors(rowErr);
+        rowLines.forEach(l => lines.push(`Item ${idx+1} → ${l}`));
+      });
+    }
+
+    // Si no hay líneas, igual avisamos
+    if (!lines.length) {
+      lines.push("No se pudo guardar. Revisa los campos requeridos.");
+    }
+
+    // Insertar alerta arriba del form
+    const alert = document.createElement("div");
+    alert.className = "alert alert-danger py-2";
+    alert.setAttribute("data-cot-errors", "1");
+    alert.innerHTML = `
+      <div class="d-flex align-items-start">
+        <i class="fas fa-exclamation-triangle mr-2 mt-1"></i>
+        <div>
+          <strong>No se pudo guardar</strong>
+          <ul class="mb-0 mt-1" style="padding-left: 18px;">
+            ${lines.map(l => `<li>${l}</li>`).join("")}
+          </ul>
+        </div>
+      </div>
+    `;
+    form.prepend(alert);
+
+    // Marcar inputs del form principal (si el nombre coincide)
+    if (payload && payload.errors) {
+      Object.keys(payload.errors).forEach((field) => {
+        const el = form.querySelector(`[name="${field}"]`);
+        if (el) el.classList.add("is-invalid");
+      });
+    }
+
+    // Marcar inputs del formset por fila
+    if (payload && Array.isArray(payload.formset_errors)) {
+      payload.formset_errors.forEach((rowErr, idx) => {
+        if (!rowErr) return;
+        Object.keys(rowErr).forEach((field) => {
+          // Django formset: form-0-titulo / form-0-unidad etc
+          const el = form.querySelector(`[name$="-${field}"][name^="form-${idx}-"]`);
+          if (el) el.classList.add("is-invalid");
+        });
+      });
+    }
+  }
+
   // --------------------------
-  // URLs (ajusta SOLO si tus names difieren)
+  // URLs
   // --------------------------
   const URLS = {
     lista: "{% url 'centro_comercio:cotizaciones_lista' %}",
@@ -148,164 +238,19 @@
     return params.toString();
   }
 
-  // ✅ NUEVO: Función de respaldo mejorada para inicializar cálculos
-  function initializeCotizacionCalculations() {
-    try {
-      console.log("🔧 Inicializando cálculos manualmente (respuesta)...");
-      
-      // Buscar todos los inputs de cantidad y valor
-      const inputs = modalBody.querySelectorAll('input[name$="cantidad"], input[name$="valor_unitario"], input[name="descuento"]');
-      inputs.forEach(input => {
-        input.addEventListener('input', recalcTotals);
-        input.addEventListener('change', recalcTotals);
-      });
-      
-      // Buscar checkboxes de exento
-      const checkboxes = modalBody.querySelectorAll('input[name$="exento"]');
-      checkboxes.forEach(checkbox => {
-        checkbox.addEventListener('change', recalcTotals);
-      });
-      
-      // Calcular inicialmente
-      setTimeout(recalcTotals, 100);
-      
-    } catch (error) {
-      console.error("❌ Error inicializando cálculos:", error);
-    }
-  }
-
-// ✅ ACTUALIZADO: Función simplificada para recalcular totales (compatible con select)
-function recalcTotals() {
-    try {
-        console.log("🔄 Recalculando totales (respuesta)...");
-        let neto = 0;
-        let afecto = 0;
-        const ivaRate = 0.19;
-        
-        // Calcular por cada fila
-        const rows = modalBody.querySelectorAll('#items-table tbody tr.item-row');
-        rows.forEach(row => {
-            const cantidadInput = row.querySelector('[name$="cantidad"]');
-            const valorInput = row.querySelector('[name$="valor_unitario"]');
-            const exentoSelect = row.querySelector('[name$="exento"]');
-            const totalSpan = row.querySelector('.item-total');
-            
-            if (cantidadInput && valorInput) {
-                const cantidad = parseFloat(cantidadInput.value) || 0;
-                const valor = parseFloat(valorInput.value.replace(/\./g, '').replace(',', '.')) || 0;
-                const total = cantidad * valor;
-                
-                // Actualizar total de la fila
-                if (totalSpan) {
-                    totalSpan.textContent = '$ ' + total.toLocaleString('es-CL');
-                }
-                
-                neto += total;
-                
-                // ✅ VERIFICAR SI ES EXENTO (AHORA ES UN SELECT)
-                let esExento = false;
-                if (exentoSelect) {
-                    if (exentoSelect.tagName === 'SELECT') {
-                        // Select: valor 'True' para Sí, 'False' para No
-                        esExento = exentoSelect.value === 'True';
-                    } else if (exentoSelect.type === 'checkbox') {
-                        // Compatibilidad con checkbox
-                        esExento = exentoSelect.checked;
-                    }
-                }
-                
-                if (!esExento) {
-                    afecto += total;
-                }
-            }
-        });
-        
-        // Calcular IVA y descuento
-        const descuentoInput = modalBody.querySelector('[name$="descuento"]');
-        const descuento = parseFloat(descuentoInput?.value) || 0;
-        const iva = afecto * ivaRate;
-        const total = neto + iva - descuento;
-        
-        // Actualizar la interfaz
-        const netoEl = modalBody.querySelector('#t-neto');
-        const ivaEl = modalBody.querySelector('#t-iva');
-        const descEl = modalBody.querySelector('#t-desc');
-        const totalEl = modalBody.querySelector('#t-total');
-        
-        if (netoEl) netoEl.textContent = '$ ' + neto.toLocaleString('es-CL');
-        if (ivaEl) ivaEl.textContent = '$ ' + iva.toLocaleString('es-CL');
-        if (descEl) descEl.textContent = '$ ' + descuento.toLocaleString('es-CL');
-        if (totalEl) totalEl.textContent = '$ ' + total.toLocaleString('es-CL');
-        
-    } catch (error) {
-        console.error("❌ Error en recalcTotals:", error);
-    }
-}
-
-  // ✅ MEJORADO: Función de inicialización del formulario usando sistema unificado
+  // --------------------------
+  // Boot del form (cálculos)
+  // --------------------------
   function bootCotForm() {
-    console.log("🚀 Inicializando formulario de cotización en modal");
-    console.log("📊 Sistema unificado disponible:", typeof window.inicializarCotizacionForm);
-    console.log("📊 initCotizacionForm disponible:", typeof window.initCotizacionForm);
-    
-    // Función auxiliar para inicializar
-    const inicializarFormulario = function() {
-      try {
-        // Estrategia 1: Usar el sistema unificado (preferido)
-        if (typeof window.inicializarCotizacionForm === 'function') {
-          console.log("✅ Usando sistema unificado de cotizaciones.js");
-          const calculadora = window.inicializarCotizacionForm(modalBody);
-          if (calculadora) {
-            console.log("✅ Sistema de cotizaciones inicializado correctamente en modal");
-            return true;
-          }
-        }
-        
-        // Estrategia 2: Usar initCotizacionForm (compatibilidad)
-        if (typeof window.initCotizacionForm === 'function') {
-          console.log("⚠️ Usando initCotizacionForm (compatibilidad)");
-          window.initCotizacionForm(modalBody);
-          return true;
-        }
-        
-        // Estrategia 3: Sistema de respaldo
-        console.warn("⚠️ Usando sistema de respaldo");
-        initializeCotizacionCalculations();
-        return true;
-        
-      } catch (error) {
-        console.error("❌ Error inicializando formulario:", error);
-        return false;
+    try {
+      if (typeof window.inicializarCotizacionForm === 'function') {
+        window.inicializarCotizacionForm(modalBody);
+      } else if (typeof window.initCotizacionForm === 'function') {
+        window.initCotizacionForm(modalBody);
       }
-    };
-    
-    // Inicializar con múltiples intentos para mayor robustez
-    let exito = false;
-    
-    // Intento 1: Inmediato
-    exito = inicializarFormulario();
-    
-    // Intento 2: Después de 200ms (si falló el primero)
-    if (!exito) {
-      setTimeout(function() {
-        console.log("🔄 Reintentando inicialización (200ms)...");
-        inicializarFormulario();
-      }, 200);
+    } catch (e) {
+      console.error("❌ bootCotForm:", e);
     }
-    
-    // Intento 3: Cuando el modal esté completamente visible
-    $('#cotModal').off('shown.bs.modal.cotizaciones').on('shown.bs.modal.cotizaciones', function() {
-      console.log("🎯 Modal completamente visible, verificando inicialización...");
-      setTimeout(function() {
-        // Solo intentar si no hubo éxito previo
-        if (!exito) {
-          console.log("🔄 Reintentando inicialización después de mostrar modal...");
-          inicializarFormulario();
-        }
-      }, 100);
-    });
-    
-    return exito;
   }
 
   // --------------------------
@@ -315,9 +260,7 @@ function recalcTotals() {
     lblEstadoCarga.textContent = "Actualizando...";
     setLoading(tablaWrap, "Cargando cotizaciones...");
     const url = URLS.lista + (currentQuery() ? ("?" + currentQuery()) : "");
-    const r = await fetchHTML(url, {
-      headers: { "X-Requested-With": "XMLHttpRequest" }
-    });
+    const r = await fetchHTML(url, { headers: { "X-Requested-With": "XMLHttpRequest" } });
     tablaWrap.innerHTML = r.text;
     lblEstadoCarga.textContent = "";
   }
@@ -335,19 +278,10 @@ function recalcTotals() {
     openModal('<i class="fas fa-plus text-success mr-2"></i> Nueva cotización');
     const r = await fetchHTML(URLS.nuevo, { headers: { "X-Requested-With": "XMLHttpRequest" } });
     modalBody.innerHTML = r.text;
-    
-    // ✅ Asegurar que el modal se muestra primero, luego inicializar
-    $('#cotModal').off('shown.bs.modal').on('shown.bs.modal', function () {
-      const exito = bootCotForm();
+
+    $('#cotModal').off('shown.bs.modal.cot').on('shown.bs.modal.cot', function () {
+      bootCotForm();
       bindFormInsideModal();
-      
-      // Si no hubo éxito, intentar una vez más después de 500ms
-      if (!exito) {
-        setTimeout(function() {
-          console.log("⏱️ Último intento de inicialización...");
-          bootCotForm();
-        }, 500);
-      }
     });
   }
 
@@ -355,19 +289,10 @@ function recalcTotals() {
     openModal('<i class="fas fa-edit text-primary mr-2"></i> Editar cotización ' + id);
     const r = await fetchHTML(urlEditar(id), { headers: { "X-Requested-With": "XMLHttpRequest" } });
     modalBody.innerHTML = r.text;
-    
-    // ✅ Asegurar que el modal se muestra primero, luego inicializar
-    $('#cotModal').off('shown.bs.modal').on('shown.bs.modal', function () {
-      const exito = bootCotForm();
+
+    $('#cotModal').off('shown.bs.modal.cot').on('shown.bs.modal.cot', function () {
+      bootCotForm();
       bindFormInsideModal();
-      
-      // Si no hubo éxito, intentar una vez más después de 500ms
-      if (!exito) {
-        setTimeout(function() {
-          console.log("⏱️ Último intento de inicialización...");
-          bootCotForm();
-        }, 500);
-      }
     });
   }
 
@@ -375,68 +300,150 @@ function recalcTotals() {
     openModal('<i class="far fa-eye text-primary mr-2"></i> Detalle cotización ' + id);
     const r = await fetchHTML(urlDetalle(id), { headers: { "X-Requested-With": "XMLHttpRequest" } });
     modalBody.innerHTML = r.text;
-    
-    // ✅ Para detalle, solo vincular acciones
-    $('#cotModal').off('shown.bs.modal').on('shown.bs.modal', function () {
+
+    $('#cotModal').off('shown.bs.modal.cot').on('shown.bs.modal.cot', function () {
       bindDetalleInsideModal();
     });
   }
 
   // --------------------------
-  // Acciones en tabla
+  // Acciones en tabla (Ver / Editar / Eliminar)
   // --------------------------
   function bindTablaActions(){
     tablaWrap.addEventListener("click", function(e){
-      const btn = e.target.closest(".btn-ver");
-      if (!btn) return;
-      const tr = btn.closest("tr[data-id]");
-      if (!tr) return;
-      const id = tr.getAttribute("data-id");
-      abrirDetalle(id);
+      const btnVer = e.target.closest(".btn-ver, [data-action='ver']");
+      if (btnVer) {
+        const tr = btnVer.closest("tr[data-id]");
+        if (!tr) return;
+        abrirDetalle(tr.getAttribute("data-id"));
+        return;
+      }
+
+      const btnEdit = e.target.closest(".btn-editar, [data-action='editar']");
+      if (btnEdit) {
+        const tr = btnEdit.closest("tr[data-id]");
+        if (!tr) return;
+        abrirEditar(tr.getAttribute("data-id"));
+        return;
+      }
+
+      const btnDel = e.target.closest(".btn-eliminar, [data-action='eliminar']");
+      if (btnDel) {
+        const tr = btnDel.closest("tr[data-id]");
+        if (!tr) return;
+        const id = tr.getAttribute("data-id");
+        if (!id) return;
+
+        if (!confirm("¿Eliminar esta cotización?")) return;
+
+        fetchJSON(urlEliminar(id), {
+          method: "POST",
+          headers: {
+            "X-Requested-With": "XMLHttpRequest",
+            "X-CSRFToken": getCSRF(document) || ""
+          }
+        }).then(async (r) => {
+          if (r.ok && r.data && r.data.ok) {
+            await cargarTabla();
+          } else {
+            alert("No se pudo eliminar.");
+          }
+        });
+        return;
+      }
     });
   }
 
   // --------------------------
-  // Form submit (AJAX) dentro del modal
+  // Submit AJAX dentro del modal (ARREGLADO: mostrar errores reales)
   // --------------------------
+  function precheckItems(form){
+    // Si el usuario llenó cantidad/valor pero dejó título vacío, avisamos antes.
+    const rows = form.querySelectorAll("#items-table tbody tr.item-row");
+    for (const row of rows) {
+      const del = row.querySelector('input[type="checkbox"][name$="-DELETE"]');
+      if (del && del.checked) continue;
+
+      const titulo = row.querySelector('[name$="-titulo"]');
+      const unidad = row.querySelector('[name$="-unidad"]');
+      const cant = row.querySelector('[name$="-cantidad"]');
+      const val = row.querySelector('[name$="-valor_unitario"]');
+
+      const hasNumbers = (cant && String(cant.value || "").trim() !== "") || (val && String(val.value || "").trim() !== "");
+      if (hasNumbers) {
+        if (titulo && !String(titulo.value || "").trim()) return "Falta el Título en uno o más ítems.";
+        if (unidad && !String(unidad.value || "").trim()) return "Falta la Unidad en uno o más ítems.";
+      }
+    }
+    return null;
+  }
+
+  function sanitizeNumbers(form){
+    // limpiar números para Django (quita $, espacios y miles)
+    form.querySelectorAll('[name$="descuento"],[name$="valor_unitario"],[name$="cantidad"]').forEach((el)=>{
+      if (!el || el.type === "checkbox") return;
+      el.value = String(el.value || "")
+        .replace(/\$/g,"")
+        .replace(/\s/g,"")
+        .replace(/\./g,"")
+        .replace(/,/g,".")
+        .replace(/[^0-9.-]/g,"");
+    });
+  }
+
   function bindFormInsideModal(){
     const form = modalBody.querySelector("form[data-cot-form]");
     if (!form) return;
 
+    if (form.dataset.bound === "1") return;
+    form.dataset.bound = "1";
+
     form.addEventListener("submit", async function(ev){
       ev.preventDefault();
 
+      clearValidation(form);
+
+      const msg = precheckItems(form);
+      if (msg) {
+        showErrorsInModal(form, { errors: { items: [msg] } });
+        return;
+      }
+
+      // Sanitizar (si existe tu función global, úsala; si no, fallback)
+      if (typeof window.__sanitizeCotizacionForm === "function") {
+        window.__sanitizeCotizacionForm(form);
+      } else {
+        sanitizeNumbers(form);
+      }
+
       const fd = new FormData(form);
 
+      // ✅ Importante: aquí usamos fetchJSON porque tu backend AJAX devuelve JSON (ok / errors)
       const r = await fetchJSON(form.action, {
         method: "POST",
         headers: {
           "X-Requested-With": "XMLHttpRequest",
-          "X-CSRFToken": getCSRF() || ""
+          "X-CSRFToken": getCSRF(form) || ""
         },
         body: fd
       });
 
+      // ✅ Guardó OK
       if (r.ok && r.data && r.data.ok) {
         await cargarTabla();
         await abrirDetalle(r.data.id);
         return;
       }
 
-      // Si backend devuelve errores, recargamos el form para mostrar mensajes.
-      const html = await fetchHTML(form.action, { headers: { "X-Requested-With": "XMLHttpRequest" } });
-      modalBody.innerHTML = html.text;
-
-      // Re-inicializar el formulario en el modal
-      const exito = bootCotForm();
-      bindFormInsideModal();
-      
-      // Si falla, intentar nuevamente después de un breve retraso
-      if (!exito) {
-        setTimeout(function() {
-          bootCotForm();
-        }, 300);
+      // ✅ FALLÓ: mostrar errores REALES (sin borrar el formulario)
+      if (r.data) {
+        showErrorsInModal(form, r.data);
+        return;
       }
+
+      // ✅ Último recurso: si no vino JSON, mostrar texto de respuesta (para debug)
+      showErrorsInModal(form, { errors: { server: ["Error inesperado. Revisa consola/response."] } });
+      console.error("Respuesta no-JSON en error:", r);
     });
   }
 
@@ -460,7 +467,7 @@ function recalcTotals() {
           method: "POST",
           headers: {
             "X-Requested-With": "XMLHttpRequest",
-            "X-CSRFToken": getCSRF() || ""
+            "X-CSRFToken": getCSRF(modalBody) || ""
           }
         });
 
@@ -473,19 +480,6 @@ function recalcTotals() {
       }
     }, { once: true });
   }
-
-  // ✅ Debug: Verificar estado del modal
-  $('#cotModal').on('show.bs.modal', function () {
-    console.log("🔄 Modal mostrándose...");
-  }).on('shown.bs.modal', function () {
-    console.log("✅ Modal completamente visible");
-    console.log("📊 window.inicializarCotizacionForm disponible:", typeof window.inicializarCotizacionForm);
-    console.log("📊 window.initCotizacionForm disponible:", typeof window.initCotizacionForm);
-  }).on('hide.bs.modal', function () {
-    console.log("❌ Modal ocultándose...");
-    // Limpiar eventos para evitar acumulación
-    $('#cotModal').off('shown.bs.modal.cotizaciones');
-  });
 
   // --------------------------
   // Init

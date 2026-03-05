@@ -1,6 +1,8 @@
+{% load static %}
 <form method="post"
       data-cot-form
-      action="{% if obj %}{% url 'centro_comercio:cotizacion_editar' obj.id %}{% else %}{% url 'centro_comercio:cotizacion_nuevo' %}{% endif %}">
+      data-ajax="1"
+      action="{% if obj %}{% url 'centro_comercio:cotizacion_form' obj.id %}{% else %}{% url 'centro_comercio:cotizacion_form' %}{% endif %}">
   {% csrf_token %}
 
   <div class="card shadow-sm mb-0">
@@ -15,54 +17,65 @@
         </div>
       </div>
 
+      {% if form.non_field_errors %}
+        <div class="alert alert-danger py-2">
+          <i class="fas fa-exclamation-triangle mr-1"></i>
+          {{ form.non_field_errors }}
+        </div>
+      {% endif %}
+
       <!-- Datos principales -->
       <div class="form-row">
         <div class="form-group col-md-6">
-          <label class="mb-1">Código Cotización</label>
+          <label class="mb-1 font-weight-bold">Código Cotización</label>
           <div class="input-group">
             <div class="input-group-prepend">
               <span class="input-group-text"><i class="fas fa-hashtag"></i></span>
             </div>
             {{ form.codigo }}
           </div>
+          {% if form.codigo.errors %}<small class="text-danger">{{ form.codigo.errors }}</small>{% endif %}
         </div>
 
         <div class="form-group col-md-6">
-          <label class="mb-1">Seleccionar Cliente</label>
+          <label class="mb-1 font-weight-bold">Seleccionar Cliente</label>
           <div class="input-group">
             <div class="input-group-prepend">
-              <span class="input-group-text"><i class="fas fa-user-tie"></i></span>
+              <span class="input-group-text"><i class="fas fa-user"></i></span>
             </div>
             {{ form.cliente }}
           </div>
+          {% if form.cliente.errors %}<small class="text-danger">{{ form.cliente.errors }}</small>{% endif %}
         </div>
       </div>
 
       <div class="form-row">
         <div class="form-group col-md-6">
-          <label class="mb-1">Fecha cotización</label>
+          <label class="mb-1 font-weight-bold">Fecha cotización</label>
           <div class="input-group">
             <div class="input-group-prepend">
               <span class="input-group-text"><i class="far fa-calendar"></i></span>
             </div>
             {{ form.fecha }}
           </div>
+          {% if form.fecha.errors %}<small class="text-danger">{{ form.fecha.errors }}</small>{% endif %}
         </div>
 
         <div class="form-group col-md-6">
-          <label class="mb-1">Fecha Vigencia</label>
+          <label class="mb-1 font-weight-bold">Fecha Vigencia</label>
           <div class="input-group">
             <div class="input-group-prepend">
               <span class="input-group-text"><i class="far fa-calendar-check"></i></span>
             </div>
-            {{ form.vigencia_hasta }}
+            {{ form.vigencia }}
           </div>
+          {% if form.vigencia.errors %}<small class="text-danger">{{ form.vigencia.errors }}</small>{% endif %}
         </div>
       </div>
 
       <div class="form-row">
         <div class="form-group col-md-6">
-          <label class="mb-1">Descuento</label>
+          <label class="mb-1 font-weight-bold">Descuento</label>
           <div class="input-group">
             <div class="input-group-prepend">
               <span class="input-group-text"><i class="fas fa-tag"></i></span>
@@ -70,91 +83,125 @@
             {{ form.descuento }}
           </div>
           <small class="text-muted">Se descuenta al total final (después de IVA).</small>
+          {% if form.descuento.errors %}<small class="text-danger">{{ form.descuento.errors }}</small>{% endif %}
         </div>
 
         <div class="form-group col-md-6">
-          <label class="mb-1">Estado</label>
+          <label class="mb-1 font-weight-bold">Estado</label>
           <div class="input-group">
             <div class="input-group-prepend">
               <span class="input-group-text"><i class="fas fa-flag"></i></span>
             </div>
             {{ form.estado }}
           </div>
+          {% if form.estado.errors %}<small class="text-danger">{{ form.estado.errors }}</small>{% endif %}
         </div>
       </div>
 
       <div class="form-group">
-        <label class="mb-1">Términos y condiciones</label>
+        <label class="mb-1 font-weight-bold">Términos y condiciones</label>
         {{ form.terminos }}
+        {% if form.terminos.errors %}<small class="text-danger">{{ form.terminos.errors }}</small>{% endif %}
       </div>
 
       <hr class="my-3">
 
-      <!-- Items -->
-      <div class="d-flex align-items-center justify-content-between mb-2">
-        <div class="d-flex align-items-center">
-          <i class="fas fa-list-ul text-success mr-2"></i>
-          <strong>Items cotización</strong>
-        </div>
-        <small class="text-muted">Se calcula automático (cuando el JS sí vive 😄)</small>
-      </div>
-
+      <!-- ✅ FORMSET: management_form OBLIGATORIO -->
       {{ formset.management_form }}
 
+      <div class="d-flex align-items-center justify-content-between mb-2">
+        <div class="font-weight-bold">
+          <i class="fas fa-list-ul text-success mr-1"></i> Items cotización
+        </div>
+        <small class="text-muted">Se calcula automático (cuando el JS si vive 😄)</small>
+      </div>
+
+      {% if formset.non_form_errors %}
+        <div class="alert alert-danger py-2">
+          <i class="fas fa-exclamation-triangle mr-1"></i>
+          {{ formset.non_form_errors }}
+        </div>
+      {% endif %}
+
       <div class="table-responsive">
-        <table class="table table-sm table-hover mb-0" id="items-table">
+        <table class="table table-sm table-bordered mb-0" id="items-table">
           <thead class="thead-light">
             <tr>
-              <th style="min-width:220px;">Título</th>
-              <th style="width:90px;">¿Exento?</th>
-              <th style="min-width:140px;">Unidad</th>
-              <th style="width:120px;">Cantidad</th>
-              <th style="width:160px;">Valor</th>
-              <th style="width:170px;" class="text-right">Total</th>
-              <th style="width:90px;" class="text-center">Eliminar</th>
+              <th style="width: 28%;">Título</th>
+              <th style="width: 10%;">¿Exento?</th>
+              <th style="width: 14%;">Unidad</th>
+              <th style="width: 12%;">Cantidad</th>
+              <th style="width: 16%;">Valor</th>
+              <th style="width: 14%;" class="text-right">Total</th>
+              <th style="width: 6%;" class="text-center">Eliminar</th>
             </tr>
           </thead>
 
           <tbody>
-            {% for f in formset %}
+            {% for f in formset.forms %}
               <tr class="item-row">
-                <td>{{ f.titulo }}</td>
-                <td>{{ f.exento }}</td>
-                <td>{{ f.unidad }}</td>
-                <td>{{ f.cantidad }}</td>
-                <td>{{ f.valor_unitario }}</td>
+                <!-- ✅ Hidden fields por fila (incluye el ID real del item) -->
+                {% for h in f.hidden_fields %}{{ h }}{% endfor %}
+
+                <td>
+                  {{ f.titulo }}
+                  {% if f.titulo.errors %}<small class="text-danger d-block">{{ f.titulo.errors }}</small>{% endif %}
+                </td>
+
+                <td>
+                  {{ f.exento }}
+                  {% if f.exento.errors %}<small class="text-danger d-block">{{ f.exento.errors }}</small>{% endif %}
+                </td>
+
+                <td>
+                  {{ f.unidad }}
+                  {% if f.unidad.errors %}<small class="text-danger d-block">{{ f.unidad.errors }}</small>{% endif %}
+                </td>
+
+                <td>
+                  {{ f.cantidad }}
+                  {% if f.cantidad.errors %}<small class="text-danger d-block">{{ f.cantidad.errors }}</small>{% endif %}
+                </td>
+
+                <td>
+                  {{ f.valor_unitario }}
+                  {% if f.valor_unitario.errors %}<small class="text-danger d-block">{{ f.valor_unitario.errors }}</small>{% endif %}
+                </td>
+
                 <td class="text-right font-weight-bold">
                   <span class="item-total" data-raw="0">$ 0</span>
                 </td>
-                <td class="text-center">{{ f.DELETE }}</td>
+
+                <td class="text-center">
+                  {{ f.DELETE }}
+                </td>
               </tr>
             {% endfor %}
           </tbody>
         </table>
       </div>
 
-      <!-- Totales -->
       <div class="row mt-3">
-        <div class="col-lg-6"></div>
-        <div class="col-lg-6">
-          <div class="card border-0 bg-light mb-0">
+        <div class="col-md-7"></div>
+        <div class="col-md-5">
+          <div class="card border-0 shadow-sm">
             <div class="card-body py-3">
               <div class="d-flex justify-content-between">
                 <span class="text-muted">Neto</span>
                 <strong id="t-neto">$ 0</strong>
               </div>
-              <div class="d-flex justify-content-between mt-1">
+              <div class="d-flex justify-content-between">
                 <span class="text-muted">IVA 19% (solo afecto)</span>
                 <strong class="text-danger" id="t-iva">$ 0</strong>
               </div>
-              <div class="d-flex justify-content-between mt-1">
+              <div class="d-flex justify-content-between">
                 <span class="text-muted">Descuento</span>
                 <strong id="t-desc">$ 0</strong>
               </div>
               <hr class="my-2">
               <div class="d-flex justify-content-between">
-                <span class="h6 mb-0">Total a pagar</span>
-                <span class="h5 mb-0 text-primary font-weight-bold" id="t-total">$ 0</span>
+                <span class="font-weight-bold">Total a pagar</span>
+                <strong class="text-primary" id="t-total">$ 0</strong>
               </div>
             </div>
           </div>
@@ -162,8 +209,11 @@
       </div>
 
       <div class="text-center mt-3">
-        <button class="btn btn-primary px-4">
-          <i class="fas fa-save"></i> {% if obj %}Guardar{% else %}Crear{% endif %}
+        <button type="submit" class="btn btn-success px-4">
+          <i class="fas fa-save mr-1"></i> {% if obj %}Actualizar{% else %}Crear{% endif %}
+        </button>
+        <button type="button" class="btn btn-secondary ml-2" data-action="volver">
+          <i class="fas fa-times mr-1"></i> Cancelar
         </button>
       </div>
 

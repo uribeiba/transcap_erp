@@ -1,9 +1,15 @@
-<form method="post" action="{{ action_url }}" data-ajax="1">
+{% load static %}
+
+<form
+  method="post"
+  action="{% if obj %}{% url 'centro_comercio:cliente_editar' obj.id %}{% else %}{% url 'centro_comercio:cliente_nuevo' %}{% endif %}"
+  data-ajax="1"
+>
   {% csrf_token %}
 
   <div class="card shadow-sm">
     <div class="card-body">
-      
+
       <div class="d-flex align-items-center justify-content-between mb-3">
         <div class="d-flex align-items-center">
           <i class="fas fa-user-tie text-primary mr-2"></i>
@@ -35,7 +41,7 @@
             {% endif %}
           </div>
         </div>
-        
+
         <div class="col-md-6">
           <div class="form-group">
             <label class="font-weight-bold">Razón Social *</label>
@@ -80,7 +86,7 @@
             {% endif %}
           </div>
         </div>
-        
+
         <div class="col-md-6">
           <div class="form-group">
             <label class="font-weight-bold">E-Mail</label>
@@ -112,7 +118,7 @@
             {% endif %}
           </div>
         </div>
-        
+
         <div class="col-md-4">
           <div class="form-group">
             <label class="font-weight-bold">Localidad</label>
@@ -124,13 +130,25 @@
         </div>
       </div>
 
+      {# ✅ Checkbox manual (Bootstrap 4 custom-control) #}
       <div class="form-group mb-0">
         <div class="custom-control custom-checkbox">
-          {{ form.activo }}
-          <label class="custom-control-label font-weight-bold" for="{{ form.activo.id_for_label }}">
+          <input
+            type="checkbox"
+            class="custom-control-input"
+            id="id_activo"
+            name="activo"
+            {% if form.activo.value or form.activo.value == None %}checked{% endif %}
+          >
+          <label class="custom-control-label font-weight-bold" for="id_activo">
             Cliente Activo
           </label>
         </div>
+
+        {% if form.activo.errors %}
+          <small class="text-danger d-block">{{ form.activo.errors }}</small>
+        {% endif %}
+
         <small class="text-muted">Desmarcar para desactivar el cliente sin eliminarlo.</small>
       </div>
 
@@ -156,7 +174,7 @@
     padding: 8px 12px;
     border: 1px solid #e9ecef;
   }
-  
+
   .input-group-text {
     background-color: #e9ecef;
     border-color: #ced4da;

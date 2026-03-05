@@ -1,0 +1,126 @@
+{% extends "layout/base.html" %}
+
+{% block title %}Estatus Planilla{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+
+  <!-- Barra estilo Kame -->
+  <div class="kame-section-title d-flex align-items-center justify-content-between mb-3">
+    <h4 class="mb-0">Estatus de Viajes — Planilla (AM / PM)</h4>
+
+    <div class="btn-group">
+      <a class="btn btn-sm btn-outline-secondary"
+         href="{% url 'operaciones:estatus_viajes_panel' %}?fecha={{ fecha|date:'Y-m-d' }}">
+        <i class="fas fa-table"></i> Vista tabla
+      </a>
+
+      <a class="btn btn-sm btn-outline-success"
+         href="{% url 'operaciones:estatus_viajes_export_planilla_xlsx' %}?fecha={{ fecha|date:'Y-m-d' }}&q={{ q|urlencode }}">
+        <i class="fas fa-file-excel"></i> Export XLSX
+      </a>
+    </div>
+  </div>
+
+  <!-- Filtros -->
+  <div class="card card-body mb-3">
+    <form class="form-inline" method="get">
+      <label class="mr-2">Fecha</label>
+      <input type="date" name="fecha" value="{{ fecha|date:'Y-m-d' }}" class="form-control form-control-sm mr-3">
+
+      <input type="text" name="q" value="{{ q }}" class="form-control form-control-sm mr-2"
+             placeholder="Buscar chofer/RUT/patente/estado..." style="min-width:320px;">
+      <button class="btn btn-sm btn-dark" type="submit">
+        <i class="fas fa-filter"></i> Filtrar
+      </button>
+    </form>
+  </div>
+
+  <!-- Faltantes -->
+  <div class="row">
+    <div class="col-md-6">
+      <div class="card card-body">
+        <h6 class="mb-2"><span class="badge badge-info">AM</span> Choferes sin estatus</h6>
+        {% if missing_am %}
+          <ul class="mb-0">
+            {% for c in missing_am %}
+              <li>{{ c.nombres }} {{ c.apellidos }} ({{ c.rut }})</li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <div class="text-muted">✅ AM completo</div>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="col-md-6">
+      <div class="card card-body">
+        <h6 class="mb-2"><span class="badge badge-warning">PM</span> Choferes sin estatus</h6>
+        {% if missing_pm %}
+          <ul class="mb-0">
+            {% for c in missing_pm %}
+              <li>{{ c.nombres }} {{ c.apellidos }} ({{ c.rut }})</li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <div class="text-muted">✅ PM completo</div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Planilla -->
+  <div class="card mt-3">
+    <div class="card-header d-flex align-items-center justify-content-between">
+      <strong>Planilla del día: {{ fecha|date:"d-m-Y" }}</strong>
+      <small class="text-muted">AM y PM en columnas (estatus 2 veces al día)</small>
+    </div>
+
+    <div class="table-responsive">
+      <table class="table table-sm table-bordered mb-0">
+        <thead class="thead-light">
+          <tr>
+            <th style="width:260px;">Chofer</th>
+            <th style="width:120px;">Tracto</th>
+            <th style="width:120px;">Rampla</th>
+            <th>AM</th>
+            <th>PM</th>
+          </tr>
+        </thead>
+
+        <tbody>
+          {% for r in rows %}
+          <tr>
+            <td>
+              <div class="font-weight-bold">{{ r.conductor.nombres }} {{ r.conductor.apellidos }}</div>
+              <small class="text-muted">{{ r.conductor.rut }}</small>
+
+              <div class="mt-1">
+                {% if r.has_am %}
+                  <span class="badge badge-info">AM OK</span>
+                {% else %}
+                  <span class="badge badge-danger">AM FALTA</span>
+                {% endif %}
+
+                {% if r.has_pm %}
+                  <span class="badge badge-warning">PM OK</span>
+                {% else %}
+                  <span class="badge badge-danger">PM FALTA</span>
+                {% endif %}
+              </div>
+            </td>
+
+            <td class="text-center">{{ r.tracto.patente|default:"-" }}</td>
+            <td class="text-center">{{ r.rampla.patente|default:"-" }}</td>
+
+            <td style="white-space:pre-wrap;">{{ r.am_texto|default:"" }}</td>
+            <td style="white-space:pre-wrap;">{{ r.pm_texto|default:"" }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+{% endblock %}

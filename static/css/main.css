@@ -1,125 +1,281 @@
+/* =========================
+   BASE
+========================= */
 body {
-    background-color: #f4f6f9;
+  background-color: #f4f6f9;
+}
+
+/* =========================
+   THEME TOKENS (Kame-like)
+   - No rompe AdminLTE, solo “tunea”
+========================= */
+:root{
+  --kame-bg: #f5f6f8;
+  --kame-surface: #ffffff;
+  --kame-border: rgba(0,0,0,.08);
+  --kame-shadow: 0 2px 10px rgba(0,0,0,.06);
+  --kame-radius: 12px;
+
+  --kame-text: #1f2937;
+  --kame-muted: rgba(255,255,255,.78);
+
+  /* Barras sección */
+  --kame-section: #f6b21a; /* amarillo/naranja */
+  --kame-section-text: #1b1b1b;
+
+  /* Densidad */
+  --kame-pad-1: .5rem;
+  --kame-pad-2: .75rem;
+  --kame-pad-3: 1rem;
+  --kame-font-sm: .86rem;
+  --kame-font-xs: .78rem;
 }
 
 .main-sidebar {
-    min-height: 100vh;
+  min-height: 100vh;
 }
 
-.brand-link {
-    background-color: #ff8f00;
-    color: #fff !important;
+/* =========================
+   TOP TICKER (Kame)
+========================= */
+.kame-ticker{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:.75rem;
+  padding: .35rem .75rem;
+  background:#2b2b2b;
+  color:#fff;
+  font-size: var(--kame-font-xs);
+  line-height: 1.15;
+  border-bottom: 1px solid rgba(255,255,255,.08);
 }
 
-.nav-sidebar .nav-link.active {
-    background-color: #343a40;
+.kame-ticker__left,
+.kame-ticker__mid,
+.kame-ticker__right{
+  display:flex;
+  align-items:center;
+  gap:.5rem;
+  flex-wrap:wrap;
 }
 
-.card {
-    border-radius: 0.5rem;
+.kame-ticker__mid{
+  justify-content:center;
+  flex: 1;
+  gap:.6rem;
 }
 
-/* Estilos adicionales para clientes */
-.card-title.text-muted {
-    font-size: 0.9rem;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-  }
-  
-  .badge {
-    font-size: 0.75rem;
-    padding: 0.25em 0.6em;
-  }
-  
-  .form-control-plaintext {
-    background-color: #f8f9fa;
-    border-radius: 4px;
-    padding: 8px 12px;
-    border: 1px solid #e9ecef;
-  }
-  
-  .input-group-text {
-    background-color: #e9ecef;
-    border-color: #ced4da;
-  }
-  
-  .table-hover tbody tr:hover {
-    background-color: rgba(0, 123, 255, 0.05);
-  }
-
-
-
-/* main.css - agregar al final */
-.select2-container--bootstrap4 .select2-selection {
-  height: calc(2.25rem + 2px) !important;
+.kame-ticker__brand{
+  display:inline-flex;
+  align-items:center;
+  gap:.35rem;
+  letter-spacing:.3px;
 }
 
-.select2-container--bootstrap4 .select2-selection--single .select2-selection__rendered {
-  line-height: 2.25rem !important;
+.kame-ticker__link{
+  color:#fff !important;
+  opacity:.9;
+  text-decoration:none;
+  padding: .12rem .35rem;
+  border-radius: 6px;
+}
+.kame-ticker__link:hover{
+  opacity:1;
+  background: rgba(255,255,255,.08);
 }
 
-.custom-switch .custom-control-label::before {
-  width: 2.5rem !important;
-  height: 1.25rem !important;
+.kame-pill{
+  display:inline-flex;
+  align-items:center;
+  gap:.35rem;
+  padding:.12rem .45rem;
+  border-radius: 999px;
+  font-size: var(--kame-font-xs);
+  border: 1px solid rgba(255,255,255,.14);
+  background: rgba(255,255,255,.06);
+}
+.kame-pill--brand{
+  background: rgba(255,255,255,.08);
+}
+.kame-pill--plan{
+  background: rgba(246,178,26,.18);
+  border-color: rgba(246,178,26,.35);
+}
+.kame-pill--muted{
+  opacity: .95;
 }
 
-.custom-switch .custom-control-label::after {
-  width: calc(1.25rem - 4px) !important;
-  height: calc(1.25rem - 4px) !important;
+.kame-ind{
+  display:inline-flex;
+  align-items:center;
+  gap:.35rem;
+  padding:.10rem .45rem;
+  border-radius: 999px;
+  background: rgba(255,255,255,.06);
+  border: 1px solid rgba(255,255,255,.10);
+}
+.kame-ind__k{
+  color: var(--kame-muted);
+  font-weight: 700;
+  letter-spacing:.3px;
+}
+.kame-ind__v{
+  font-weight: 800;
 }
 
-.card-info {
-  border-top: 3px solid #17a2b8;
+/* =========================
+   NAVBAR / CONTENT DENSITY
+========================= */
+.kame-navbar{
+  border-bottom: 1px solid rgba(0,0,0,.06);
 }
 
-.card-primary {
-  border-top: 3px solid #007bff;
+.kame-content{
+  background: var(--kame-bg);
+}
+.kame-content-header{
+  padding-bottom: 0;
+}
+.kame-content-body{
+  padding-top: .25rem;
 }
 
-.btn-lg {
-  padding: 0.75rem 1.5rem;
-  font-size: 1.1rem;
+.kame-pagebar{
+  background: var(--kame-section);
+  color: var(--kame-section-text);
+  border-radius: var(--kame-radius);
+  box-shadow: var(--kame-shadow);
+  padding: .65rem .85rem;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap: 1rem;
+  margin-bottom: .75rem;
 }
 
+.kame-pagebar__left{
+  display:flex;
+  align-items:baseline;
+  gap:.65rem;
+  min-width: 0;
+}
+.kame-pagebar__title{
+  margin:0;
+  font-size: 1.15rem;
+  font-weight: 800;
+  letter-spacing:.2px;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+.kame-pagebar__right{
+  display:flex;
+  align-items:center;
+  gap:.5rem;
+  flex-wrap:wrap;
+  justify-content:flex-end;
+}
 
-/* FIX Select2 Bootstrap4: evita que el texto se vaya debajo */
+/* =========================
+   CARDS / KPI (Kame-ish)
+========================= */
+.card{
+  border-radius: var(--kame-radius);
+  box-shadow: var(--kame-shadow);
+  border: 1px solid var(--kame-border);
+}
+
+.small-box{
+  border-radius: var(--kame-radius) !important;
+  box-shadow: var(--kame-shadow);
+}
+
+/* =========================
+   TABLES / BADGES (compact)
+========================= */
+.table{
+  color: var(--kame-text);
+}
+
+.table th,
+.table td{
+  padding: .45rem .55rem;
+  vertical-align: middle;
+}
+
+.table thead th{
+  font-size: var(--kame-font-sm);
+  font-weight: 800;
+}
+
+.table-hover tbody tr:hover {
+  background-color: rgba(0, 123, 255, 0.05);
+}
+
+.badge{
+  font-size: 0.75rem;
+  padding: 0.25em 0.6em;
+}
+
+/* =========================
+   FORMS / FILTERS (grid friendly)
+========================= */
+.form-control{
+  border-radius: 10px;
+}
+.btn{
+  border-radius: 10px;
+}
+.btn-sm{
+  padding: .28rem .55rem;
+}
+
+/* Un bloque de filtros “tipo Kame” */
+.kame-filters{
+  background: var(--kame-surface);
+  border: 1px solid var(--kame-border);
+  border-radius: var(--kame-radius);
+  box-shadow: var(--kame-shadow);
+  padding: .75rem .75rem .25rem .75rem;
+  margin-bottom: .75rem;
+}
+.kame-filters .form-group{
+  margin-bottom: .6rem;
+}
+
+/* =========================
+   Select2 FIX (Bootstrap4)
+========================= */
 .select2-container {
   width: 100% !important;
 }
 
-.select2-container--bootstrap4 .select2-selection--single {
-  height: calc(2.25rem + 2px) !important; /* Bootstrap4 input height */
-  display: flex !important;
-  align-items: center !important;
+.select2-container--bootstrap4 .select2-selection {
+  height: calc(2.25rem + 2px) !important;
+}
+
+.select2-container--bootstrap4 .select2-selection--single{
+  height: calc(2.25rem + 2px) !important;
+  display:flex !important;
+  align-items:center !important;
   border: 1px solid #ced4da !important;
+  border-radius: 10px;
 }
 
-.select2-container--bootstrap4 .select2-selection--single .select2-selection__rendered {
+.select2-container--bootstrap4 .select2-selection--single .select2-selection__rendered{
   padding-left: .75rem !important;
-  line-height: normal !important; /* clave: evita “texto abajo” */
+  line-height: normal !important;
 }
 
-.select2-container--bootstrap4 .select2-selection--single .select2-selection__arrow {
+.select2-container--bootstrap4 .select2-selection--single .select2-selection__arrow{
   height: calc(2.25rem + 2px) !important;
   top: 0 !important;
 }
 
-/* Botón tipo "pill" para Parámetros (como captura) */
-.nav-sidebar .nav-link.nav-parametros {
-  border-radius: 20px;
-}
-.nav-sidebar .nav-link.nav-parametros.active {
-  background: #ffffff !important;
-  color: #111827 !important;
-  font-weight: 700;
-}
-.nav-sidebar .nav-link.nav-parametros.active .nav-icon {
-  color: #111827 !important;
-}
-
-
-/* ============ TRANSCAp THEME (por empresa) ============ */
-
+/* =========================
+   AdminLTE Theme (por empresa)
+========================= */
 /* NAVBAR */
 .navbar-transcap{
   background-color: var(--brand-primary) !important;
@@ -153,7 +309,7 @@ body {
   color: #fff !important;
 }
 .sidebar-transcap .nav-sidebar .nav-link:hover{
-  background-color: rgba(4,139,54,.22) !important; /* hover verde suave */
+  background-color: rgba(4,139,54,.22) !important;
 }
 
 /* BOTONES */
@@ -166,7 +322,13 @@ body {
   border-color: var(--brand-primary-dark) !important;
 }
 
-/* BADGES / LINKS (opcional pero recomendado) */
+/* LINKS / BADGES */
 a{ color: var(--brand-primary); }
 a:hover{ color: var(--brand-primary-dark); }
 .badge-primary{ background-color: var(--brand-primary) !important; }
+
+/* Footer un poquito más “ERP” */
+.main-footer{
+  background: #fff;
+  border-top: 1px solid rgba(0,0,0,.06);
+}

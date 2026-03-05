@@ -1,0 +1,167 @@
+{% extends "layout/base.html" %}
+{% load static %}
+
+{% block title %}Estatus Viajes{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+
+  <div class="kame-section-title d-flex align-items-center justify-content-between mb-3">
+    <h4 class="mb-0">Estatus de Viajes (AM/PM)</h4>
+
+    <div class="btn-group">
+      <a class="btn btn-sm btn-outline-secondary"
+         href="{% url 'operaciones:estatus_viajes_export_xlsx' %}?fecha={{ fecha|date:'Y-m-d' }}&turno={{ turno }}&q={{ q|urlencode }}">
+        <i class="fas fa-file-excel"></i> Exportar XLSX
+      </a>
+    </div>
+  </div>
+
+  <div class="card card-body mb-3">
+    <form class="form-inline" method="get">
+      <label class="mr-2">Fecha</label>
+      <input type="date" name="fecha" value="{{ fecha|date:'Y-m-d' }}" class="form-control form-control-sm mr-3">
+
+      <label class="mr-2">Turno</label>
+      <select name="turno" class="form-control form-control-sm mr-3">
+        {% for t in turnos %}
+          <option value="{{ t }}" {% if turno == t %}selected{% endif %}>{{ t }}</option>
+        {% endfor %}
+      </select>
+
+      <input type="text" name="q" value="{{ q }}" placeholder="Buscar chofer, RUT, patente, estado..."
+             class="form-control form-control-sm mr-2" style="min-width:280px;">
+      <button class="btn btn-sm btn-dark" type="submit">
+        <i class="fas fa-filter"></i> Filtrar
+      </button>
+    </form>
+  </div>
+
+  <!-- ✅ MODO PRO: alertas faltantes -->
+  <div class="row">
+    <div class="col-md-6">
+      <div class="card card-body">
+        <h6 class="mb-2"><span class="badge badge-info">AM</span> Choferes sin estatus</h6>
+        {% if missing_am %}
+          <ul class="mb-0">
+            {% for c in missing_am %}
+              <li>{{ c.nombres }} {{ c.apellidos }} ({{ c.rut }})</li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <div class="text-muted">✅ Todos los choferes tienen estatus AM</div>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="col-md-6">
+      <div class="card card-body">
+        <div class="d-flex align-items-center justify-content-between">
+          <h6 class="mb-2"><span class="badge badge-warning">PM</span> Choferes sin estatus</h6>
+
+          <!-- ✅ botón copiar AM → PM -->
+          <form method="post" action="{% url 'operaciones:estatus_viajes_copiar_am_a_pm' %}">
+            {% csrf_token %}
+            <input type="hidden" name="fecha" value="{{ fecha|date:'Y-m-d' }}">
+            <input type="hidden" name="turno" value="{{ turno }}">
+            <input type="hidden" name="q" value="{{ q }}">
+            <button class="btn btn-sm btn-primary" type="submit">
+              <i class="fas fa-copy"></i> Copiar AM → PM
+            </button>
+          </form>
+        </div>
+
+        {% if missing_pm %}
+          <ul class="mb-0">
+            {% for c in missing_pm %}
+              <li>{{ c.nombres }} {{ c.apellidos }} ({{ c.rut }})</li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <div class="text-muted">✅ Todos los choferes tienen estatus PM</div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Form crear/editar rápido -->
+  <div class="card mt-3">
+    <div class="card-header">
+      <strong>Registrar / actualizar estatus</strong>
+    </div>
+    <div class="card-body">
+      <form method="post" action="{% url 'operaciones:estatus_viajes_guardar' %}">
+        {% csrf_token %}
+        <div class="form-row">
+          <div class="col-md-2">{{ form.fecha }}</div>
+          <div class="col-md-2">{{ form.turno }}</div>
+          <div class="col-md-4">{{ form.conductor }}</div>
+          <div class="col-md-2">{{ form.tracto }}</div>
+          <div class="col-md-2">{{ form.rampla }}</div>
+        </div>
+
+        <div class="form-group mt-2">
+          {{ form.estado_texto }}
+        </div>
+
+        <input type="hidden" name="q" value="{{ q }}">
+        <button class="btn btn-success">
+          <i class="fas fa-save"></i> Guardar
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Tabla -->
+  <div class="card mt-3">
+    <div class="card-header d-flex align-items-center justify-content-between">
+      <strong>Reporte</strong>
+      <small class="text-muted">Fecha: {{ fecha|date:"d-m-Y" }} | Turno: {{ turno }}</small>
+    </div>
+
+    <div class="table-responsive">
+      <table class="table table-sm table-hover mb-0">
+        <thead class="thead-light">
+          <tr>
+            <th>Chofer</th>
+            <th>RUT</th>
+            <th>Turno</th>
+            <th>Tracto</th>
+            <th>Rampla</th>
+            <th>Estado</th>
+            <th class="text-right">Acción</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in items %}
+          <tr>
+            <td>{{ r.conductor.nombres }} {{ r.conductor.apellidos }}</td>
+            <td>{{ r.conductor.rut }}</td>
+            <td><span class="badge {% if r.turno == 'AM' %}badge-info{% else %}badge-warning{% endif %}">{{ r.turno }}</span></td>
+            <td>{{ r.tracto.patente|default:"-" }}</td>
+            <td>{{ r.rampla.patente|default:"-" }}</td>
+            <td style="white-space:pre-wrap;">{{ r.estado_texto }}</td>
+            <td class="text-right">
+              <form method="post" action="{% url 'operaciones:estatus_viajes_eliminar' r.id %}" style="display:inline;">
+                {% csrf_token %}
+                <input type="hidden" name="fecha" value="{{ fecha|date:'Y-m-d' }}">
+                <input type="hidden" name="turno" value="{{ turno }}">
+                <input type="hidden" name="q" value="{{ q }}">
+                <button class="btn btn-sm btn-outline-danger" onclick="return confirm('¿Eliminar estatus?')">
+                  <i class="fas fa-trash"></i>
+                </button>
+              </form>
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="7" class="text-center text-muted py-4">No hay registros para el filtro.</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+{% endblock %}

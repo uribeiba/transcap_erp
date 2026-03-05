@@ -5,6 +5,125 @@
 {% block page_title %}Tablero Operativo Diario{% endblock %}
 
 {% block content %}
+
+
+
+<!-- BARRA PRO: acciones rápidas -->
+<div class="d-flex flex-wrap align-items-center justify-content-between mb-2">
+  <div class="btn-group btn-group-sm mb-2">
+    <a class="btn btn-outline-dark" href="{% url 'operaciones:tablero_diario' %}?fecha={{ fecha|date:'Y-m-d' }}&tab={{ tab }}{% if q %}&q={{ q }}{% endif %}">
+      <i class="fas fa-sync-alt"></i> Refrescar
+    </a>
+
+    <a class="btn btn-outline-primary" href="{% url 'operaciones:estatus_viajes_planilla' %}?fecha={{ fecha|date:'Y-m-d' }}">
+      <i class="fas fa-clipboard-list"></i> Planilla AM/PM
+    </a>
+
+    <a class="btn btn-outline-success" href="{% url 'operaciones:estatus_viajes_export_planilla_xlsx' %}?fecha={{ fecha|date:'Y-m-d' }}">
+      <i class="fas fa-file-excel"></i> XLSX Planilla
+    </a>
+  </div>
+
+  <div class="btn-group btn-group-sm mb-2">
+    <a class="btn btn-outline-danger"
+       href="?fecha={{ fecha|date:'Y-m-d' }}&tab={{ tab }}&q=URG">
+      <i class="fas fa-exclamation-circle"></i> Solo urgentes
+    </a>
+
+    <form method="post" action="{% url 'operaciones:crear_rapido' %}" class="d-inline">
+      {% csrf_token %}
+      <input type="hidden" name="fecha" value="{{ fecha|date:'Y-m-d' }}">
+      <input type="hidden" name="next" value="{% url 'operaciones:tablero_diario' %}?fecha={{ fecha|date:'Y-m-d' }}&tab={{ tab }}">
+      <button type="submit" class="btn btn-primary">
+        <i class="fas fa-plus"></i> Nuevo rápido
+      </button>
+    </form>
+  </div>
+</div>
+
+<!-- TARJETAS PANEL OPERACIONAL -->
+<div class="row mb-3">
+
+  <div class="col-md-3">
+    <div class="small-box bg-info">
+      <div class="inner">
+        <h3>{{ total_registros }}</h3>
+        <p>Total registros</p>
+      </div>
+      <div class="icon">
+        <i class="fas fa-database"></i>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-3">
+    <div class="small-box bg-warning">
+      <div class="inner">
+        <h3>{{ pendientes }}</h3>
+        <p>Pendientes</p>
+      </div>
+      <div class="icon">
+        <i class="fas fa-hourglass-half"></i>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-3">
+    <div class="small-box bg-primary">
+      <div class="inner">
+        <h3>{{ en_proceso }}</h3>
+        <p>En proceso</p>
+      </div>
+      <div class="icon">
+        <i class="fas fa-cogs"></i>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-3">
+    <div class="small-box bg-success">
+      <div class="inner">
+        <h3>{{ completados }}</h3>
+        <p>Completados</p>
+      </div>
+      <div class="icon">
+        <i class="fas fa-check"></i>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+
+
+{% if alertas %}
+  <div class="card border-0 mb-3">
+    <div class="card-body py-2">
+      <div class="d-flex align-items-center justify-content-between mb-2">
+        <div>
+          <strong><i class="fas fa-bell text-danger mr-1"></i> Alertas operacionales</strong>
+          <small class="text-muted ml-2">Lo que puede romperte el día (antes del café)</small>
+        </div>
+        <small class="text-muted">Fecha: {{ fecha|date:"d-m-Y" }}</small>
+      </div>
+
+      <div class="d-flex flex-wrap">
+        {% for a in alertas %}
+          <a href="{{ a.href }}" class="mr-2 mb-2 text-decoration-none">
+            <span class="badge badge-{{ a.level }} p-2" style="font-size:13px;">
+              {{ a.count }} — {{ a.label }}
+              {% if a.hint %}<span class="ml-1" style="opacity:.85;">({{ a.hint }})</span>{% endif %}
+            </span>
+          </a>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+{% endif %}
+
+
+
+
 <div class="row">
   <div class="col-md-12">
 
@@ -12,19 +131,20 @@
     <div class="card">
       <div class="card-body py-2">
         <div class="form-row align-items-end">
-          <!-- GET filtros -->
+
           <div class="col-md-8">
             <form class="form-row align-items-end" method="get">
+
               <div class="col-md-3">
                 <label class="mb-0">Día</label>
                 <input type="date" class="form-control form-control-sm" name="fecha" value="{{ fecha|date:'Y-m-d' }}">
               </div>
+
               <div class="col-md-6">
                 <label class="mb-0">Buscar</label>
                 <input class="form-control form-control-sm" name="q" value="{{ q }}" placeholder="Cliente, guía, factura, viaje...">
               </div>
 
-              <!-- mantenemos tab actual -->
               <input type="hidden" name="tab" value="{{ tab }}">
 
               <div class="col-md-3">
@@ -32,10 +152,11 @@
                   <i class="fas fa-filter"></i> Filtrar
                 </button>
               </div>
+
             </form>
           </div>
 
-          <!-- POST crear rápido -->
+          <!-- crear rápido -->
           <div class="col-md-4 text-right">
             <form method="post" action="{% url 'operaciones:crear_rapido' %}">
               {% csrf_token %}
@@ -51,8 +172,10 @@
       </div>
     </div>
 
-    <!-- KPIs -->
+
+    <!-- KPIs originales -->
     <div class="row">
+
       <div class="col-md-2">
         <div class="small-box bg-warning">
           <div class="inner">
@@ -62,6 +185,7 @@
           <div class="icon"><i class="fas fa-hourglass-half"></i></div>
         </div>
       </div>
+
       <div class="col-md-2">
         <div class="small-box bg-orange">
           <div class="inner">
@@ -71,6 +195,7 @@
           <div class="icon"><i class="fas fa-receipt"></i></div>
         </div>
       </div>
+
       <div class="col-md-2">
         <div class="small-box bg-info">
           <div class="inner">
@@ -80,6 +205,7 @@
           <div class="icon"><i class="fas fa-file-invoice"></i></div>
         </div>
       </div>
+
       <div class="col-md-2">
         <div class="small-box bg-success">
           <div class="inner">
@@ -89,6 +215,7 @@
           <div class="icon"><i class="fas fa-check"></i></div>
         </div>
       </div>
+
       <div class="col-md-2">
         <div class="small-box bg-danger">
           <div class="inner">
@@ -98,6 +225,7 @@
           <div class="icon"><i class="fas fa-exclamation-triangle"></i></div>
         </div>
       </div>
+
       <div class="col-md-2">
         <div class="small-box bg-secondary">
           <div class="inner">
@@ -107,10 +235,13 @@
           <div class="icon"><i class="fas fa-coins"></i></div>
         </div>
       </div>
+
     </div>
 
-    <!-- Tabs por estado -->
+
+    <!-- TABLA REGISTROS -->
     <div class="card">
+
       <div class="card-header p-0">
         <div class="d-flex justify-content-between align-items-center px-2 pt-2">
 
@@ -120,35 +251,45 @@
                 <a class="nav-link {% if tab == k %}active{% endif %}"
                    href="?fecha={{ fecha|date:'Y-m-d' }}&tab={{ k }}{% if q %}&q={{ q }}{% endif %}">
                   {{ v }}
-                  <span class="badge badge-light ml-1" data-tabcount="{{ k }}">{{ conteos|get_item:k|default:0 }}</span>
+                  <span class="badge badge-light ml-1" data-tabcount="{{ k }}">
+                    {{ conteos|get_item:k|default:0 }}
+                  </span>
                 </a>
               </li>
             {% endfor %}
           </ul>
 
-          <!-- ✅ Chips presencia + status -->
+          <!-- presencia -->
           <div class="d-flex align-items-center pr-2">
-            <span id="chipConectados" class="badge badge-success mr-2" style="font-size:12px;">
-              <i class="fas fa-users mr-1"></i> Conectadas: 0
+
+            <span id="chipConectados" class="badge badge-success mr-2">
+              <i class="fas fa-users"></i> Conectadas: 0
             </span>
-            <span id="chipEditando" class="badge badge-warning mr-2" style="font-size:12px;">
-              <i class="fas fa-user-edit mr-1"></i> Editando: 0
+
+            <span id="chipEditando" class="badge badge-warning mr-2">
+              <i class="fas fa-user-edit"></i> Editando: 0
             </span>
+
             <small id="autoRefreshStatus" class="text-muted">
-              <i class="fas fa-sync-alt mr-1"></i> Sincronizando…
+              <i class="fas fa-sync-alt"></i> Sincronizando…
             </small>
+
           </div>
 
         </div>
 
-        <!-- ✅ Lista detallada -->
         <div class="px-2 pb-2">
           <div id="listaPresencia" class="small text-muted"></div>
         </div>
+
       </div>
 
+
+      <!-- TABLA -->
       <div class="card-body table-responsive p-0">
+
         <table class="table table-hover table-sm mb-0">
+
           <thead>
             <tr>
               <th>#</th>
@@ -163,121 +304,62 @@
               <th>Edición</th>
             </tr>
           </thead>
+
           <tbody>
+
             {% for r in registros %}
-              <tr data-id="{{ r.id }}">
-                <td>{{ r.correlativo_diario|stringformat:"03d" }}</td>
-                <td>{{ r.cliente|default:"-" }}</td>
-                <td>{{ r.origen|default:"-" }}</td>
-                <td>{{ r.destino|default:"-" }}</td>
-                <td>{{ r.nro_guia|default:"" }}</td>
-                <td>{{ r.nro_factura|default:"" }}</td>
-                <td>{{ r.referencia_viaje|default:"" }}</td>
-                <td>{{ r.monto|default:"" }}</td>
-                <td>
-                  {% if r.prioridad == "URG" %}
-                    <span class="badge badge-danger">Urgente</span>
-                  {% else %}
-                    <span class="badge badge-secondary">Normal</span>
-                  {% endif %}
-                </td>
-                <td class="td-edicion">
-                  {% if r.bloqueado_por and not r.bloqueo_expirado %}
-                    <span class="badge badge-warning">
-                      <i class="fas fa-lock mr-1"></i> Editando: {{ r.bloqueado_por }}
-                    </span>
-                  {% else %}
-                    <button type="button" class="btn btn-xs btn-outline-primary btn-edit">
-                      <i class="fas fa-pen"></i> Abrir
-                    </button>
-                  {% endif %}
+            <tr data-id="{{ r.id }}">
+
+              <td>{{ r.correlativo_diario|stringformat:"03d" }}</td>
+              <td>{{ r.cliente|default:"-" }}</td>
+              <td>{{ r.origen|default:"-" }}</td>
+              <td>{{ r.destino|default:"-" }}</td>
+              <td>{{ r.nro_guia|default:"" }}</td>
+              <td>{{ r.nro_factura|default:"" }}</td>
+              <td>{{ r.referencia_viaje|default:"" }}</td>
+              <td>{{ r.monto|default:"" }}</td>
+
+              <td>
+                {% if r.prioridad == "URG" %}
+                  <span class="badge badge-danger">Urgente</span>
+                {% else %}
+                  <span class="badge badge-secondary">Normal</span>
+                {% endif %}
+              </td>
+
+              <td class="td-edicion">
+
+                {% if r.bloqueado_por and not r.bloqueo_expirado %}
+                  <span class="badge badge-warning">
+                    <i class="fas fa-lock"></i> Editando {{ r.bloqueado_por }}
+                  </span>
+                {% else %}
+                  <button class="btn btn-xs btn-outline-primary btn-edit">
+                    <i class="fas fa-pen"></i> Abrir
+                  </button>
+                {% endif %}
+
+              </td>
+
+            </tr>
+            {% empty %}
+              <tr>
+                <td colspan="10" class="text-center py-3">
+                  <em>No hay registros.</em>
                 </td>
               </tr>
-            {% empty %}
-              <tr><td colspan="10" class="text-center py-3"><em>No hay registros.</em></td></tr>
             {% endfor %}
+
           </tbody>
+
         </table>
+
       </div>
     </div>
 
   </div>
 </div>
 
-<!-- Modal edición -->
-<div class="modal fade" id="editModal" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-lg">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title">Editar registro</h5>
-        <button type="button" class="close" data-dismiss="modal"><span>&times;</span></button>
-      </div>
-
-      <div class="modal-body">
-        <div id="lockInfo" class="mb-2"></div>
-
-        <form id="editForm">
-          {% csrf_token %}
-
-          <div class="form-row">
-            <div class="col-md-3">
-              <label>Fecha</label>
-              <input name="fecha" type="date" class="form-control form-control-sm">
-            </div>
-            <div class="col-md-3">
-              <label>Estado</label>
-              <select name="estado" class="form-control form-control-sm">
-                {% for k,v in estados %}
-                  <option value="{{ k }}">{{ v }}</option>
-                {% endfor %}
-              </select>
-            </div>
-            <div class="col-md-3">
-              <label>Prioridad</label>
-              <select name="prioridad" class="form-control form-control-sm">
-                <option value="NOR">Normal</option>
-                <option value="URG">Urgente</option>
-              </select>
-            </div>
-            <div class="col-md-3">
-              <label>Monto</label>
-              <input name="monto" class="form-control form-control-sm" step="0.01">
-            </div>
-          </div>
-
-          <div class="form-row mt-2">
-            <div class="col-md-4">
-              <label>N° Guía</label>
-              <input name="nro_guia" class="form-control form-control-sm">
-            </div>
-            <div class="col-md-4">
-              <label>N° Factura</label>
-              <input name="nro_factura" class="form-control form-control-sm">
-            </div>
-            <div class="col-md-4">
-              <label>Referencia viaje</label>
-              <input name="referencia_viaje" class="form-control form-control-sm">
-            </div>
-          </div>
-
-          <div class="mt-2">
-            <label>Observaciones</label>
-            <textarea name="observaciones" class="form-control form-control-sm" rows="2"></textarea>
-          </div>
-        </form>
-
-        <div id="saveMsg" class="mt-2"></div>
-      </div>
-
-      <div class="modal-footer">
-        <button type="button" class="btn btn-secondary btn-sm" data-dismiss="modal">Cerrar</button>
-        <button type="button" class="btn btn-primary btn-sm" id="btnSave">
-          <i class="fas fa-save"></i> Guardar
-        </button>
-      </div>
-    </div>
-  </div>
-</div>
 {% endblock %}
 
 {% block extra_js %}

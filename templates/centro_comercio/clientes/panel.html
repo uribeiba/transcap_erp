@@ -27,7 +27,13 @@
           <div class="input-group-prepend">
             <span class="input-group-text"><i class="fas fa-search"></i></span>
           </div>
-          <input id="clientesSearch" type="text" class="form-control form-control-sm" placeholder="Buscar por RUT, razón social, giro..." style="min-width: 320px;">
+          <input
+            id="clientesSearch"
+            type="text"
+            class="form-control form-control-sm"
+            placeholder="Buscar por RUT, razón social, giro..."
+            style="min-width: 320px;"
+          >
         </div>
       </div>
 
@@ -80,7 +86,6 @@
   // Helpers
   // --------------------------
   function qs(sel, root){ return (root || document).querySelector(sel); }
-  function qsa(sel, root){ return Array.from((root || document).querySelectorAll(sel)); }
 
   function setLoading(el, msg){
     el.innerHTML = `
@@ -143,10 +148,10 @@
   async function cargarTabla(){
     lblEstadoCarga.textContent = "Actualizando...";
     setLoading(tablaWrap, "Cargando clientes...");
+
     const url = URLS.lista + (currentQuery() ? ("?" + currentQuery()) : "");
-    const r = await fetchHTML(url, {
-      headers: { "X-Requested-With": "XMLHttpRequest" }
-    });
+    const r = await fetchHTML(url, { headers: { "X-Requested-With": "XMLHttpRequest" } });
+
     tablaWrap.innerHTML = r.text;
     lblEstadoCarga.textContent = "";
   }
@@ -164,46 +169,56 @@
     openModal('<i class="fas fa-user-plus text-success mr-2"></i> Nuevo Cliente');
     const r = await fetchHTML(URLS.nuevo, { headers: { "X-Requested-With": "XMLHttpRequest" } });
     modalBody.innerHTML = r.text;
-    
-    // Vincular formulario dentro del modal
-    $('#clienteModal').off('shown.bs.modal').on('shown.bs.modal', function () {
-      bindFormInsideModal();
-    });
+    bindFormInsideModal(); // ✅ bind inmediato (no depender de shown)
   }
 
   async function abrirEditar(id){
     openModal('<i class="fas fa-edit text-primary mr-2"></i> Editar Cliente');
     const r = await fetchHTML(urlEditar(id), { headers: { "X-Requested-With": "XMLHttpRequest" } });
     modalBody.innerHTML = r.text;
-    
-    // Vincular formulario dentro del modal
-    $('#clienteModal').off('shown.bs.modal').on('shown.bs.modal', function () {
-      bindFormInsideModal();
-    });
+    bindFormInsideModal(); // ✅ bind inmediato
   }
 
   async function abrirDetalle(id){
     openModal('<i class="far fa-eye text-primary mr-2"></i> Detalle Cliente');
     const r = await fetchHTML(urlDetalle(id), { headers: { "X-Requested-With": "XMLHttpRequest" } });
     modalBody.innerHTML = r.text;
-    
-    // Para detalle, solo vincular acciones
-    $('#clienteModal').off('shown.bs.modal').on('shown.bs.modal', function () {
-      bindDetalleInsideModal();
-    });
+    bindDetalleInsideModal(); // ✅ bind inmediato
   }
 
   // --------------------------
-  // Acciones en tabla
+  // Acciones en tabla (ver/editar/eliminar)
   // --------------------------
   function bindTablaActions(){
-    tablaWrap.addEventListener("click", function(e){
-      const btn = e.target.closest(".btn-ver");
-      if (!btn) return;
-      const tr = btn.closest("tr[data-id]");
+    tablaWrap.addEventListener("click", async function(e){
+      const tr = e.target.closest("tr[data-id]");
       if (!tr) return;
       const id = tr.getAttribute("data-id");
-      abrirDetalle(id);
+
+      const btnVer = e.target.closest(".btn-ver");
+      if (btnVer) { abrirDetalle(id); return; }
+
+      const btnEdit = e.target.closest("[data-action='editar']");
+      if (btnEdit) { abrirEditar(id); return; }
+
+      const btnDel = e.target.closest("[data-action='eliminar']");
+      if (btnDel) {
+        if (!confirm("¿Eliminar este cliente?")) return;
+
+        const r = await fetchJSON(urlEliminar(id), {
+          method: "POST",
+          headers: {
+            "X-Requested-With": "XMLHttpRequest",
+            "X-CSRFToken": getCSRF() || ""
+          }
+        });
+
+        if (r.ok && r.data && r.data.ok) {
+          await cargarTabla();
+        } else {
+          alert("No se pudo eliminar.");
+        }
+      }
     });
   }
 
@@ -213,6 +228,17 @@
   function bindFormInsideModal(){
     const form = modalBody.querySelector("form");
     if (!form) return;
+
+    // evita doble-bind si re-renderizas el form
+    if (form.dataset.bound === "1") return;
+    form.dataset.bound = "1";
+
+    // cancelar
+    modalBody.querySelectorAll("[data-action='volver']").forEach((btn) => {
+      btn.addEventListener("click", function(){
+        $("#clienteModal").modal("hide");
+      });
+    });
 
     form.addEventListener("submit", async function(ev){
       ev.preventDefault();
@@ -238,12 +264,19 @@
       const html = await fetchHTML(form.action, { headers: { "X-Requested-With": "XMLHttpRequest" } });
       modalBody.innerHTML = html.text;
 
-      // Re-vincular el formulario
+      // Re-vincular el formulario (nuevo DOM)
       bindFormInsideModal();
     });
   }
 
   function bindDetalleInsideModal(){
+    // cancelar/volver
+    modalBody.querySelectorAll("[data-action='volver']").forEach((btn) => {
+      btn.addEventListener("click", function(){
+        $("#clienteModal").modal("hide");
+      });
+    });
+
     modalBody.addEventListener("click", async function(e){
       const btnEdit = e.target.closest("[data-action='editar']");
       if (btnEdit) {
@@ -295,7 +328,16 @@
   });
 
   bindTablaActions();
-  cargarTabla();
+
+  (async function boot(){
+    await cargarTabla();
+
+    // si vienes desde redirect normal: ?open=ID
+    const openId = new URLSearchParams(window.location.search).get("open");
+    if (openId) {
+      abrirDetalle(openId);
+    }
+  })();
 
 })();
 </script>
