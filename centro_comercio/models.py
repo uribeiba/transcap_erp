@@ -93,3 +93,8 @@ class CotizacionItem(models.Model):
             return (self.cantidad or 0) * (self.valor_unitario or 0)
         except Exception:
             return 0
+ 
+ 
+ 
+ 
+ 

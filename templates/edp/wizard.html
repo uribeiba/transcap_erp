@@ -3,32 +3,121 @@
 {% block page_title %}Estado de Pago{% endblock %}
 
 {% block extra_css %}
-<!-- Select2 para múltiples servicios -->
-<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
 <style>
     .wizard-steps {
         display: flex;
-        justify-content: center;
-        margin-bottom: 2rem;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-bottom: 1.5rem;
     }
-    .step {
-        padding: 10px 20px;
-        margin: 0 5px;
-        background-color: #f8f9fa;
-        border-radius: 5px;
-        cursor: pointer;
+
+    .wizard-step {
+        padding: 10px 16px;
+        border-radius: 8px;
+        background: #e9ecef;
+        color: #495057;
+        font-weight: 600;
+        text-decoration: none;
+        transition: all 0.2s ease-in-out;
+        border: 1px solid #d6d8db;
     }
-    .step.active {
-        background-color: #007bff;
-        color: white;
+
+    .wizard-step:hover {
+        text-decoration: none;
+        color: #212529;
+        background: #dde2e6;
     }
-    .step.completed {
-        background-color: #28a745;
-        color: white;
+
+    .wizard-step.active {
+        background: #007bff;
+        color: #fff;
+        border-color: #007bff;
     }
-    .step.disabled {
-        background-color: #e9ecef;
+
+    .wizard-step.completed {
+        background: #28a745;
+        color: #fff;
+        border-color: #28a745;
+    }
+
+    .wizard-card-title {
+        font-size: 1.1rem;
+        font-weight: 700;
+        margin-bottom: 1rem;
+    }
+
+    .resumen-box {
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+        background: #f8f9fa;
+        padding: 1rem;
+        height: 100%;
+    }
+
+    .totales-box {
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+        background: #ffffff;
+        padding: 1rem;
+        max-width: 360px;
+        margin-left: auto;
+    }
+
+    .totales-box .linea-total {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 0.5rem;
+    }
+
+    .totales-box .linea-total.grand-total {
+        font-size: 1.1rem;
+        font-weight: 700;
+        border-top: 1px solid #dee2e6;
+        padding-top: 0.75rem;
+        margin-top: 0.75rem;
+    }
+
+    .checkbox-list {
+        max-height: 420px;
+        overflow-y: auto;
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+        padding: 1rem;
+        background: #fff;
+    }
+
+    .checkbox-list ul {
+        list-style: none;
+        padding-left: 0;
+        margin-bottom: 0;
+    }
+
+    .checkbox-list li {
+        margin-bottom: 0.75rem;
+        padding-bottom: 0.75rem;
+        border-bottom: 1px dashed #dee2e6;
+    }
+
+    .checkbox-list li:last-child {
+        border-bottom: 0;
+        margin-bottom: 0;
+        padding-bottom: 0;
+    }
+
+    .tabla-resumen th,
+    .tabla-resumen td {
+        vertical-align: middle;
+    }
+
+    .help-text-small {
+        font-size: 0.85rem;
         color: #6c757d;
+    }
+
+    .form-error {
+        color: #dc3545;
+        font-size: 0.875rem;
+        margin-top: 0.25rem;
     }
 </style>
 {% endblock %}
@@ -36,205 +125,499 @@
 {% block content %}
 <div class="card">
     <div class="card-body">
+
         <!-- Pasos del wizard -->
         <div class="wizard-steps">
-            {% for s in steps %}
-                <div class="step 
-                    {% if s == step %}active
-                    {% elif forloop.counter0 < forloop.parentloop.counter0 %}completed
-                    {% else %}disabled
-                    {% endif %}"
-                    onclick="location.href='{% url "edp:wizard" edp.id s %}'">
-                    {{ s|title }}
-                </div>
-            {% endfor %}
+            <a href="{% url 'edp:wizard' edp.id 'edp' %}"
+               class="wizard-step {% if step == 'edp' %}active{% else %}completed{% endif %}">
+                1. Cabecera EDP
+            </a>
+
+            <a href="{% url 'edp:wizard' edp.id 'servicios' %}"
+               class="wizard-step {% if step == 'servicios' %}active{% elif step == 'pagos' or step == 'finalizar' %}completed{% else %}disabled{% endif %}">
+                2. Bitácoras
+            </a>
+
+            <a href="{% url 'edp:wizard' edp.id 'pagos' %}"
+               class="wizard-step {% if step == 'pagos' %}active{% elif step == 'finalizar' %}completed{% else %}disabled{% endif %}">
+                3. Pagos
+            </a>
+
+            <a href="{% url 'edp:wizard' edp.id 'finalizar' %}"
+               class="wizard-step {% if step == 'finalizar' %}active{% else %}disabled{% endif %}">
+                4. Resumen Final
+            </a>
         </div>
 
-        <!-- Contenido del paso actual -->
-        <div class="wizard-content">
-            {% if step == "edp" %}
-                <h5>Información EDP</h5>
-                <form method="post" id="edp-form">
-                    {% csrf_token %}
-                    <div class="row">
-                        <div class="col-md-4">
-                            <div class="form-group">
-                                <label>Código EDP</label>
-                                {{ form.codigo }}
-                            </div>
-                        </div>
-                        <div class="col-md-4">
-                            <div class="form-group">
-                                <label>Fecha Pago</label>
-                                {{ form.fecha_pago }}
-                            </div>
-                        </div>
-                        <div class="col-md-4">
-                            <div class="form-group">
-                                <label>Estado</label>
-                                {{ form.estado }}
-                            </div>
-                        </div>
-                    </div>
-                    <div class="form-group">
-                        <label>Glosa</label>
-                        {{ form.glosa }}
-                    </div>
-                    <button type="submit" class="btn btn-primary">Guardar y Continuar</button>
-                </form>
+        <!-- STEP 1 -->
+        {% if step == "edp" %}
+        <div class="wizard-card-title">Información general del EDP</div>
 
-            {% elif step == "servicios" %}
-                <h5>Asignar Servicios</h5>
+        <form method="post" id="edp-form" novalidate>
+            {% csrf_token %}
+
+            <div class="row">
+                <div class="col-md-3">
+                    <div class="form-group">
+                        <label>{{ form.codigo.label }}</label>
+                        {{ form.codigo }}
+                        {% for error in form.codigo.errors %}
+                            <div class="form-error">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <div class="col-md-5">
+                    <div class="form-group">
+                        <label>{{ form.cliente.label }}</label>
+                        {{ form.cliente }}
+                        {% for error in form.cliente.errors %}
+                            <div class="form-error">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <div class="col-md-4">
+                    <div class="form-group">
+                        <label>{{ form.estado.label }}</label>
+                        {{ form.estado }}
+                        {% for error in form.estado.errors %}
+                            <div class="form-error">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-4">
+                    <div class="form-group">
+                        <label>{{ form.fecha_pago.label }}</label>
+                        {{ form.fecha_pago }}
+                        {% for error in form.fecha_pago.errors %}
+                            <div class="form-error">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <div class="col-md-4">
+                    <div class="form-group">
+                        <label>{{ form.fecha_inicio.label }}</label>
+                        {{ form.fecha_inicio }}
+                        {% for error in form.fecha_inicio.errors %}
+                            <div class="form-error">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <div class="col-md-4">
+                    <div class="form-group">
+                        <label>{{ form.fecha_termino.label }}</label>
+                        {{ form.fecha_termino }}
+                        {% for error in form.fecha_termino.errors %}
+                            <div class="form-error">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="form-group">
+                        <label>{{ form.responsable.label }}</label>
+                        {{ form.responsable }}
+                        {% for error in form.responsable.errors %}
+                            <div class="form-error">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <div class="col-md-6">
+                    <div class="resumen-box">
+                        <div><strong>Cliente actual:</strong> {{ edp.razon_social_pdf|default:"Sin cliente" }}</div>
+                        <div><strong>RUT:</strong> {{ edp.rut_pdf|default:"-" }}</div>
+                        <div><strong>Giro:</strong> {{ edp.giro_pdf|default:"-" }}</div>
+                        <div><strong>Período:</strong>
+                            {% if edp.fecha_inicio or edp.fecha_termino %}
+                                {{ edp.fecha_inicio|date:"d/m/Y"|default:"-" }} a {{ edp.fecha_termino|date:"d/m/Y"|default:"-" }}
+                            {% else %}
+                                -
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>{{ form.glosa.label }}</label>
+                {{ form.glosa }}
+                {% for error in form.glosa.errors %}
+                    <div class="form-error">{{ error }}</div>
+                {% endfor %}
+            </div>
+
+            {% if form.non_field_errors %}
+                <div class="alert alert-danger">
+                    {% for error in form.non_field_errors %}
+                        <div>{{ error }}</div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+
+            <div class="mt-3">
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-save"></i> Guardar y continuar
+                </button>
+                <a href="{% url 'edp:panel' %}" class="btn btn-secondary">
+                    Cancelar
+                </a>
+            </div>
+        </form>
+        {% endif %}
+
+        <!-- STEP 2 -->
+        {% if step == "servicios" %}
+        <div class="wizard-card-title">Seleccionar bitácoras / servicios operativos</div>
+
+        <div class="row">
+            <div class="col-md-8">
                 <form method="post" id="servicios-form">
                     {% csrf_token %}
                     <div class="form-group">
-                        <label>Seleccionar Servicios</label>
-                        {{ form_servicios.servicios }}
+                        <label>{{ form_servicios.servicios.label }}</label>
+                        <div class="checkbox-list">
+                            {{ form_servicios.servicios }}
+                        </div>
+                        <div class="help-text-small mt-2">
+                            Selecciona las bitácoras que formarán parte del EDP.
+                        </div>
+                        {% for error in form_servicios.servicios.errors %}
+                            <div class="form-error">{{ error }}</div>
+                        {% endfor %}
                     </div>
-                    <button type="submit" class="btn btn-primary">Guardar y Continuar</button>
-                </form>
 
-            {% elif step == "pagos" %}
-                <h5>Listado de Pagos</h5>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save"></i> Guardar y continuar
+                    </button>
+                    <a href="{% url 'edp:wizard' edp.id 'edp' %}" class="btn btn-secondary">
+                        Volver
+                    </a>
+                </form>
+            </div>
+
+            <div class="col-md-4">
+                <div class="resumen-box">
+                    <h6 class="mb-3">Resumen del EDP</h6>
+                    <div><strong>Código:</strong> {{ edp.codigo }}</div>
+                    <div><strong>Cliente:</strong> {{ edp.razon_social_pdf|default:"Sin cliente" }}</div>
+                    <div><strong>Responsable:</strong> {{ edp.responsable|default:"-" }}</div>
+                    <div><strong>Período:</strong>
+                        {{ edp.fecha_inicio|date:"d/m/Y"|default:"-" }} a {{ edp.fecha_termino|date:"d/m/Y"|default:"-" }}
+                    </div>
+                    <hr>
+                    <div><strong>Bitácoras ya agregadas:</strong> {{ items|length }}</div>
+                    <div><strong>Neto actual:</strong> $ {{ edp.neto }}</div>
+                    <div><strong>IVA actual:</strong> $ {{ edp.iva }}</div>
+                    <div><strong>Total actual:</strong> $ {{ edp.total }}</div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- STEP 3 -->
+        {% if step == "pagos" %}
+        <div class="wizard-card-title">Pagos del EDP</div>
+
+        <div class="row">
+            <div class="col-md-8">
                 <form method="post" id="pagos-form">
                     {% csrf_token %}
                     {{ formset.management_form }}
-                    
-                    <table class="table table-sm">
-                        <thead>
-                            <tr>
-                                <th>Fecha</th>
-                                <th>Medio Pago</th>
-                                <th>Monto</th>
-                                <th>Referencia</th>
-                                <th>Eliminar</th>
-                            </tr>
-                        </thead>
-                        <tbody id="formset-container">
-                            {% for form in formset %}
-                            <tr class="form-row">
-                                <td>{{ form.fecha }}</td>
-                                <td>{{ form.medio_pago }}</td>
-                                <td>{{ form.monto }}</td>
-                                <td>{{ form.referencia }}</td>
-                                <td>{{ form.DELETE }}</td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                    <button type="button" class="btn btn-secondary" onclick="addForm()">+ Agregar Pago</button>
-                    <button type="submit" class="btn btn-primary">Guardar y Continuar</button>
+
+                    <div class="table-responsive">
+                        <table class="table table-bordered table-sm tabla-resumen">
+                            <thead>
+                                <tr>
+                                    <th>Fecha</th>
+                                    <th>Medio de pago</th>
+                                    <th>Monto</th>
+                                    <th>Referencia</th>
+                                    <th>Eliminar</th>
+                                </tr>
+                            </thead>
+                            <tbody id="formset-container">
+                                {% for form_pago in formset %}
+                                <tr class="form-row-edp">
+                                    <td>
+                                        {{ form_pago.id }}
+                                        {{ form_pago.fecha }}
+                                        {% for error in form_pago.fecha.errors %}
+                                            <div class="form-error">{{ error }}</div>
+                                        {% endfor %}
+                                    </td>
+                                    <td>
+                                        {{ form_pago.medio_pago }}
+                                        {% for error in form_pago.medio_pago.errors %}
+                                            <div class="form-error">{{ error }}</div>
+                                        {% endfor %}
+                                    </td>
+                                    <td>
+                                        {{ form_pago.monto }}
+                                        {% for error in form_pago.monto.errors %}
+                                            <div class="form-error">{{ error }}</div>
+                                        {% endfor %}
+                                    </td>
+                                    <td>
+                                        {{ form_pago.referencia }}
+                                        {% for error in form_pago.referencia.errors %}
+                                            <div class="form-error">{{ error }}</div>
+                                        {% endfor %}
+                                    </td>
+                                    <td class="text-center">
+                                        {% if form_pago.DELETE %}
+                                            {{ form_pago.DELETE }}
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <button type="button" class="btn btn-secondary" onclick="addFormPago()">
+                        <i class="fas fa-plus"></i> Agregar pago
+                    </button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save"></i> Guardar y continuar
+                    </button>
+                    <a href="{% url 'edp:wizard' edp.id 'servicios' %}" class="btn btn-secondary">
+                        Volver
+                    </a>
                 </form>
+            </div>
 
-            {% elif step == "finalizar" %}
-                <h5>Resumen</h5>
-                
-                <h6>Servicios</h6>
-                <table class="table table-sm">
-                    <thead>
-                        <tr>
-                            <th>Servicio</th>
-                            <th class="text-right">Tarifa</th>
-                            <th class="text-right">Estadía</th>
-                            <th class="text-right">Total</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for item in items %}
-                        <tr>
-                            <td>{{ item.servicio }}</td>
-                            <td class="text-right">$ {{ item.tarifa }}</td>
-                            <td class="text-right">$ {{ item.estadia }}</td>
-                            <td class="text-right">$ {{ item.total_linea }}</td>
-                        </tr>
-                        {% empty %}
-                        <tr><td colspan="4" class="text-center">No hay servicios</td></tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-
-                <h6>Pagos</h6>
-                <table class="table table-sm">
-                    <thead>
-                        <tr>
-                            <th>Fecha</th>
-                            <th>Medio</th>
-                            <th class="text-right">Monto</th>
-                            <th>Referencia</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for pago in pagos %}
-                        <tr>
-                            <td>{{ pago.fecha|date:"d/m/Y" }}</td>
-                            <td>{{ pago.get_medio_pago_display }}</td>
-                            <td class="text-right">$ {{ pago.monto }}</td>
-                            <td>{{ pago.referencia }}</td>
-                        </tr>
-                        {% empty %}
-                        <tr><td colspan="4" class="text-center">No hay pagos</td></tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-
-                <div class="text-right mt-4">
-                    <div>Neto: <strong>$ {{ edp.neto }}</strong></div>
-                    <div>IVA: <strong>$ {{ edp.iva }}</strong></div>
-                    <div>Total a Pagar: <strong>$ {{ edp.total }}</strong></div>
+            <div class="col-md-4">
+                <div class="resumen-box">
+                    <h6 class="mb-3">Totales del EDP</h6>
+                    <div><strong>Neto:</strong> $ {{ edp.neto }}</div>
+                    <div><strong>IVA:</strong> $ {{ edp.iva }}</div>
+                    <div><strong>Total:</strong> $ {{ edp.total }}</div>
+                    <hr>
+                    <div><strong>Pagos registrados:</strong> {{ pagos|length }}</div>
                 </div>
-
-                <div class="mt-4">
-                    <a href="{% url 'edp:detalle' edp.id %}" class="btn btn-primary">Ver Detalle</a>
-                    <a href="{% url 'edp:panel' %}" class="btn btn-success">Finalizar y Volver al Panel</a>
-                </div>
-            {% endif %}
+            </div>
         </div>
+        {% endif %}
+
+        <!-- STEP 4 -->
+        {% if step == "finalizar" %}
+        <div class="wizard-card-title">Resumen final del EDP</div>
+
+        <div class="row mb-4">
+            <div class="col-md-6">
+                <div class="resumen-box">
+                    <h6 class="mb-3">Cabecera del documento</h6>
+                    <div><strong>Código:</strong> {{ edp.codigo }}</div>
+                    <div><strong>Cliente:</strong> {{ edp.razon_social_pdf|default:"Sin cliente" }}</div>
+                    <div><strong>RUT:</strong> {{ edp.rut_pdf|default:"-" }}</div>
+                    <div><strong>Giro:</strong> {{ edp.giro_pdf|default:"-" }}</div>
+                    <div><strong>Responsable:</strong> {{ edp.responsable|default:"-" }}</div>
+                    <div><strong>Fecha documento:</strong> {{ edp.fecha_pago|date:"d/m/Y" }}</div>
+                    <div><strong>Fecha inicio:</strong> {{ edp.fecha_inicio|date:"d/m/Y"|default:"-" }}</div>
+                    <div><strong>Fecha término:</strong> {{ edp.fecha_termino|date:"d/m/Y"|default:"-" }}</div>
+                    <div><strong>Estado:</strong> {{ edp.get_estado_display }}</div>
+                    <div><strong>Glosa:</strong> {{ edp.glosa|default:"-" }}</div>
+                </div>
+            </div>
+
+            <div class="col-md-6">
+                <div class="totales-box">
+                    <div class="linea-total">
+                        <span>Neto</span>
+                        <strong>$ {{ edp.neto }}</strong>
+                    </div>
+                    <div class="linea-total">
+                        <span>IVA</span>
+                        <strong>$ {{ edp.iva }}</strong>
+                    </div>
+                    <div class="linea-total grand-total">
+                        <span>Total</span>
+                        <strong>$ {{ edp.total }}</strong>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <h6 class="mb-3">Detalle de bitácoras incluidas</h6>
+        <div class="table-responsive mb-4">
+            <table class="table table-bordered table-sm tabla-resumen">
+                <thead>
+                    <tr>
+                        <th>Bitácora</th>
+                        <th>Cliente</th>
+                        <th>Conductor</th>
+                        <th>Origen</th>
+                        <th>Destino</th>
+                        <th>N° Guía</th>
+                        <th>Fecha carga</th>
+                        <th>Fecha descarga</th>
+                        <th class="text-right">Tarifa</th>
+                        <th class="text-right">Estadía</th>
+                        <th class="text-right">Total</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in items %}
+                    <tr>
+                        <td>BIT-{{ item.servicio.id }}</td>
+                        <td>{{ item.servicio.cliente|default:"-" }}</td>
+                        <td>{{ item.conductor_pdf|default:"-" }}</td>
+                        <td>{{ item.origen_pdf|default:"-" }}</td>
+                        <td>{{ item.destino_pdf|default:"-" }}</td>
+                        <td>{{ item.numero_guia_pdf|default:"-" }}</td>
+                        <td>
+                            {% if item.fecha_carga_pdf %}
+                                {{ item.fecha_carga_pdf|date:"d/m/Y" }}
+                            {% else %}
+                                -
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if item.fecha_descarga_pdf %}
+                                {{ item.fecha_descarga_pdf|date:"d/m/Y" }}
+                            {% else %}
+                                -
+                            {% endif %}
+                        </td>
+                        <td class="text-right">$ {{ item.tarifa }}</td>
+                        <td class="text-right">$ {{ item.estadia }}</td>
+                        <td class="text-right">$ {{ item.total_linea }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="11" class="text-center">No hay bitácoras asociadas al EDP.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <h6 class="mb-3">Pagos registrados</h6>
+        <div class="table-responsive mb-4">
+            <table class="table table-bordered table-sm tabla-resumen">
+                <thead>
+                    <tr>
+                        <th>Fecha</th>
+                        <th>Medio</th>
+                        <th class="text-right">Monto</th>
+                        <th>Referencia</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for pago in pagos %}
+                    <tr>
+                        <td>{{ pago.fecha|date:"d/m/Y" }}</td>
+                        <td>{{ pago.get_medio_pago_display }}</td>
+                        <td class="text-right">$ {{ pago.monto }}</td>
+                        <td>{{ pago.referencia|default:"-" }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="4" class="text-center">No hay pagos registrados.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <div class="mt-4">
+            <a href="{% url 'edp:detalle' edp.id %}" class="btn btn-primary">
+                <i class="fas fa-eye"></i> Ver detalle
+            </a>
+            <a href="{% url 'edp:wizard' edp.id 'pagos' %}" class="btn btn-secondary">
+                Volver a pagos
+            </a>
+            <a href="{% url 'edp:panel' %}" class="btn btn-success">
+                <i class="fas fa-check"></i> Finalizar y volver al panel
+            </a>
+        </div>
+        {% endif %}
     </div>
 </div>
 {% endblock %}
 
 {% block extra_js %}
-<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 <script>
-    // Inicializar Select2 para múltiples servicios
-    $(document).ready(function() {
-        $('.select2').select2({
-            placeholder: "Seleccionar servicios",
-            allowClear: true
-        });
-    });
+    function addFormPago() {
+        const totalForms = document.getElementById('id_pagos-TOTAL_FORMS') || document.getElementById('id_form-TOTAL_FORMS');
+        const tbody = document.getElementById('formset-container');
 
-    // Función para agregar más filas de pagos
-    function addForm() {
-        const formCount = $('#id_form-TOTAL_FORMS').val();
-        const newForm = $('.form-row:first').clone();
-        
-        newForm.find(':input').each(function() {
-            const name = $(this).attr('name').replace('-0-', '-' + formCount + '-');
-            const id = 'id_' + name;
-            $(this).attr({'name': name, 'id': id}).val('').removeAttr('checked');
+        if (!totalForms || !tbody) return;
+
+        const formCount = parseInt(totalForms.value);
+        const firstRow = tbody.querySelector('.form-row-edp');
+
+        if (!firstRow) return;
+
+        const newRow = firstRow.cloneNode(true);
+
+        const inputs = newRow.querySelectorAll('input, select, textarea');
+        inputs.forEach(function(input) {
+            if (input.name) {
+                input.name = input.name.replace(/-(\d+)-/, '-' + formCount + '-');
+            }
+            if (input.id) {
+                input.id = input.id.replace(/-(\d+)-/, '-' + formCount + '-');
+            }
+
+            if (input.type === 'checkbox') {
+                input.checked = false;
+            } else if (input.type !== 'hidden') {
+                input.value = '';
+            }
         });
-        
-        $('#formset-container').append(newForm);
-        $('#id_form-TOTAL_FORMS').val(parseInt(formCount) + 1);
+
+        const errorBlocks = newRow.querySelectorAll('.form-error');
+        errorBlocks.forEach(function(el) {
+            el.remove();
+        });
+
+        tbody.appendChild(newRow);
+        totalForms.value = formCount + 1;
     }
 
-    // Manejar envíos AJAX si es necesario
-    $('#edp-form, #servicios-form, #pagos-form').on('submit', function(e) {
-        e.preventDefault();
-        const form = $(this);
-        $.ajax({
-            url: form.attr('action') || window.location.href,
-            method: 'POST',
-            data: form.serialize(),
-            success: function(data) {
-                if (data.ok) {
-                    window.location.href = '{% url "edp:wizard" edp.id "next_step" %}'.replace('next_step', data.next);
-                }
-            },
-            error: function(xhr) {
-                alert('Error: ' + xhr.responseJSON.errors);
-            }
+    document.addEventListener('DOMContentLoaded', function() {
+        const forms = ['edp-form', 'servicios-form', 'pagos-form'];
+
+        forms.forEach(function(formId) {
+            const form = document.getElementById(formId);
+            if (!form) return;
+
+            form.addEventListener('submit', function(e) {
+                e.preventDefault();
+
+                const formData = new FormData(form);
+
+                fetch(window.location.href, {
+                    method: 'POST',
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
+                    body: formData
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.ok) {
+                        const nextUrl = "{% url 'edp:wizard' edp.id 'finalizar' %}".replace('finalizar', data.next);
+                        window.location.href = nextUrl;
+                    } else {
+                        alert('Revisa los datos ingresados.');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Ocurrió un error al guardar.');
+                });
+            });
         });
     });
 </script>

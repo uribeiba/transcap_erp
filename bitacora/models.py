@@ -1,6 +1,7 @@
 from django.db import models
 from django.conf import settings
 from django.utils import timezone
+from operaciones.models import EstatusOperacionalViaje
 
 
 class EstadoBitacora(models.TextChoices):
@@ -64,7 +65,7 @@ class Bitacora(models.Model):
     intermedio = models.CharField(max_length=120, blank=True, default="")
     destino = models.CharField(max_length=120, blank=True, default="")
 
-    fecha = models.DateField(default=timezone.localdate)
+    fecha = models.DateField(null=True, blank=True)
     fecha_arribo = models.DateField(null=True, blank=True)
     fecha_descarga = models.DateField(null=True, blank=True)
 
@@ -91,6 +92,15 @@ class Bitacora(models.Model):
         max_length=3,
         choices=EstadoBitacora.choices,
         default=EstadoBitacora.VIGENTE
+    )
+
+
+    estatus_origen = models.ForeignKey(
+    "operaciones.EstatusOperacionalViaje",
+    on_delete=models.SET_NULL,
+    null=True,
+    blank=True,
+    related_name="bitacoras_generadas",
     )
 
     # =========================

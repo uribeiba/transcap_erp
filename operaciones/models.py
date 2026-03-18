@@ -1,7 +1,7 @@
 from django.db import models
 from django.conf import settings
 from django.utils import timezone
-
+from taller.models import Conductor, Vehiculo
 
 
 class Cliente(models.Model):
@@ -265,6 +265,109 @@ class EstatusOperacionalViaje(models.Model):
         permissions = [
             ("puede_ver_estatus_viajes", "Puede ver estatus de viajes"),
             ("puede_editar_estatus_viajes", "Puede editar estatus de viajes"),
+        ]
+
+    def __str__(self):
+        return f"{self.fecha} {self.turno} - {self.conductor}"
+    
+    
+    
+    
+class TurnoEstatus(models.TextChoices):
+    AM = "AM", "AM"
+    PM = "PM", "PM"
+
+
+class EstatusOperacionalViaje(models.Model):
+    class EstadoCargaChoices(models.TextChoices):
+        DESCARGADO = "DESCARGADO", "Descargado"
+        CAMINO_DESCARGAR = "CAMINO_DESCARGAR", "Camino a descargar"
+        RETORNO_VACIO = "RETORNO_VACIO", "Retorno vacío"
+        CARGADO = "CARGADO", "Cargado"
+        EN_RUTA = "EN_RUTA", "En ruta"
+        OTRO = "OTRO", "Otro"
+
+    fecha = models.DateField(default=timezone.localdate, db_index=True)
+    turno = models.CharField(max_length=2, choices=TurnoEstatus.choices, default=TurnoEstatus.AM, db_index=True)
+
+    conductor = models.ForeignKey(
+        Conductor,
+        on_delete=models.PROTECT,
+        related_name="estatus_operacional",
+    )
+
+    tracto = models.ForeignKey(
+        Vehiculo,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="estatus_tracto",
+        limit_choices_to={"tipo": "TRACTO"},
+        help_text="Vehículo tipo TRACTO (patente).",
+    )
+    rampla = models.ForeignKey(
+        Vehiculo,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="estatus_rampla",
+        limit_choices_to={"tipo": "SEMIRREMOLQUE"},
+        help_text="Vehículo tipo SEMIRREMOLQUE (rampla).",
+    )
+
+    cliente = models.ForeignKey(
+        "centro_comercio.Cliente",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="estatus_viajes",
+    )
+
+    nro_guia = models.CharField(max_length=50, blank=True, default="")
+    estado_guia = models.CharField(max_length=120, blank=True, default="")
+    estado_carga = models.CharField(
+        max_length=25,
+        choices=EstadoCargaChoices.choices,
+        default=EstadoCargaChoices.OTRO,
+    )
+
+    lugar_carga = models.CharField(max_length=150, blank=True, default="")
+    fecha_carga = models.DateField(null=True, blank=True)
+
+    lugar_descarga = models.CharField(max_length=150, blank=True, default="")
+    fecha_descarga = models.DateField(null=True, blank=True)
+
+    estado_texto = models.TextField(blank=True, default="")
+    observaciones = models.TextField(blank=True, default="")
+
+    creado_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="estatus_viajes_creados",
+    )
+    actualizado_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="estatus_viajes_actualizados",
+    )
+    creado_el = models.DateTimeField(auto_now_add=True)
+    actualizado_el = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-fecha", "turno", "conductor__apellidos", "conductor__nombres"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["fecha", "turno", "conductor"],
+                name="uniq_estatus_fecha_turno_conductor",
+            )
+        ]
+        permissions = [
+            ("puede_ver_estatus_viajes", "Puede ver Estatus de Viajes (Operaciones)"),
+            ("puede_editar_estatus_viajes", "Puede editar Estatus de Viajes (Operaciones)"),
         ]
 
     def __str__(self):

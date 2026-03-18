@@ -1,0 +1,133 @@
+{% extends "layout/base.html" %}
+{% block title %}Detalle Bitácora{% endblock %}
+{% block page_title %}Detalle Bitácora{% endblock %}
+
+{% block content %}
+<div class="card">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    <h3 class="card-title mb-0">Bitácora #{{ bitacora.id }}</h3>
+    <div>
+      <a href="{% url 'bitacora:editar' bitacora.id %}" class="btn btn-primary btn-sm">
+        <i class="fas fa-edit"></i> Editar
+      </a>
+      <a href="{% url 'bitacora:panel' %}" class="btn btn-secondary btn-sm">
+        <i class="fas fa-arrow-left"></i> Volver
+      </a>
+    </div>
+  </div>
+
+  <div class="card-body">
+    <div class="row">
+      <div class="col-md-6">
+        <h5>Datos generales</h5>
+        <table class="table table-sm table-bordered">
+          <tr>
+            <th style="width: 180px;">Cliente</th>
+            <td>{{ bitacora.cliente|default:"-" }}</td>
+          </tr>
+          <tr>
+            <th>Fecha</th>
+            <td>{{ bitacora.fecha|date:"d/m/Y" }}</td>
+          </tr>
+          <tr>
+            <th>Estado</th>
+            <td>{{ bitacora.get_estado_display }}</td>
+          </tr>
+          <tr>
+            <th>Coordinador</th>
+            <td>{{ bitacora.coordinador|default:"-" }}</td>
+          </tr>
+          <tr>
+            <th>Conductor</th>
+            <td>{{ bitacora.conductor|default:"-" }}</td>
+          </tr>
+          <tr>
+            <th>Tracto</th>
+            <td>{{ bitacora.tracto|default:"-" }}</td>
+          </tr>
+          <tr>
+            <th>Rampla</th>
+            <td>{{ bitacora.rampla|default:"-" }}</td>
+          </tr>
+        </table>
+      </div>
+
+      <div class="col-md-6">
+        <h5>Ruta y cobro</h5>
+        <table class="table table-sm table-bordered">
+          <tr>
+            <th style="width: 180px;">Origen</th>
+            <td>{{ bitacora.origen|default:"-" }}</td>
+          </tr>
+          <tr>
+            <th>Intermedio</th>
+            <td>{{ bitacora.intermedio|default:"-" }}</td>
+          </tr>
+          <tr>
+            <th>Destino</th>
+            <td>{{ bitacora.destino|default:"-" }}</td>
+          </tr>
+          <tr>
+            <th>Fecha arribo</th>
+            <td>{{ bitacora.fecha_arribo|date:"d/m/Y"|default:"-" }}</td>
+          </tr>
+          <tr>
+            <th>Fecha descarga</th>
+            <td>{{ bitacora.fecha_descarga|date:"d/m/Y"|default:"-" }}</td>
+          </tr>
+          <tr>
+            <th>Tarifa flete</th>
+            <td>$ {{ bitacora.tarifa_flete }}</td>
+          </tr>
+          <tr>
+            <th>Estadía</th>
+            <td>$ {{ bitacora.estadia }}</td>
+          </tr>
+          <tr>
+            <th>Total</th>
+            <td><strong>$ {{ bitacora.total }}</strong></td>
+          </tr>
+        </table>
+      </div>
+    </div>
+
+    <div class="row mt-3">
+      <div class="col-md-6">
+        <h5>Documentos</h5>
+        <table class="table table-sm table-bordered">
+          <tr>
+            <th style="width: 180px;">Guías</th>
+            <td>{{ bitacora.guias_raw|default:"-" }}</td>
+          </tr>
+          <tr>
+            <th>OC / EDP</th>
+            <td>{{ bitacora.oc_edp_raw|default:"-" }}</td>
+          </tr>
+        </table>
+      </div>
+
+      <div class="col-md-6">
+        <h5>Trabajo</h5>
+        <table class="table table-sm table-bordered">
+          <tr>
+            <th style="width: 180px;">Descripción</th>
+            <td>{{ bitacora.descripcion_trabajo|default:"-" }}</td>
+          </tr>
+          <tr>
+            <th>Creado por</th>
+            <td>{{ bitacora.creado_por|default:"-" }}</td>
+          </tr>
+          <tr>
+            <th>Creado el</th>
+            <td>{{ bitacora.creado_el|date:"d/m/Y H:i" }}</td>
+          </tr>
+          <tr>
+            <th>Actualizado el</th>
+            <td>{{ bitacora.actualizado_el|date:"d/m/Y H:i" }}</td>
+          </tr>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -47,7 +47,7 @@
 <body class="hold-transition sidebar-mini layout-fixed">
 <div class="wrapper">
 
-    <!-- ✅ TOP TICKER (estilo Kame) -->
+    <!-- TOP TICKER -->
     {% include "layout/partials/top_ticker.html" %}
 
     <!-- Navbar superior -->
@@ -97,7 +97,6 @@
 
                     <div class="dropdown-divider"></div>
 
-                    <!-- Logout correcto por POST -->
                     <form method="post" action="{% url 'logout' %}" style="margin:0;">
                         {% csrf_token %}
                         <button type="submit" class="dropdown-item" style="width:100%; text-align:left;">
@@ -129,86 +128,94 @@
 
                     <!-- DASHBOARD -->
                     <li class="nav-item">
-                        <a href="{% url 'dashboard' %}" class="nav-link">
+                        <a href="{% url 'dashboard' %}"
+                           class="nav-link {% if request.path == '/' or request.path == '/dashboard/' %}active{% endif %}">
                             <i class="nav-icon fas fa-tachometer-alt"></i>
                             <p>Panel de Control</p>
                         </a>
                     </li>
 
                     <!-- Centro de Comercio -->
-                    <li class="nav-item has-treeview">
-                        <a href="#" class="nav-link">
-                          <i class="nav-icon fas fa-store"></i>
-                          <p>
-                            Centro de Comercio
-                            <i class="right fas fa-angle-left"></i>
-                          </p>
+                    <li class="nav-item has-treeview {% if '/clientes/' in request.path or '/cotizaciones/' in request.path or '/bitacora/' in request.path or '/edp/' in request.path %}menu-open{% endif %}">
+                        <a href="#"
+                           class="nav-link {% if '/clientes/' in request.path or '/cotizaciones/' in request.path or '/bitacora/' in request.path or '/edp/' in request.path %}active{% endif %}">
+                            <i class="nav-icon fas fa-store"></i>
+                            <p>
+                                Centro de Comercio
+                                <i class="right fas fa-angle-left"></i>
+                            </p>
                         </a>
+
                         <ul class="nav nav-treeview">
-                          <li class="nav-item">
-                            <a href="{% url 'centro_comercio:clientes_panel' %}" class="nav-link">
-                              <i class="far fa-circle nav-icon"></i>
-                              <p>Clientes</p>
-                            </a>
-                          </li>
+                            <li class="nav-item">
+                                <a href="{% url 'centro_comercio:clientes_panel' %}"
+                                   class="nav-link {% if '/clientes/' in request.path %}active{% endif %}">
+                                    <i class="far fa-circle nav-icon"></i>
+                                    <p>Clientes</p>
+                                </a>
+                            </li>
 
-                          <li class="nav-item">
-                            <a href="{% url 'centro_comercio:cotizaciones_panel' %}" class="nav-link">
-                              <i class="far fa-circle nav-icon"></i>
-                              <p>Cotización</p>
-                            </a>
-                          </li>
+                            <li class="nav-item">
+                                <a href="{% url 'centro_comercio:cotizaciones_panel' %}"
+                                   class="nav-link {% if '/cotizaciones/' in request.path %}active{% endif %}">
+                                    <i class="far fa-circle nav-icon"></i>
+                                    <p>Cotización</p>
+                                </a>
+                            </li>
 
-                          <li class="nav-item">
-                            <a href="{% url 'servicios:servicios_panel' %}" class="nav-link">
-                                <i class="far fa-circle nav-icon"></i>
-                                <p>Servicios</p>
-                            </a>
-                          </li>
+                            <li class="nav-item">
+                                <a href="{% url 'bitacora:panel' %}"
+                                   class="nav-link {% if '/bitacora/' in request.path %}active{% endif %}">
+                                    <i class="far fa-circle nav-icon"></i>
+                                    <p>Servicios / Bitácora</p>
+                                </a>
+                            </li>
 
-                          <li class="nav-item">
-                              <a href="{% url 'edp:panel' %}" class="nav-link">
-                                  <i class="far fa-circle nav-icon"></i>
-                                  <p>EDP</p>
-                              </a>
-                          </li>
+                            <li class="nav-item">
+                                <a href="{% url 'edp:panel' %}"
+                                   class="nav-link {% if '/edp/' in request.path %}active{% endif %}">
+                                    <i class="far fa-circle nav-icon"></i>
+                                    <p>EDP</p>
+                                </a>
+                            </li>
                         </ul>
                     </li>
 
                     <!-- Operaciones -->
-                    <li class="nav-item has-treeview">
-                        <a href="#" class="nav-link">
-                          <i class="nav-icon fas fa-clipboard-list"></i>
-                          <p>Operaciones<i class="right fas fa-angle-left"></i></p>
+                    <li class="nav-item has-treeview {% if '/operaciones/' in request.path %}menu-open{% endif %}">
+                        <a href="#"
+                           class="nav-link {% if '/operaciones/' in request.path %}active{% endif %}">
+                            <i class="nav-icon fas fa-clipboard-list"></i>
+                            <p>
+                                Operaciones
+                                <i class="right fas fa-angle-left"></i>
+                            </p>
                         </a>
+
                         <ul class="nav nav-treeview">
-                          <li class="nav-item">
-                            <a href="{% url 'operaciones:tablero_diario' %}" class="nav-link">
-                              <i class="far fa-circle nav-icon"></i>
-                              <p>Tablero Facturación / Guías</p>
-                            </a>
-                          </li>
+                            <li class="nav-item">
+                                <a href="{% url 'operaciones:tablero_diario' %}"
+                                   class="nav-link {% if 'tablero' in request.path %}active{% endif %}">
+                                    <i class="far fa-circle nav-icon"></i>
+                                    <p>Tablero Facturación / Guías</p>
+                                </a>
+                            </li>
 
-                          <li class="nav-item">
-  <a href="{% url 'operaciones:estatus_viajes_panel' %}" class="nav-link">
-    <i class="far fa-circle nav-icon"></i>
-    <p>Estatus Viajes (AM/PM)</p>
-  </a>
-</li>
+                            <li class="nav-item">
+                                <a href="{% url 'operaciones:estatus_viajes_panel' %}"
+                                   class="nav-link {% if 'estatus-viajes' in request.path and 'planilla' not in request.path %}active{% endif %}">
+                                    <i class="far fa-circle nav-icon"></i>
+                                    <p>Estatus Viajes (AM/PM)</p>
+                                </a>
+                            </li>
 
-<li class="nav-item">
-  <a href="{% url 'operaciones:estatus_viajes_planilla' %}" class="nav-link">
-    <i class="far fa-circle nav-icon"></i>
-    <p>Estatus Viajes (Planilla)</p>
-  </a>
-</li>
-
-                          <li class="nav-item">
-                            <a href="{% url 'bitacora:panel' %}" class="nav-link">
-                                <i class="far fa-circle nav-icon"></i>
-                                <p>Bitácora</p>
-                            </a>
-                          </li>
+                            <li class="nav-item">
+                                <a href="{% url 'operaciones:estatus_viajes_planilla' %}"
+                                   class="nav-link {% if 'planilla' in request.path %}active{% endif %}">
+                                    <i class="far fa-circle nav-icon"></i>
+                                    <p>Estatus Viajes (Planilla)</p>
+                                </a>
+                            </li>
                         </ul>
                     </li>
 
@@ -221,6 +228,7 @@
                                 <i class="right fas fa-angle-left"></i>
                             </p>
                         </a>
+
                         <ul class="nav nav-treeview">
                             <li class="nav-item">
                                 <a href="#" class="nav-link">
@@ -264,6 +272,7 @@
                                 <i class="right fas fa-angle-left"></i>
                             </p>
                         </a>
+
                         <ul class="nav nav-treeview">
                             <li class="nav-item">
                                 <a href="#" class="nav-link">
@@ -301,35 +310,41 @@
                     </li>
 
                     <!-- Inventario -->
-                    <li class="nav-item has-treeview">
-                        <a href="#" class="nav-link">
+                    <li class="nav-item has-treeview {% if '/inventario/' in request.path %}menu-open{% endif %}">
+                        <a href="#"
+                           class="nav-link {% if '/inventario/' in request.path %}active{% endif %}">
                             <i class="nav-icon fas fa-boxes"></i>
                             <p>
                                 Inventario
                                 <i class="right fas fa-angle-left"></i>
                             </p>
                         </a>
+
                         <ul class="nav nav-treeview">
                             <li class="nav-item">
-                                <a href="{% url 'inventario:dashboard' %}" class="nav-link">
+                                <a href="{% url 'inventario:dashboard' %}"
+                                   class="nav-link {% if '/inventario/' in request.path and 'dashboard' in request.path %}active{% endif %}">
                                     <i class="far fa-circle nav-icon"></i>
                                     <p>Panel de Inventario</p>
                                 </a>
                             </li>
                             <li class="nav-item">
-                                <a href="{% url 'inventario:lista_categorias' %}" class="nav-link">
+                                <a href="{% url 'inventario:lista_categorias' %}"
+                                   class="nav-link {% if 'categor' in request.path %}active{% endif %}">
                                     <i class="far fa-circle nav-icon"></i>
                                     <p>Categorías</p>
                                 </a>
                             </li>
                             <li class="nav-item">
-                                <a href="{% url 'inventario:lista_productos' %}" class="nav-link">
+                                <a href="{% url 'inventario:lista_productos' %}"
+                                   class="nav-link {% if 'producto' in request.path %}active{% endif %}">
                                     <i class="far fa-circle nav-icon"></i>
                                     <p>Productos</p>
                                 </a>
                             </li>
                             <li class="nav-item">
-                                <a href="{% url 'inventario:lista_movimientos' %}" class="nav-link">
+                                <a href="{% url 'inventario:lista_movimientos' %}"
+                                   class="nav-link {% if 'movimiento' in request.path %}active{% endif %}">
                                     <i class="far fa-circle nav-icon"></i>
                                     <p>Movimientos</p>
                                 </a>
@@ -338,41 +353,48 @@
                     </li>
 
                     <!-- Taller / Flota -->
-                    <li class="nav-item has-treeview">
-                        <a href="#" class="nav-link">
+                    <li class="nav-item has-treeview {% if '/taller/' in request.path or 'taller_' in request.resolver_match.url_name|default:'' %}menu-open{% endif %}">
+                        <a href="#"
+                           class="nav-link {% if '/taller/' in request.path or 'taller_' in request.resolver_match.url_name|default:'' %}active{% endif %}">
                             <i class="nav-icon fas fa-tools"></i>
                             <p>
                                 Taller / Flota
                                 <i class="right fas fa-angle-left"></i>
                             </p>
                         </a>
+
                         <ul class="nav nav-treeview">
                             <li class="nav-item">
-                                <a href="{% url 'taller_flota' %}" class="nav-link">
+                                <a href="{% url 'taller_flota' %}"
+                                   class="nav-link {% if request.resolver_match.url_name == 'taller_flota' %}active{% endif %}">
                                     <i class="far fa-circle nav-icon"></i>
                                     <p>Flota de Vehículos</p>
                                 </a>
                             </li>
                             <li class="nav-item">
-                                <a href="{% url 'taller_conductores' %}" class="nav-link">
+                                <a href="{% url 'taller_conductores' %}"
+                                   class="nav-link {% if request.resolver_match.url_name == 'taller_conductores' %}active{% endif %}">
                                     <i class="far fa-circle nav-icon"></i>
                                     <p>Conductores</p>
                                 </a>
                             </li>
                             <li class="nav-item">
-                                <a href="{% url 'taller_mantenimientos' %}" class="nav-link">
+                                <a href="{% url 'taller_mantenimientos' %}"
+                                   class="nav-link {% if request.resolver_match.url_name == 'taller_mantenimientos' %}active{% endif %}">
                                     <i class="far fa-circle nav-icon"></i>
                                     <p>Mantenimientos</p>
                                 </a>
                             </li>
                             <li class="nav-item">
-                                <a href="{% url 'taller_docs_vehiculos' %}" class="nav-link">
+                                <a href="{% url 'taller_docs_vehiculos' %}"
+                                   class="nav-link {% if request.resolver_match.url_name == 'taller_docs_vehiculos' %}active{% endif %}">
                                     <i class="far fa-circle nav-icon"></i>
                                     <p>Documentos y Seguros</p>
                                 </a>
                             </li>
                             <li class="nav-item">
-                                <a href="{% url 'taller_rutas_viaje_lista' %}" class="nav-link">
+                                <a href="{% url 'taller_rutas_viaje_lista' %}"
+                                   class="nav-link {% if request.resolver_match.url_name == 'taller_rutas_viaje_lista' %}active{% endif %}">
                                     <i class="far fa-circle nav-icon"></i>
                                     <p>Rutas de Viajes</p>
                                 </a>
@@ -384,25 +406,29 @@
                                 </a>
                             </li>
                             <li class="nav-item">
-                                <a href="{% url 'taller_reporte_vehiculo_selector' %}" class="nav-link">
+                                <a href="{% url 'taller_reporte_vehiculo_selector' %}"
+                                   class="nav-link {% if request.resolver_match.url_name == 'taller_reporte_vehiculo_selector' %}active{% endif %}">
                                     <i class="far fa-circle nav-icon"></i>
                                     <p>Reporte por Vehículo</p>
                                 </a>
                             </li>
                             <li class="nav-item">
-                                <a href="{% url 'taller_reporte_conductor_selector' %}" class="nav-link">
+                                <a href="{% url 'taller_reporte_conductor_selector' %}"
+                                   class="nav-link {% if request.resolver_match.url_name == 'taller_reporte_conductor_selector' %}active{% endif %}">
                                     <i class="far fa-circle nav-icon"></i>
                                     <p>Reporte por Conductor</p>
                                 </a>
                             </li>
                             <li class="nav-item">
-                                <a href="{% url 'taller_ranking_multas' %}" class="nav-link">
+                                <a href="{% url 'taller_ranking_multas' %}"
+                                   class="nav-link {% if request.resolver_match.url_name == 'taller_ranking_multas' %}active{% endif %}">
                                     <i class="far fa-circle nav-icon"></i>
                                     <p>Ranking Multas</p>
                                 </a>
                             </li>
                             <li class="nav-item">
-                                <a href="{% url 'taller_coordinacion_viajes_lista' %}" class="nav-link">
+                                <a href="{% url 'taller_coordinacion_viajes_lista' %}"
+                                   class="nav-link {% if request.resolver_match.url_name == 'taller_coordinacion_viajes_lista' %}active{% endif %}">
                                     <i class="far fa-circle nav-icon"></i>
                                     <p>Coordinación viajes</p>
                                 </a>
@@ -419,6 +445,7 @@
                                 <i class="right fas fa-angle-left"></i>
                             </p>
                         </a>
+
                         <ul class="nav nav-treeview">
                             <li class="nav-item">
                                 <a href="#" class="nav-link">
@@ -443,7 +470,7 @@
                         </a>
                     </li>
 
-                    <!-- Maestros / Config -->
+                    <!-- Maestros / Configuración -->
                     <li class="nav-item">
                         <a href="#" class="nav-link">
                             <i class="nav-icon fas fa-cogs"></i>
@@ -454,26 +481,28 @@
                     <li class="nav-header">SaaS</li>
 
                     <li class="nav-item">
-                      <a href="{% url 'parametros:empresas_panel' %}" class="nav-link">
-                        <i class="nav-icon fas fa-building"></i>
-                        <p>Empresas</p>
-                      </a>
+                        <a href="{% url 'parametros:empresas_panel' %}"
+                           class="nav-link {% if 'empresas' in request.path %}active{% endif %}">
+                            <i class="nav-icon fas fa-building"></i>
+                            <p>Empresas</p>
+                        </a>
                     </li>
 
                     <li class="nav-item">
-                      <a href="{% url 'parametros:planes_panel' %}" class="nav-link">
-                        <i class="nav-icon fas fa-layer-group"></i>
-                        <p>Planes</p>
-                      </a>
+                        <a href="{% url 'parametros:planes_panel' %}"
+                           class="nav-link {% if 'planes' in request.path %}active{% endif %}">
+                            <i class="nav-icon fas fa-layer-group"></i>
+                            <p>Planes</p>
+                        </a>
                     </li>
 
                     <!-- Parámetros -->
                     <li class="nav-item">
-                      <a href="{% url 'parametros:panel' %}"
-                         class="nav-link {% if request.path|slice:":12" == '/parametros/' %}active{% endif %}">
-                        <i class="nav-icon fas fa-sliders-h"></i>
-                        <p>Parámetros</p>
-                      </a>
+                        <a href="{% url 'parametros:panel' %}"
+                           class="nav-link {% if request.path|slice:':12' == '/parametros/' %}active{% endif %}">
+                            <i class="nav-icon fas fa-sliders-h"></i>
+                            <p>Parámetros</p>
+                        </a>
                     </li>
 
                 </ul>
@@ -483,11 +512,9 @@
 
     <!-- Contenido principal -->
     <div class="content-wrapper kame-content">
-
         <section class="content-header kame-content-header">
             <div class="container-fluid">
 
-                {# Mantiene compatibilidad: si algún template sobreescribe content_header, funciona igual #}
                 {% block content_header %}
                 <div class="kame-pagebar">
                     <div class="kame-pagebar__left">
@@ -501,7 +528,6 @@
                 </div>
 
                 {% block page_filters %}
-                {# si el módulo necesita filtros tipo Kame, los inyecta aquí #}
                 {% endblock %}
                 {% endblock %}
 
@@ -523,7 +549,6 @@
 <!-- JS -->
 <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.bundle.min.js"></script>
-
 <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 
 <!-- AdminLTE JS -->

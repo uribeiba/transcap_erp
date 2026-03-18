@@ -1,47 +1,91 @@
 {% extends "layout/base.html" %}
-{% load static %}
-
-{% block title %}Estatus Viajes{% endblock %}
+{% block title %}Estatus de Viajes (AM/PM){% endblock %}
+{% block page_title %}Estatus de Viajes (AM/PM){% endblock %}
 
 {% block content %}
-<div class="container-fluid">
+<div class="row mb-3">
+  <div class="col-md-3">
+    <div class="small-box bg-info">
+      <div class="inner">
+        <h3>{{ total_registros }}</h3>
+        <p>Registros filtrados</p>
+      </div>
+      <div class="icon"><i class="fas fa-route"></i></div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="small-box bg-success">
+      <div class="inner">
+        <h3>{{ total_descargado }}</h3>
+        <p>Descargados</p>
+      </div>
+      <div class="icon"><i class="fas fa-check-circle"></i></div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="small-box bg-warning">
+      <div class="inner">
+        <h3>{{ total_camino_descargar }}</h3>
+        <p>Camino a descargar</p>
+      </div>
+      <div class="icon"><i class="fas fa-truck-loading"></i></div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="small-box bg-secondary">
+      <div class="inner">
+        <h3>{{ total_retorno_vacio }}</h3>
+        <p>Retorno vacío</p>
+      </div>
+      <div class="icon"><i class="fas fa-undo"></i></div>
+    </div>
+  </div>
+</div>
 
-  <div class="kame-section-title d-flex align-items-center justify-content-between mb-3">
-    <h4 class="mb-0">Estatus de Viajes (AM/PM)</h4>
-
-    <div class="btn-group">
-      <a class="btn btn-sm btn-outline-secondary"
-         href="{% url 'operaciones:estatus_viajes_export_xlsx' %}?fecha={{ fecha|date:'Y-m-d' }}&turno={{ turno }}&q={{ q|urlencode }}">
+<div class="card">
+  <div class="card-header">
+    <strong>Filtro</strong>
+    <div class="card-tools">
+      <a href="{% url 'operaciones:estatus_viajes_export_xlsx' %}?fecha={{ fecha|date:'Y-m-d' }}&turno={{ turno }}&q={{ q }}" class="btn btn-sm btn-outline-secondary">
         <i class="fas fa-file-excel"></i> Exportar XLSX
+      </a>
+      <a href="{% url 'operaciones:estatus_viajes_planilla' %}?fecha={{ fecha|date:'Y-m-d' }}&turno={{ turno }}&q={{ q }}" class="btn btn-sm btn-outline-primary">
+        <i class="fas fa-table"></i> Ver planilla
       </a>
     </div>
   </div>
-
-  <div class="card card-body mb-3">
-    <form class="form-inline" method="get">
-      <label class="mr-2">Fecha</label>
-      <input type="date" name="fecha" value="{{ fecha|date:'Y-m-d' }}" class="form-control form-control-sm mr-3">
-
-      <label class="mr-2">Turno</label>
-      <select name="turno" class="form-control form-control-sm mr-3">
-        {% for t in turnos %}
-          <option value="{{ t }}" {% if turno == t %}selected{% endif %}>{{ t }}</option>
-        {% endfor %}
-      </select>
-
-      <input type="text" name="q" value="{{ q }}" placeholder="Buscar chofer, RUT, patente, estado..."
-             class="form-control form-control-sm mr-2" style="min-width:280px;">
-      <button class="btn btn-sm btn-dark" type="submit">
-        <i class="fas fa-filter"></i> Filtrar
-      </button>
+  <div class="card-body">
+    <form method="get" class="form-row align-items-end">
+      <div class="col-md-2">
+        <label>Fecha</label>
+        <input type="date" name="fecha" value="{{ fecha|date:'Y-m-d' }}" class="form-control form-control-sm">
+      </div>
+      <div class="col-md-2">
+        <label>Turno</label>
+        <select name="turno" class="form-control form-control-sm">
+          {% for t in turnos %}
+            <option value="{{ t }}" {% if turno == t %}selected{% endif %}>{{ t }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-5">
+        <label>Buscar</label>
+        <input type="text" name="q" value="{{ q }}" class="form-control form-control-sm" placeholder="Chofer, RUT, patente, guía, cliente, carga...">
+      </div>
+      <div class="col-md-3">
+        <button type="submit" class="btn btn-dark btn-sm">
+          <i class="fas fa-filter"></i> Filtrar
+        </button>
+      </div>
     </form>
   </div>
+</div>
 
-  <!-- ✅ MODO PRO: alertas faltantes -->
-  <div class="row">
-    <div class="col-md-6">
-      <div class="card card-body">
-        <h6 class="mb-2"><span class="badge badge-info">AM</span> Choferes sin estatus</h6>
+<div class="row">
+  <div class="col-md-6">
+    <div class="card card-outline card-info">
+      <div class="card-header"><strong>Choferes sin estatus AM</strong></div>
+      <div class="card-body">
         {% if missing_am %}
           <ul class="mb-0">
             {% for c in missing_am %}
@@ -49,28 +93,15 @@
             {% endfor %}
           </ul>
         {% else %}
-          <div class="text-muted">✅ Todos los choferes tienen estatus AM</div>
+          <span class="text-success">Sin faltantes AM.</span>
         {% endif %}
       </div>
     </div>
-
-    <div class="col-md-6">
-      <div class="card card-body">
-        <div class="d-flex align-items-center justify-content-between">
-          <h6 class="mb-2"><span class="badge badge-warning">PM</span> Choferes sin estatus</h6>
-
-          <!-- ✅ botón copiar AM → PM -->
-          <form method="post" action="{% url 'operaciones:estatus_viajes_copiar_am_a_pm' %}">
-            {% csrf_token %}
-            <input type="hidden" name="fecha" value="{{ fecha|date:'Y-m-d' }}">
-            <input type="hidden" name="turno" value="{{ turno }}">
-            <input type="hidden" name="q" value="{{ q }}">
-            <button class="btn btn-sm btn-primary" type="submit">
-              <i class="fas fa-copy"></i> Copiar AM → PM
-            </button>
-          </form>
-        </div>
-
+  </div>
+  <div class="col-md-6">
+    <div class="card card-outline card-warning">
+      <div class="card-header"><strong>Choferes sin estatus PM</strong></div>
+      <div class="card-body">
         {% if missing_pm %}
           <ul class="mb-0">
             {% for c in missing_pm %}
@@ -78,90 +109,125 @@
             {% endfor %}
           </ul>
         {% else %}
-          <div class="text-muted">✅ Todos los choferes tienen estatus PM</div>
+          <span class="text-success">Sin faltantes PM.</span>
         {% endif %}
       </div>
     </div>
   </div>
+</div>
 
-  <!-- Form crear/editar rápido -->
-  <div class="card mt-3">
-    <div class="card-header">
-      <strong>Registrar / actualizar estatus</strong>
-    </div>
-    <div class="card-body">
-      <form method="post" action="{% url 'operaciones:estatus_viajes_guardar' %}">
-        {% csrf_token %}
-        <div class="form-row">
-          <div class="col-md-2">{{ form.fecha }}</div>
-          <div class="col-md-2">{{ form.turno }}</div>
-          <div class="col-md-4">{{ form.conductor }}</div>
-          <div class="col-md-2">{{ form.tracto }}</div>
-          <div class="col-md-2">{{ form.rampla }}</div>
-        </div>
+<div class="card">
+  <div class="card-header">
+    <strong>Registrar / actualizar estatus</strong>
+  </div>
+  <div class="card-body">
+    <form method="post" action="{% url 'operaciones:estatus_viajes_guardar' %}">
+      {% csrf_token %}
+      <div class="form-row">
+        <div class="col-md-2">{{ form.fecha.label_tag }}{{ form.fecha }}</div>
+        <div class="col-md-1">{{ form.turno.label_tag }}{{ form.turno }}</div>
+        <div class="col-md-3">{{ form.conductor.label_tag }}{{ form.conductor }}</div>
+        <div class="col-md-3">{{ form.tracto.label_tag }}{{ form.tracto }}</div>
+        <div class="col-md-3">{{ form.rampla.label_tag }}{{ form.rampla }}</div>
+      </div>
 
-        <div class="form-group mt-2">
-          {{ form.estado_texto }}
-        </div>
+      <div class="form-row mt-2">
+        <div class="col-md-4">{{ form.cliente.label_tag }}{{ form.cliente }}</div>
+        <div class="col-md-2">{{ form.nro_guia.label_tag }}{{ form.nro_guia }}</div>
+        <div class="col-md-2">{{ form.estado_guia.label_tag }}{{ form.estado_guia }}</div>
+        <div class="col-md-4">{{ form.estado_carga.label_tag }}{{ form.estado_carga }}</div>
+      </div>
 
-        <input type="hidden" name="q" value="{{ q }}">
-        <button class="btn btn-success">
+      <div class="form-row mt-2">
+        <div class="col-md-3">{{ form.lugar_carga.label_tag }}{{ form.lugar_carga }}</div>
+        <div class="col-md-2">{{ form.fecha_carga.label_tag }}{{ form.fecha_carga }}</div>
+        <div class="col-md-3">{{ form.lugar_descarga.label_tag }}{{ form.lugar_descarga }}</div>
+        <div class="col-md-2">{{ form.fecha_descarga.label_tag }}{{ form.fecha_descarga }}</div>
+      </div>
+
+      <div class="form-row mt-2">
+        <div class="col-md-6">{{ form.estado_texto.label_tag }}{{ form.estado_texto }}</div>
+        <div class="col-md-6">{{ form.observaciones.label_tag }}{{ form.observaciones }}</div>
+      </div>
+
+      <div class="mt-3">
+        <button type="submit" class="btn btn-success btn-sm">
           <i class="fas fa-save"></i> Guardar
         </button>
-      </form>
-    </div>
+        <button type="submit" formaction="{% url 'operaciones:estatus_viajes_copiar_am_a_pm' %}" class="btn btn-outline-primary btn-sm">
+          <i class="fas fa-copy"></i> Copiar AM → PM
+        </button>
+      </div>
+    </form>
   </div>
+</div>
 
-  <!-- Tabla -->
-  <div class="card mt-3">
-    <div class="card-header d-flex align-items-center justify-content-between">
-      <strong>Reporte</strong>
-      <small class="text-muted">Fecha: {{ fecha|date:"d-m-Y" }} | Turno: {{ turno }}</small>
-    </div>
-
-    <div class="table-responsive">
-      <table class="table table-sm table-hover mb-0">
-        <thead class="thead-light">
-          <tr>
-            <th>Chofer</th>
-            <th>RUT</th>
-            <th>Turno</th>
-            <th>Tracto</th>
-            <th>Rampla</th>
-            <th>Estado</th>
-            <th class="text-right">Acción</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for r in items %}
-          <tr>
-            <td>{{ r.conductor.nombres }} {{ r.conductor.apellidos }}</td>
-            <td>{{ r.conductor.rut }}</td>
-            <td><span class="badge {% if r.turno == 'AM' %}badge-info{% else %}badge-warning{% endif %}">{{ r.turno }}</span></td>
-            <td>{{ r.tracto.patente|default:"-" }}</td>
-            <td>{{ r.rampla.patente|default:"-" }}</td>
-            <td style="white-space:pre-wrap;">{{ r.estado_texto }}</td>
-            <td class="text-right">
-              <form method="post" action="{% url 'operaciones:estatus_viajes_eliminar' r.id %}" style="display:inline;">
-                {% csrf_token %}
-                <input type="hidden" name="fecha" value="{{ fecha|date:'Y-m-d' }}">
-                <input type="hidden" name="turno" value="{{ turno }}">
-                <input type="hidden" name="q" value="{{ q }}">
-                <button class="btn btn-sm btn-outline-danger" onclick="return confirm('¿Eliminar estatus?')">
-                  <i class="fas fa-trash"></i>
-                </button>
-              </form>
-            </td>
-          </tr>
-          {% empty %}
-          <tr>
-            <td colspan="7" class="text-center text-muted py-4">No hay registros para el filtro.</td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
+<div class="card">
+  <div class="card-header">
+    <strong>Reporte</strong>
+    <span class="float-right text-muted">Fecha: {{ fecha|date:"d-m-Y" }} | Turno: {{ turno }}</span>
   </div>
-
+  <div class="card-body table-responsive p-0">
+    <table class="table table-sm table-hover">
+      <thead>
+        <tr>
+          <th>Chofer</th>
+          <th>RUT</th>
+          <th>Turno</th>
+          <th>Tracto</th>
+          <th>Rampla</th>
+          <th>Estado carga</th>
+          <th>N° guía</th>
+          <th>Cliente</th>
+          <th>Carga</th>
+          <th>Descarga</th>
+          <th>Acción</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for item in items %}
+        <tr
+          {% if item.estado_carga == "DESCARGADO" %}
+            class="table-success"
+          {% elif item.estado_carga == "CAMINO_DESCARGAR" %}
+            class="table-warning"
+          {% elif item.estado_carga == "RETORNO_VACIO" %}
+            class="table-secondary"
+          {% endif %}
+        >
+          <td>{{ item.conductor }}</td>
+          <td>{{ item.conductor.rut }}</td>
+          <td>{{ item.turno }}</td>
+          <td>{{ item.tracto|default:"-" }}</td>
+          <td>{{ item.rampla|default:"-" }}</td>
+          <td>{{ item.get_estado_carga_display }}</td>
+          <td>{{ item.nro_guia|default:"-" }}</td>
+          <td>{{ item.cliente|default:"-" }}</td>
+          <td>
+            {{ item.lugar_carga|default:"-" }}
+            {% if item.fecha_carga %}<br><small>{{ item.fecha_carga|date:"d.m.Y" }}</small>{% endif %}
+          </td>
+          <td>
+            {{ item.lugar_descarga|default:"-" }}
+            {% if item.fecha_descarga %}<br><small>{{ item.fecha_descarga|date:"d.m.Y" }}</small>{% endif %}
+          </td>
+          <td class="text-nowrap">
+            <a href="{% url 'operaciones:estatus_viajes_a_bitacora' item.id %}" class="btn btn-xs btn-primary">
+              <i class="fas fa-file-signature"></i> Bitácora
+            </a>
+            <form method="post" action="{% url 'operaciones:estatus_viajes_eliminar' item.id %}" class="d-inline">
+              {% csrf_token %}
+              <button type="submit" class="btn btn-xs btn-danger" onclick="return confirm('¿Eliminar este registro?')">
+                <i class="fas fa-trash"></i>
+              </button>
+            </form>
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="11" class="text-center text-muted">No hay registros para el filtro.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
 </div>
 {% endblock %}

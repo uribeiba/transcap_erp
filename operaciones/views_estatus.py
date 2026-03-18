@@ -1,138 +1,437 @@
 from __future__ import annotations
-
 from io import BytesIO
-from typing import Dict, List, Optional, Tuple
-
+from urllib.parse import urlencode
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required, permission_required
-from django.db import models
+from django.db import models, transaction
 from django.http import HttpRequest, HttpResponse
-from django.shortcuts import redirect, render
+from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.utils import timezone
-from django.views.decorators.http import require_GET
-
+from django.views.decorators.http import require_GET, require_POST
+from openpyxl import Workbook
+from openpyxl.styles import Alignment, Font, PatternFill
 from taller.models import Conductor
-
+from .forms import EstatusOperacionalViajeForm
 from .models import EstatusOperacionalViaje, TurnoEstatus
 
+from operaciones.models import EstatusOperacionalViaje
+from bitacora.models import Bitacora
 
-def _parse_fecha(value: Optional[str]):
-    """
-    Reutilizable y tolerante.
-    Acepta YYYY-MM-DD (input type=date).
-    """
+
+
+
+
+from operaciones.models import EstatusOperacionalViaje
+
+
+
+def _parse_fecha(value: str | None):
     if not value:
         return timezone.localdate()
     try:
-        # "2026-03-02"
         return timezone.datetime.strptime(value, "%Y-%m-%d").date()
     except Exception:
         return timezone.localdate()
 
 
+def _turnos_a_mostrar(turno_param: str):
+    turno_param = (turno_param or "TODOS").upper()
+    if turno_param in [TurnoEstatus.AM, TurnoEstatus.PM]:
+        return [turno_param]
+    return [TurnoEstatus.AM, TurnoEstatus.PM]
+
+
 def _get_conductores_queryset():
-    """
-    Si tienes campo 'activo' en Conductor, úsalo.
-    Si no existe, devuelve todos (seguro).
-    """
     try:
-        # Si existe 'activo' (boolean) en tu modelo
         Conductor._meta.get_field("activo")
         return Conductor.objects.filter(activo=True)
     except Exception:
         return Conductor.objects.all()
 
 
-def _build_planilla_rows(fecha) -> Tuple[List[Dict], List[Conductor], List[Conductor]]:
-    """
-    Devuelve:
-      - rows: lista por chofer con AM/PM (texto, tracto, rampla)
-      - missing_am: lista choferes sin AM
-      - missing_pm: lista choferes sin PM
-    """
-    conductores = list(_get_conductores_queryset().order_by("apellidos", "nombres"))
-
-    am = (
-        EstatusOperacionalViaje.objects.select_related("tracto", "rampla", "conductor")
-        .filter(fecha=fecha, turno=TurnoEstatus.AM)
-    )
-    pm = (
-        EstatusOperacionalViaje.objects.select_related("tracto", "rampla", "conductor")
-        .filter(fecha=fecha, turno=TurnoEstatus.PM)
+def _qs_estatus(fecha, turnos, q=""):
+    qs = (
+        EstatusOperacionalViaje.objects
+        .select_related("conductor", "tracto", "rampla", "cliente")
+        .filter(fecha=fecha, turno__in=turnos)
+        .order_by("conductor__apellidos", "conductor__nombres", "turno")
     )
 
-    am_map = {r.conductor_id: r for r in am}
-    pm_map = {r.conductor_id: r for r in pm}
+    q = (q or "").strip()
+    if q:
+        qs = qs.filter(
+            models.Q(conductor__nombres__icontains=q)
+            | models.Q(conductor__apellidos__icontains=q)
+            | models.Q(conductor__rut__icontains=q)
+            | models.Q(tracto__patente__icontains=q)
+            | models.Q(rampla__patente__icontains=q)
+            | models.Q(cliente__razon_social__icontains=q)
+            | models.Q(cliente__rut__icontains=q)
+            | models.Q(nro_guia__icontains=q)
+            | models.Q(estado_guia__icontains=q)
+            | models.Q(estado_carga__icontains=q)
+            | models.Q(lugar_carga__icontains=q)
+            | models.Q(lugar_descarga__icontains=q)
+            | models.Q(estado_texto__icontains=q)
+            | models.Q(observaciones__icontains=q)
+        )
+    return qs
 
-    missing_am = [c for c in conductores if c.id not in am_map]
-    missing_pm = [c for c in conductores if c.id not in pm_map]
 
-    rows: List[Dict] = []
-    for c in conductores:
-        r_am = am_map.get(c.id)
-        r_pm = pm_map.get(c.id)
+def _missing_por_turno(fecha):
+    conductores = _get_conductores_queryset().order_by("apellidos", "nombres")
+    existentes_am = set(
+        EstatusOperacionalViaje.objects.filter(fecha=fecha, turno=TurnoEstatus.AM)
+        .values_list("conductor_id", flat=True)
+    )
+    existentes_pm = set(
+        EstatusOperacionalViaje.objects.filter(fecha=fecha, turno=TurnoEstatus.PM)
+        .values_list("conductor_id", flat=True)
+    )
 
-        # Preferir patentes del registro (AM/PM); si PM está vacío, usa AM como fallback.
-        tracto = getattr(r_pm, "tracto", None) or getattr(r_am, "tracto", None)
-        rampla = getattr(r_pm, "rampla", None) or getattr(r_am, "rampla", None)
+    missing_am = [c for c in conductores if c.id not in existentes_am]
+    missing_pm = [c for c in conductores if c.id not in existentes_pm]
+    return missing_am, missing_pm
 
-        rows.append(
-            {
-                "conductor": c,
-                "tracto": tracto,
-                "rampla": rampla,
-                "am_texto": (getattr(r_am, "estado_texto", "") or "").strip(),
-                "pm_texto": (getattr(r_pm, "estado_texto", "") or "").strip(),
-                "has_am": r_am is not None,
-                "has_pm": r_pm is not None,
-            }
+
+def _estado_badge_count(qs, estado_carga):
+    return qs.filter(estado_carga=estado_carga).count()
+
+
+@login_required
+@permission_required("operaciones.puede_ver_estatus_viajes", raise_exception=True)
+def estatus_viajes_panel(request: HttpRequest):
+    fecha = _parse_fecha(request.GET.get("fecha"))
+    turno = (request.GET.get("turno") or "TODOS").upper()
+    q = (request.GET.get("q") or "").strip()
+    turnos = _turnos_a_mostrar(turno)
+
+    qs = _qs_estatus(fecha, turnos, q)
+
+    missing_am, missing_pm = _missing_por_turno(fecha)
+
+    form = EstatusOperacionalViajeForm(
+        initial={
+            "fecha": fecha,
+            "turno": TurnoEstatus.AM if turno == "TODOS" else turno,
+        }
+    )
+
+    context = {
+        "fecha": fecha,
+        "turno": turno,
+        "q": q,
+        "items": qs,
+        "form": form,
+        "turnos": ["TODOS", TurnoEstatus.AM, TurnoEstatus.PM],
+        "missing_am": missing_am,
+        "missing_pm": missing_pm,
+        "total_registros": qs.count(),
+        "total_descargado": _estado_badge_count(qs, EstatusOperacionalViaje.EstadoCargaChoices.DESCARGADO),
+        "total_camino_descargar": _estado_badge_count(qs, EstatusOperacionalViaje.EstadoCargaChoices.CAMINO_DESCARGAR),
+        "total_retorno_vacio": _estado_badge_count(qs, EstatusOperacionalViaje.EstadoCargaChoices.RETORNO_VACIO),
+    }
+    return render(request, "operaciones/estatus_viajes.html", context)
+
+
+def _estatus_redirect(request):
+    fecha = request.POST.get("fecha") or request.GET.get("fecha") or ""
+    turno = request.POST.get("turno") or request.GET.get("turno") or "TODOS"
+    q = request.POST.get("q") or request.GET.get("q") or ""
+
+    params = {}
+    if fecha:
+        params["fecha"] = fecha
+    if turno:
+        params["turno"] = turno
+    if q:
+        params["q"] = q
+
+    url = reverse("operaciones:estatus_viajes_panel")
+    return f"{url}?{urlencode(params)}" if params else url
+
+
+@login_required
+@permission_required("operaciones.puede_editar_estatus_viajes", raise_exception=True)
+@require_POST
+def estatus_viajes_guardar(request: HttpRequest):
+    form = EstatusOperacionalViajeForm(request.POST)
+    if not form.is_valid():
+        messages.error(request, "Revisa el formulario: hay campos inválidos.")
+        return redirect(_estatus_redirect(request))
+
+    d = form.cleaned_data
+
+    with transaction.atomic():
+        obj, created = EstatusOperacionalViaje.objects.select_for_update().get_or_create(
+            fecha=d["fecha"],
+            turno=d["turno"],
+            conductor=d["conductor"],
+            defaults={
+                "tracto": d.get("tracto"),
+                "rampla": d.get("rampla"),
+                "cliente": d.get("cliente"),
+                "nro_guia": d.get("nro_guia"),
+                "estado_guia": d.get("estado_guia"),
+                "estado_carga": d.get("estado_carga"),
+                "lugar_carga": d.get("lugar_carga"),
+                "fecha_carga": d.get("fecha_carga"),
+                "lugar_descarga": d.get("lugar_descarga"),
+                "fecha_descarga": d.get("fecha_descarga"),
+                "estado_texto": d.get("estado_texto"),
+                "observaciones": d.get("observaciones"),
+                "creado_por": request.user,
+                "actualizado_por": request.user,
+            },
         )
 
-    return rows, missing_am, missing_pm
+        if not created:
+            obj.tracto = d.get("tracto")
+            obj.rampla = d.get("rampla")
+            obj.cliente = d.get("cliente")
+            obj.nro_guia = d.get("nro_guia")
+            obj.estado_guia = d.get("estado_guia")
+            obj.estado_carga = d.get("estado_carga")
+            obj.lugar_carga = d.get("lugar_carga")
+            obj.fecha_carga = d.get("fecha_carga")
+            obj.lugar_descarga = d.get("lugar_descarga")
+            obj.fecha_descarga = d.get("fecha_descarga")
+            obj.estado_texto = d.get("estado_texto")
+            obj.observaciones = d.get("observaciones")
+            obj.actualizado_por = request.user
+            obj.save()
+
+    messages.success(request, "Estatus guardado correctamente.")
+    return redirect(_estatus_redirect(request))
+
+
+@login_required
+@permission_required("operaciones.puede_editar_estatus_viajes", raise_exception=True)
+@require_POST
+def estatus_viajes_eliminar(request: HttpRequest, pk: int):
+    obj = get_object_or_404(EstatusOperacionalViaje, pk=pk)
+    obj.delete()
+    messages.success(request, "Estatus eliminado.")
+    return redirect(_estatus_redirect(request))
+
+
+@login_required
+@permission_required("operaciones.puede_editar_estatus_viajes", raise_exception=True)
+@require_POST
+def estatus_viajes_copiar_am_a_pm(request: HttpRequest):
+    fecha = _parse_fecha(request.POST.get("fecha"))
+
+    am_rows = list(EstatusOperacionalViaje.objects.filter(fecha=fecha, turno=TurnoEstatus.AM))
+    creados = 0
+    actualizados = 0
+
+    for r in am_rows:
+        obj, created = EstatusOperacionalViaje.objects.get_or_create(
+            fecha=fecha,
+            turno=TurnoEstatus.PM,
+            conductor=r.conductor,
+            defaults={
+                "tracto": r.tracto,
+                "rampla": r.rampla,
+                "cliente": r.cliente,
+                "nro_guia": r.nro_guia,
+                "estado_guia": r.estado_guia,
+                "estado_carga": r.estado_carga,
+                "lugar_carga": r.lugar_carga,
+                "fecha_carga": r.fecha_carga,
+                "lugar_descarga": r.lugar_descarga,
+                "fecha_descarga": r.fecha_descarga,
+                "estado_texto": r.estado_texto,
+                "observaciones": r.observaciones,
+                "creado_por": request.user,
+                "actualizado_por": request.user,
+            },
+        )
+        if created:
+            creados += 1
+        else:
+            obj.tracto = obj.tracto or r.tracto
+            obj.rampla = obj.rampla or r.rampla
+            obj.cliente = obj.cliente or r.cliente
+            obj.nro_guia = obj.nro_guia or r.nro_guia
+            obj.estado_guia = obj.estado_guia or r.estado_guia
+            obj.estado_carga = obj.estado_carga or r.estado_carga
+            obj.lugar_carga = obj.lugar_carga or r.lugar_carga
+            obj.fecha_carga = obj.fecha_carga or r.fecha_carga
+            obj.lugar_descarga = obj.lugar_descarga or r.lugar_descarga
+            obj.fecha_descarga = obj.fecha_descarga or r.fecha_descarga
+            obj.estado_texto = obj.estado_texto or r.estado_texto
+            obj.observaciones = obj.observaciones or r.observaciones
+            obj.actualizado_por = request.user
+            obj.save()
+            actualizados += 1
+
+    messages.success(request, f"Copiado AM → PM. Nuevos: {creados} | Actualizados: {actualizados}")
+    return redirect(reverse("operaciones:estatus_viajes_panel") + f"?fecha={fecha.isoformat()}")
+
+
+@login_required
+@permission_required("operaciones.puede_ver_estatus_viajes", raise_exception=True)
+@require_GET
+def estatus_viajes_export_xlsx(request: HttpRequest):
+    fecha = _parse_fecha(request.GET.get("fecha"))
+    turno = (request.GET.get("turno") or "TODOS").upper()
+    q = (request.GET.get("q") or "").strip()
+    turnos = _turnos_a_mostrar(turno)
+
+    qs = _qs_estatus(fecha, turnos, q)
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Estatus Viajes"
+
+    headers = [
+        "Turno",
+        "Chofer",
+        "RUT",
+        "Pte Tracto",
+        "Pte Semirremolque",
+        "Estado Carga",
+        "Nro Guía",
+        "Estado Guía",
+        "Cliente",
+        "Lugar Carga",
+        "Fecha Carga",
+        "Lugar Descarga",
+        "Fecha Descarga",
+        "Observaciones",
+    ]
+    ws.append(headers)
+
+    header_fill = PatternFill("solid", fgColor="1F1F1F")
+    header_font = Font(color="FFFFFF", bold=True)
+    for cell in ws[1]:
+        cell.fill = header_fill
+        cell.font = header_font
+        cell.alignment = Alignment(horizontal="center", vertical="center")
+
+    fill_ok = PatternFill("solid", fgColor="9ACD32")
+    fill_warn = PatternFill("solid", fgColor="FFD966")
+    fill_info = PatternFill("solid", fgColor="FFF200")
+
+    for r in qs:
+        row = [
+            r.turno,
+            f"{r.conductor.nombres} {r.conductor.apellidos}".strip(),
+            r.conductor.rut,
+            getattr(r.tracto, "patente", "") or "",
+            getattr(r.rampla, "patente", "") or "",
+            r.get_estado_carga_display(),
+            r.nro_guia,
+            r.estado_guia,
+            getattr(r.cliente, "razon_social", "") or "",
+            r.lugar_carga,
+            r.fecha_carga.strftime("%d.%m.%Y") if r.fecha_carga else "",
+            r.lugar_descarga,
+            r.fecha_descarga.strftime("%d.%m.%Y") if r.fecha_descarga else "",
+            r.observaciones,
+        ]
+        ws.append(row)
+
+        excel_row = ws.max_row
+        if r.estado_carga == EstatusOperacionalViaje.EstadoCargaChoices.DESCARGADO:
+            fill = fill_ok
+        elif r.estado_carga == EstatusOperacionalViaje.EstadoCargaChoices.CAMINO_DESCARGAR:
+            fill = fill_info
+        else:
+            fill = fill_warn
+
+        for cell in ws[excel_row]:
+            cell.fill = fill
+
+    widths = {
+        "A": 8, "B": 28, "C": 16, "D": 14, "E": 18, "F": 20, "G": 14,
+        "H": 16, "I": 24, "J": 22, "K": 14, "L": 22, "M": 14, "N": 30,
+    }
+    for col, width in widths.items():
+        ws.column_dimensions[col].width = width
+
+    bio = BytesIO()
+    wb.save(bio)
+    bio.seek(0)
+
+    filename = f"estatus_viajes_{fecha.strftime('%Y%m%d')}.xlsx"
+    resp = HttpResponse(
+        bio.getvalue(),
+        content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    )
+    resp["Content-Disposition"] = f'attachment; filename="{filename}"'
+    return resp
+
+
+
+@login_required
+@permission_required("operaciones.puede_editar_estatus_viajes", raise_exception=True)
+@require_GET
+def estatus_viajes_a_bitacora(request: HttpRequest, pk: int):
+    obj = get_object_or_404(
+        EstatusOperacionalViaje.objects.select_related("cliente", "conductor", "tracto", "rampla"),
+        pk=pk,
+    )
+
+    # Si ya existe una bitácora creada desde este estatus, la abrimos
+    bitacora_existente = (
+        Bitacora.objects.filter(estatus_origen=obj)
+        .order_by("-id")
+        .first()
+    )
+    if bitacora_existente:
+        messages.info(request, "La bitácora ya existía para este estatus. Se abrió para edición.")
+        return redirect("bitacora:editar", bitacora_existente.id)
+
+    descripcion = obj.estado_texto or ""
+    if obj.observaciones:
+        descripcion = f"{descripcion}\n{obj.observaciones}".strip()
+
+    bitacora = Bitacora.objects.create(
+        estatus_origen=obj,
+        cliente=obj.cliente,
+        conductor=obj.conductor,
+        tracto=obj.tracto,
+        rampla=obj.rampla,
+        origen=obj.lugar_carga or "",
+        destino=obj.lugar_descarga or "",
+
+        # Fechas
+        fecha=obj.fecha,
+        fecha_arribo=obj.fecha_carga,
+        fecha_descarga=obj.fecha_descarga,
+
+        guias_raw=obj.nro_guia or "",
+        descripcion_trabajo=descripcion,
+        coordinador=getattr(request.user, "get_full_name", lambda: "")() or request.user.username,
+        creado_por=request.user,
+    )
+
+    messages.success(request, "Bitácora creada desde Estatus de Viajes.")
+    return redirect("bitacora:editar", bitacora.id)
 
 
 @login_required
 @permission_required("operaciones.puede_ver_estatus_viajes", raise_exception=True)
 @require_GET
 def estatus_viajes_planilla(request: HttpRequest):
-    """
-    Vista PRO+: planilla por fecha con columnas AM/PM.
-    """
     fecha = _parse_fecha(request.GET.get("fecha"))
+    turno = (request.GET.get("turno") or "TODOS").upper()
     q = (request.GET.get("q") or "").strip()
+    turnos = _turnos_a_mostrar(turno)
 
-    rows, missing_am, missing_pm = _build_planilla_rows(fecha)
-
-    # Filtro de búsqueda (pro+)
-    if q:
-        q_low = q.lower()
-        filtered = []
-        for r in rows:
-            c: Conductor = r["conductor"]
-            if (
-                q_low in (c.nombres or "").lower()
-                or q_low in (c.apellidos or "").lower()
-                or q_low in (c.rut or "").lower()
-                or q_low in (getattr(r["tracto"], "patente", "") or "").lower()
-                or q_low in (getattr(r["rampla"], "patente", "") or "").lower()
-                or q_low in (r["am_texto"] or "").lower()
-                or q_low in (r["pm_texto"] or "").lower()
-            ):
-                filtered.append(r)
-        rows = filtered
-
-        # missing lists no se filtran por q (para que veas faltantes reales del día)
-        # Si quieres que también se filtren, lo hacemos.
+    rows = _qs_estatus(fecha, turnos, q)
 
     return render(
         request,
         "operaciones/estatus_viajes_planilla.html",
         {
             "fecha": fecha,
+            "turno": turno,
             "q": q,
             "rows": rows,
-            "missing_am": missing_am,
-            "missing_pm": missing_pm,
         },
     )
 
@@ -141,90 +440,4 @@ def estatus_viajes_planilla(request: HttpRequest):
 @permission_required("operaciones.puede_ver_estatus_viajes", raise_exception=True)
 @require_GET
 def estatus_viajes_export_planilla_xlsx(request: HttpRequest):
-    """
-    Export XLSX en formato planilla (AM/PM en columnas).
-    """
-    fecha = _parse_fecha(request.GET.get("fecha"))
-    q = (request.GET.get("q") or "").strip()
-
-    rows, missing_am, missing_pm = _build_planilla_rows(fecha)
-
-    if q:
-        q_low = q.lower()
-        rows = [
-            r
-            for r in rows
-            if (
-                q_low in (r["conductor"].nombres or "").lower()
-                or q_low in (r["conductor"].apellidos or "").lower()
-                or q_low in (r["conductor"].rut or "").lower()
-                or q_low in (getattr(r["tracto"], "patente", "") or "").lower()
-                or q_low in (getattr(r["rampla"], "patente", "") or "").lower()
-                or q_low in (r["am_texto"] or "").lower()
-                or q_low in (r["pm_texto"] or "").lower()
-            )
-        ]
-
-    try:
-        from openpyxl import Workbook
-        from openpyxl.styles import Alignment, Font
-    except Exception:
-        messages.error(request, "Falta openpyxl. Instala con: pip install openpyxl")
-        return redirect("operaciones:estatus_viajes_planilla")
-
-    wb = Workbook()
-    ws = wb.active
-    ws.title = "Estatus Planilla"
-
-    # Header
-    ws.append(
-        [
-            "Chofer",
-            "RUT",
-            "Tracto",
-            "Rampla",
-            "AM",
-            "PM",
-        ]
-    )
-    for cell in ws[1]:
-        cell.font = Font(bold=True)
-        cell.alignment = Alignment(horizontal="center", vertical="center")
-
-    # Rows
-    for r in rows:
-        c = r["conductor"]
-        ws.append(
-            [
-                f"{c.nombres} {c.apellidos}".strip(),
-                c.rut,
-                getattr(r["tracto"], "patente", "") or "",
-                getattr(r["rampla"], "patente", "") or "",
-                r["am_texto"],
-                r["pm_texto"],
-            ]
-        )
-
-    # Ajustes visuales mínimos
-    ws.column_dimensions["A"].width = 28
-    ws.column_dimensions["B"].width = 14
-    ws.column_dimensions["C"].width = 12
-    ws.column_dimensions["D"].width = 12
-    ws.column_dimensions["E"].width = 60
-    ws.column_dimensions["F"].width = 60
-
-    for row in ws.iter_rows(min_row=2, max_row=ws.max_row, min_col=1, max_col=6):
-        for cell in row:
-            cell.alignment = Alignment(vertical="top", wrap_text=True)
-
-    bio = BytesIO()
-    wb.save(bio)
-    bio.seek(0)
-
-    filename = f"estatus_planilla_{fecha.strftime('%Y%m%d')}.xlsx"
-    resp = HttpResponse(
-        bio.getvalue(),
-        content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-    )
-    resp["Content-Disposition"] = f'attachment; filename="{filename}"'
-    return resp
+    return estatus_viajes_export_xlsx(request)

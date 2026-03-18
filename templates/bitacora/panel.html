@@ -1,19 +1,52 @@
 {% extends "layout/base.html" %}
-{% block title %}Bitácora{% endblock %}
-{% block page_title %}Bitácora{% endblock %}
+{% block title %}Servicios / Bitácora{% endblock %}
+{% block page_title %}Servicios / Bitácora{% endblock %}
 
 {% block content %}
 <div class="card">
   <div class="card-header d-flex justify-content-between align-items-center">
-    <h3 class="card-title mb-0">Panel Bitácora</h3>
+    <h3 class="card-title mb-0">Panel de Servicios Operativos</h3>
     <a href="{% url 'bitacora:crear' %}" class="btn btn-success btn-sm">
-      <i class="fas fa-plus"></i> Nuevo
+      <i class="fas fa-plus"></i> Nueva Bitácora
     </a>
   </div>
+
   <div class="card-body">
-    <div class="alert alert-success mb-0">
-      ✅ Listo: ya existe el módulo Bitácora.
-    </div>
+    <form method="get" class="mb-3">
+      <div class="row">
+        <div class="col-md-5 mb-2">
+          <input
+            type="text"
+            name="q"
+            class="form-control"
+            placeholder="Buscar por cliente, guía, OC/EDP, origen, destino, coordinador..."
+            value="{{ q }}"
+          >
+        </div>
+
+        <div class="col-md-3 mb-2">
+          <select name="estado" class="form-control">
+            <option value="">Todos los estados</option>
+            {% for valor, texto in estados %}
+              <option value="{{ valor }}" {% if estado == valor %}selected{% endif %}>
+                {{ texto }}
+              </option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="col-md-4 mb-2">
+          <button type="submit" class="btn btn-primary">
+            <i class="fas fa-search"></i> Filtrar
+          </button>
+          <a href="{% url 'bitacora:panel' %}" class="btn btn-secondary">
+            <i class="fas fa-eraser"></i> Limpiar
+          </a>
+        </div>
+      </div>
+    </form>
+
+    {% include "bitacora/_tabla.html" %}
   </div>
 </div>
 {% endblock %}

@@ -1,0 +1,85 @@
+<div class="table-responsive">
+    <table class="table table-bordered table-hover table-sm">
+      <thead>
+        <tr>
+          <th>Código</th>
+          <th>Cliente</th>
+          <th>Origen</th>
+          <th>Destino</th>
+          <th>Fecha</th>
+          <th>Guías</th>
+          <th>OC / EDP</th>
+          <th>Estado</th>
+          <th class="text-right">Total</th>
+          <th style="width: 170px;">Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for bitacora in bitacoras %}
+          <tr>
+            <td>
+              <strong>BIT-{{ bitacora.id }}</strong>
+            </td>
+  
+            <td>
+              {% if bitacora.cliente %}
+                {{ bitacora.cliente.razon_social }}
+              {% else %}
+                <span class="text-muted">Sin cliente</span>
+              {% endif %}
+            </td>
+  
+            <td>{{ bitacora.origen|default:"-" }}</td>
+            <td>{{ bitacora.destino|default:"-" }}</td>
+            <td>{{ bitacora.fecha|date:"d/m/Y" }}</td>
+            <td>{{ bitacora.guias_raw|default:"-" }}</td>
+            <td>{{ bitacora.oc_edp_raw|default:"-" }}</td>
+  
+            <td>
+              {% if bitacora.estado == "VIG" %}
+                <span class="badge badge-success">{{ bitacora.get_estado_display }}</span>
+              {% elif bitacora.estado == "CER" %}
+                <span class="badge badge-secondary">{{ bitacora.get_estado_display }}</span>
+              {% elif bitacora.estado == "ANU" %}
+                <span class="badge badge-danger">{{ bitacora.get_estado_display }}</span>
+              {% else %}
+                <span class="badge badge-light">{{ bitacora.get_estado_display }}</span>
+              {% endif %}
+            </td>
+  
+            <td class="text-right">
+              $ {{ bitacora.total }}
+            </td>
+  
+            <td>
+              <a href="{% url 'bitacora:detalle' bitacora.id %}" class="btn btn-info btn-sm" title="Ver detalle">
+                <i class="fas fa-eye"></i>
+              </a>
+  
+              <a href="{% url 'bitacora:editar' bitacora.id %}" class="btn btn-primary btn-sm" title="Editar">
+                <i class="fas fa-edit"></i>
+              </a>
+  
+              <form
+                method="post"
+                action="{% url 'bitacora:eliminar' bitacora.id %}"
+                style="display:inline-block;"
+                onsubmit="return confirm('¿Seguro que deseas eliminar esta bitácora?');"
+              >
+                {% csrf_token %}
+                <button type="submit" class="btn btn-danger btn-sm" title="Eliminar">
+                  <i class="fas fa-trash"></i>
+                </button>
+              </form>
+            </td>
+          </tr>
+        {% empty %}
+          <tr>
+            <td colspan="10" class="text-center text-muted">
+              No hay bitácoras registradas.
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
