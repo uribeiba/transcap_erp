@@ -4,15 +4,63 @@ from .models import Bitacora
 
 
 class BitacoraForm(forms.ModelForm):
+    # ---------------------------------------------------------
+    # Campos de fecha con formato HTML5 compatible.
+    # Esto evita que el navegador muestre los date inputs vacíos
+    # cuando Django intenta renderizar con formato local (es-cl).
+    # ---------------------------------------------------------
+    fecha = forms.DateField(
+        required=False,
+        input_formats=["%Y-%m-%d"],
+        widget=forms.DateInput(
+            format="%Y-%m-%d",
+            attrs={
+                "type": "date",
+                "class": "form-control"
+            }
+        ),
+    )
+
+    fecha_arribo = forms.DateField(
+        required=False,
+        input_formats=["%Y-%m-%d"],
+        widget=forms.DateInput(
+            format="%Y-%m-%d",
+            attrs={
+                "type": "date",
+                "class": "form-control"
+            }
+        ),
+    )
+
+    fecha_descarga = forms.DateField(
+        required=False,
+        input_formats=["%Y-%m-%d"],
+        widget=forms.DateInput(
+            format="%Y-%m-%d",
+            attrs={
+                "type": "date",
+                "class": "form-control"
+            }
+        ),
+    )
 
     def __init__(self, *args, **kwargs):
-        # ✅ compatibilidad: si la vista pasa user=..., no revienta
-        kwargs.pop('user', None)
+        # Compatibilidad por si la vista pasa user=...
+        kwargs.pop("user", None)
         super().__init__(*args, **kwargs)
 
-        # Fecha por defecto
-        if not self.initial.get('fecha'):
-            self.initial['fecha'] = timezone.localdate()
+        # ---------------------------------------------------------
+        # Solo ponemos fecha por defecto si realmente es creación
+        # y no existe valor previo en la instancia.
+        # ---------------------------------------------------------
+        if not self.instance.pk and not self.initial.get("fecha"):
+            self.initial["fecha"] = timezone.localdate()
+
+        # Etiquetas más claras según tu flujo real
+        self.fields["fecha"].label = "Fecha"
+        self.fields["fecha_arribo"].label = "Fecha carga"
+        self.fields["fecha_descarga"].label = "Fecha descarga"
 
     class Meta:
         model = Bitacora
@@ -37,10 +85,6 @@ class BitacoraForm(forms.ModelForm):
         ]
 
         widgets = {
-            "fecha": forms.DateInput(attrs={
-                "type": "date",
-                "class": "form-control"
-            }),
             "tracto": forms.Select(attrs={
                 "class": "form-control select2-tracto",
             }),
@@ -73,22 +117,11 @@ class BitacoraForm(forms.ModelForm):
                 "class": "form-control",
                 "placeholder": "Ej: CENTINELLA"
             }),
-            "fecha_arribo": forms.DateInput(attrs={
-                "type": "date",
-                "class": "form-control"
-            }),
-            "fecha_descarga": forms.DateInput(attrs={
-                "type": "date",
-                "class": "form-control"
-            }),
-
-            # ✅ Placeholder solicitado
             "coordinador": forms.TextInput(attrs={
                 "class": "form-control",
                 "placeholder": "Ej: Adolfo Aguilera",
                 "autocomplete": "off",
             }),
-
             "tarifa_flete": forms.NumberInput(attrs={
                 "class": "form-control",
                 "step": "0.01",

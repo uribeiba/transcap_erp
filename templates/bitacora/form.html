@@ -155,7 +155,13 @@
         <div class="card-body">
           <div class="form-group">
             <label>Cliente:</label>
-            <p class="form-control-plaintext border rounded p-2 bg-light" id="resumen-cliente">---</p>
+            <p class="form-control-plaintext border rounded p-2 bg-light" id="resumen-cliente">
+              {% if selected_cliente %}
+                {{ selected_cliente.razon_social }}
+              {% else %}
+                ---
+              {% endif %}
+            </p>
           </div>
 
           <div class="row">
@@ -258,149 +264,286 @@
 
 {% block extra_js %}
 <script>
-  $(document).ready(function() {
-    // Configuración común para Select2
+  $(document).ready(function () {
+    // =========================================================
+    // CONFIGURACIÓN BASE
+    // =========================================================
+
+    /**
+     * Inicializa un select normal con Select2.
+     * Se usa para tracto, rampla y conductor.
+     */
     function initSelect2(selector, placeholder, allowClear = true) {
-      $(selector).select2({
+      const $field = $(selector);
+      if (!$field.length) return;
+
+      $field.select2({
         theme: 'bootstrap4',
         placeholder: placeholder,
         allowClear: allowClear,
         width: '100%',
-        dropdownParent: $(selector).closest('.form-group')
+        dropdownParent: $field.closest('.form-group')
       });
     }
 
-    // Inicializar Select2 para los campos
-    initSelect2('#id_tracto', 'Seleccione tracto...');
-    initSelect2('#id_rampla', 'Seleccione rampla...');
-    initSelect2('#id_conductor', 'Seleccione conductor...');
+    /**
+     * Inicializa Select2 AJAX para cliente.
+     * Mantiene la búsqueda remota y el comportamiento actual.
+     */
+    function initClienteSelect2() {
+      const $cliente = $('#id_cliente');
+      if (!$cliente.length) return;
 
-    // Inicializar el campo de cliente con búsqueda AJAX
-    $('#id_cliente').select2({
-      theme: 'bootstrap4',
-      placeholder: 'Seleccionar Cliente',
-      allowClear: true,
-      width: '100%',
-      dropdownParent: $('#id_cliente').closest('.form-group'),
-      ajax: {
-        url: "/bitacora/api/clientes/",
-        dataType: 'json',
-        delay: 250,
-        data: function (params) {
-          return { q: params.term || '' };
-        },
-        processResults: function (data) {
-          return { results: data.results || [] };
-        },
-        cache: true
-      }
-    });
+      $cliente.select2({
+        theme: 'bootstrap4',
+        placeholder: 'Seleccionar cliente',
+        allowClear: true,
+        width: '100%',
+        dropdownParent: $cliente.closest('.form-group'),
+        ajax: {
+          url: "/bitacora/api/clientes/",
+          dataType: 'json',
+          delay: 250,
+          data: function (params) {
+            return { q: params.term || '' };
+          },
+          processResults: function (data) {
+            return { results: data.results || [] };
+          },
+          cache: true
+        }
+      });
 
-    // Mostrar/ocultar sección de facturas
-    $('#agregar-facturas').change(function() {
-      if($(this).is(':checked')) {
-        $('#seccion-facturas').slideDown();
-      } else {
-        $('#seccion-facturas').slideUp();
-      }
-    });
+      // ---------------------------------------------------------
+      // Precarga del cliente cuando ya viene desde backend
+      // Esto evita que el resumen quede vacío al abrir edición.
+      // ---------------------------------------------------------
+      {% if selected_cliente %}
+        const selectedClienteId = "{{ selected_cliente.id }}";
+        const selectedClienteText = "{{ selected_cliente.razon_social|escapejs }} ({{ selected_cliente.rut|escapejs }})";
 
-    // Actualizar resumen cuando se selecciona cliente
-    $('#id_cliente').on('select2:select', function(e) {
-      var data = e.params.data;
-      if (data && data.text) {
-        var clienteName = data.text.split('(')[0].trim();
-        $('#resumen-cliente').text(clienteName);
-      }
-    });
+        if ($cliente.find('option[value="' + selectedClienteId + '"]').length === 0) {
+          const option = new Option(selectedClienteText, selectedClienteId, true, true);
+          $cliente.append(option);
+        } else {
+          $cliente.val(selectedClienteId);
+        }
 
-    $('#id_cliente').on('select2:clear', function() {
-      $('#resumen-cliente').text('---');
-    });
-
-    // Actualizar valores monetarios
-    function updateMonetaryValues() {
-      var flete = parseFloat($('#id_tarifa_flete').val()) || 0;
-      var estadia = parseFloat($('#id_estadia').val()) || 0;
-
-      $('#resumen-flete').text('$' + flete.toLocaleString('es-CL'));
-      $('#resumen-estadia').text('$' + estadia.toLocaleString('es-CL'));
+        $cliente.trigger('change');
+        $('#resumen-cliente').text("{{ selected_cliente.razon_social|escapejs }}");
+      {% endif %}
     }
 
-    $('#id_tarifa_flete, #id_estadia').on('input', updateMonetaryValues);
-    updateMonetaryValues();
+    // =========================================================
+    // RESÚMENES / HELPERS
+    // =========================================================
 
-    // Procesar guías y OC para la tabla de resumen
-    function actualizarTablaResumen() {
-      var guias = $('#id_guias_raw').val().split('-').filter(g => g.trim());
-      var ocs = $('#id_oc_edp_raw').val().split('-').filter(o => o.trim());
-      var origen = $('#id_origen').val() || '---';
-      var destino = $('#id_destino').val() || '---';
+    /**
+     * Limpia valores basura del campo coordinador.
+     * Ejemplo: si quedó impreso un {{ request.user... }} por error.
+     */
+    function sanitizeCoord(value) {
+      value = (value || '').trim();
 
-      var tbody = $('#tabla-resumen tbody');
-      tbody.empty();
-
-      if (guias.length === 0 && ocs.length === 0) {
-        tbody.append('<tr class="text-muted"><td colspan="4" class="text-center">Sin datos</td></tr>');
-        return;
-      }
-
-      var maxLength = Math.max(guias.length, ocs.length);
-      for (var i = 0; i < maxLength; i++) {
-        var guia = guias[i] || '---';
-        var oc = ocs[i] || '---';
-
-        var row = '<tr>' +
-                  '<td class="text-center">' + guia.trim() + '</td>' +
-                  '<td class="text-center">' + oc.trim() + '</td>' +
-                  '<td>' + origen + '</td>' +
-                  '<td>' + destino + '</td>' +
-                  '</tr>';
-        tbody.append(row);
-      }
-    }
-
-    $('#id_guias_raw, #id_oc_edp_raw, #id_origen, #id_destino').on('input', actualizarTablaResumen);
-    actualizarTablaResumen();
-
-    // Personalizar input file
-    $('.custom-file-input').on('change', function() {
-      var fileName = $(this).val().split('\\').pop();
-      $(this).next('.custom-file-label').html(fileName || 'Seleccionar archivos');
-    });
-
-    // ===============================
-    // ✅ Coordinador: sincronía en vivo + limpieza de basura "{{ ... }}"
-    // ===============================
-    function sanitizeCoord(val) {
-      val = (val || '').trim();
-      // Si viene como template tag, lo consideramos vacío y lo limpiamos
-      if (val.includes('{{') || val.includes('request.user.get_full_name')) {
+      if (
+        value.includes('{{') ||
+        value.includes('request.user.get_full_name') ||
+        value.includes('request.user.username')
+      ) {
         return '';
       }
-      return val;
+
+      return value;
     }
 
-    function syncCoordinadorResumen() {
-      var raw = $('#id_coordinador').val();
-      var val = sanitizeCoord(raw);
+    /**
+     * Extrae el nombre del cliente desde el texto del select2.
+     * Ejemplo:
+     * "ACEROS AZA S.A (92176000-0)" -> "ACEROS AZA S.A"
+     */
+    function extraerNombreCliente(texto) {
+      if (!texto) return '---';
+      return texto.split('(')[0].trim() || '---';
+    }
 
-      // Si detectamos basura, limpiamos también el input para que no vuelva a verse
-      if (val === '' && sanitizeCoord(raw) === '' && (raw || '').includes('{{')) {
-        $('#id_coordinador').val('');
+    /**
+     * Formatea montos al estilo chileno.
+     */
+    function formatMoney(value) {
+      const n = parseFloat(value) || 0;
+      return '$' + n.toLocaleString('es-CL');
+    }
+
+    /**
+     * Actualiza el resumen de cliente.
+     */
+    function syncClienteResumen(nombreCliente) {
+      $('#resumen-cliente').text(nombreCliente || '---');
+    }
+
+    /**
+     * Actualiza el resumen de coordinador.
+     */
+    function syncCoordinadorResumen() {
+      const $coord = $('#id_coordinador');
+      if (!$coord.length) return;
+
+      const raw = $coord.val();
+      const clean = sanitizeCoord(raw);
+
+      // Si detectamos basura de template, limpiamos el input visible
+      if (raw && !clean && raw.includes('{{')) {
+        $coord.val('');
       }
 
       $('#resumen-coordinador')
-        .toggleClass('text-muted', !val)
-        .text(val ? val : 'Escriba un coordinador...');
+        .toggleClass('text-muted', !clean)
+        .text(clean || 'Escriba un coordinador...');
     }
 
-    syncCoordinadorResumen();
+    /**
+     * Actualiza resumen monetario (flete y estadía).
+     */
+    function updateMonetaryValues() {
+      const flete = $('#id_tarifa_flete').val();
+      const estadia = $('#id_estadia').val();
+
+      $('#resumen-flete').text(formatMoney(flete));
+      $('#resumen-estadia').text(formatMoney(estadia));
+    }
+
+    /**
+     * Construye la tabla de resumen a partir de guías, OC/EDP, origen y destino.
+     */
+    function actualizarTablaResumen() {
+      const guiasRaw = $('#id_guias_raw').val() || '';
+      const ocsRaw = $('#id_oc_edp_raw').val() || '';
+      const origen = ($('#id_origen').val() || '---').trim() || '---';
+      const destino = ($('#id_destino').val() || '---').trim() || '---';
+
+      const guias = guiasRaw.split('-').map(g => g.trim()).filter(Boolean);
+      const ocs = ocsRaw.split('-').map(o => o.trim()).filter(Boolean);
+
+      const $tbody = $('#tabla-resumen tbody');
+      if (!$tbody.length) return;
+
+      $tbody.empty();
+
+      // Si no hay datos, mostramos fila vacía
+      if (guias.length === 0 && ocs.length === 0) {
+        $tbody.append(
+          '<tr class="text-muted">' +
+            '<td colspan="4" class="text-center">Sin datos</td>' +
+          '</tr>'
+        );
+        return;
+      }
+
+      const maxLength = Math.max(guias.length, ocs.length);
+
+      for (let i = 0; i < maxLength; i++) {
+        const guia = guias[i] || '---';
+        const oc = ocs[i] || '---';
+
+        $tbody.append(
+          '<tr>' +
+            '<td class="text-center">' + guia + '</td>' +
+            '<td class="text-center">' + oc + '</td>' +
+            '<td>' + origen + '</td>' +
+            '<td>' + destino + '</td>' +
+          '</tr>'
+        );
+      }
+    }
+
+    /**
+     * Muestra u oculta la sección de facturas.
+     */
+    function toggleFacturasSection() {
+      const $check = $('#agregar-facturas');
+      const $section = $('#seccion-facturas');
+
+      if (!$check.length || !$section.length) return;
+
+      if ($check.is(':checked')) {
+        $section.stop(true, true).slideDown();
+      } else {
+        $section.stop(true, true).slideUp();
+      }
+    }
+
+    /**
+     * Personaliza el texto del input file.
+     */
+    function initCustomFileInput() {
+      $('.custom-file-input').on('change', function () {
+        const fileName = ($(this).val() || '').split('\\').pop();
+        $(this).next('.custom-file-label').html(fileName || 'Seleccionar archivos');
+      });
+    }
+
+    // =========================================================
+    // INICIALIZACIÓN DE CAMPOS
+    // =========================================================
+
+    initSelect2('#id_tracto', 'Seleccione tracto...');
+    initSelect2('#id_rampla', 'Seleccione rampla...');
+    initSelect2('#id_conductor', 'Seleccione conductor...');
+    initClienteSelect2();
+    initCustomFileInput();
+
+    // =========================================================
+    // EVENTOS
+    // =========================================================
+
+    // Cliente: actualizar resumen al seleccionar o limpiar
+    $('#id_cliente').on('select2:select', function (e) {
+      const data = e.params.data;
+      const nombreCliente = data && data.text ? extraerNombreCliente(data.text) : '---';
+      syncClienteResumen(nombreCliente);
+    });
+
+    $('#id_cliente').on('select2:clear', function () {
+      syncClienteResumen('---');
+    });
+
+    // Facturas: mostrar / ocultar bloque
+    $('#agregar-facturas').on('change', toggleFacturasSection);
+
+    // Montos: actualizar resumen en vivo
+    $('#id_tarifa_flete, #id_estadia').on('input', updateMonetaryValues);
+
+    // Tabla resumen: actualizar en vivo
+    $('#id_guias_raw, #id_oc_edp_raw, #id_origen, #id_destino').on('input', actualizarTablaResumen);
+
+    // Coordinador: actualizar resumen en vivo
     $('#id_coordinador').on('input', syncCoordinadorResumen);
 
-    $('#bitacora-form').on('reset', function() {
-      setTimeout(syncCoordinadorResumen, 0);
+    // Reset del formulario
+    $('#bitacora-form').on('reset', function () {
+      setTimeout(function () {
+        syncCoordinadorResumen();
+        updateMonetaryValues();
+        actualizarTablaResumen();
+        toggleFacturasSection();
+      }, 0);
     });
+
+    // =========================================================
+    // CARGA INICIAL
+    // =========================================================
+
+    updateMonetaryValues();
+    actualizarTablaResumen();
+    syncCoordinadorResumen();
+    toggleFacturasSection();
+
+    // Si el cliente ya quedó seleccionado por backend pero no entró por select2:select,
+    // intentamos reflejar el texto inicial visible en el resumen.
+    const clienteInicialTexto = $('#id_cliente option:selected').text();
+    if (clienteInicialTexto) {
+      syncClienteResumen(extraerNombreCliente(clienteInicialTexto));
+    }
   });
 </script>
 

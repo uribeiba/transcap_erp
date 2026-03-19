@@ -375,20 +375,49 @@ def estatus_viajes_a_bitacora(request: HttpRequest, pk: int):
         pk=pk,
     )
 
-    # Si ya existe una bitácora creada desde este estatus, la abrimos
-    bitacora_existente = (
-        Bitacora.objects.filter(estatus_origen=obj)
-        .order_by("-id")
-        .first()
-    )
-    if bitacora_existente:
-        messages.info(request, "La bitácora ya existía para este estatus. Se abrió para edición.")
-        return redirect("bitacora:editar", bitacora_existente.id)
-
     descripcion = obj.estado_texto or ""
     if obj.observaciones:
         descripcion = f"{descripcion}\n{obj.observaciones}".strip()
 
+    # Buscar si ya existe una bitácora generada desde este estatus
+    bitacora = (
+        Bitacora.objects.filter(estatus_origen=obj)
+        .order_by("-id")
+        .first()
+    )
+
+    if bitacora:
+        # SINCRONIZAR SIEMPRE los datos principales desde estatus
+        bitacora.cliente = obj.cliente
+        bitacora.conductor = obj.conductor
+        bitacora.tracto = obj.tracto
+        bitacora.rampla = obj.rampla
+
+        bitacora.origen = obj.lugar_carga or ""
+        bitacora.destino = obj.lugar_descarga or ""
+
+        # Mapeo de fechas
+        bitacora.fecha = obj.fecha
+        bitacora.fecha_arribo = obj.fecha_carga
+        bitacora.fecha_descarga = obj.fecha_descarga
+
+        bitacora.guias_raw = obj.nro_guia or ""
+        bitacora.descripcion_trabajo = descripcion
+
+        if not bitacora.coordinador:
+            bitacora.coordinador = (
+                getattr(request.user, "get_full_name", lambda: "")() or request.user.username
+            )
+
+        bitacora.save()
+
+        messages.info(
+            request,
+            "La bitácora ya existía y fue actualizada con los datos del estatus antes de abrirla."
+        )
+        return redirect("bitacora:editar", bitacora.id)
+
+    # Si no existe, crear nueva
     bitacora = Bitacora.objects.create(
         estatus_origen=obj,
         cliente=obj.cliente,
@@ -397,12 +426,9 @@ def estatus_viajes_a_bitacora(request: HttpRequest, pk: int):
         rampla=obj.rampla,
         origen=obj.lugar_carga or "",
         destino=obj.lugar_descarga or "",
-
-        # Fechas
         fecha=obj.fecha,
         fecha_arribo=obj.fecha_carga,
         fecha_descarga=obj.fecha_descarga,
-
         guias_raw=obj.nro_guia or "",
         descripcion_trabajo=descripcion,
         coordinador=getattr(request.user, "get_full_name", lambda: "")() or request.user.username,

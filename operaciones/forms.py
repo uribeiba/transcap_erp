@@ -5,6 +5,15 @@ from .models import EstatusOperacionalViaje, TurnoEstatus
 
 
 class EstadoFacturacionGuiaForm(forms.ModelForm):
+    fecha = forms.DateField(
+        required=False,
+        input_formats=["%Y-%m-%d"],
+        widget=forms.DateInput(
+            format="%Y-%m-%d",
+            attrs={"class": "form-control form-control-sm", "type": "date"}
+        ),
+    )
+
     class Meta:
         model = EstadoFacturacionGuia
         fields = [
@@ -13,7 +22,6 @@ class EstadoFacturacionGuiaForm(forms.ModelForm):
             "monto", "estado", "prioridad", "observaciones",
         ]
         widgets = {
-            "fecha": forms.DateInput(attrs={"class": "form-control form-control-sm", "type": "date"}),
             "cliente": forms.Select(attrs={"class": "form-control form-control-sm"}),
             "origen": forms.Select(attrs={"class": "form-control form-control-sm"}),
             "destino": forms.Select(attrs={"class": "form-control form-control-sm"}),
@@ -28,6 +36,38 @@ class EstadoFacturacionGuiaForm(forms.ModelForm):
 
 
 class EstatusOperacionalViajeForm(forms.ModelForm):
+    # ---------------------------------------------------------
+    # Fechas con formato HTML5 compatible.
+    # Dejamos esto explícito para evitar valores vacíos al editar
+    # cuando el locale de Django intenta usar dd/mm/yyyy.
+    # ---------------------------------------------------------
+    fecha = forms.DateField(
+        required=False,
+        input_formats=["%Y-%m-%d"],
+        widget=forms.DateInput(
+            format="%Y-%m-%d",
+            attrs={"class": "form-control form-control-sm", "type": "date"}
+        ),
+    )
+
+    fecha_carga = forms.DateField(
+        required=False,
+        input_formats=["%Y-%m-%d"],
+        widget=forms.DateInput(
+            format="%Y-%m-%d",
+            attrs={"class": "form-control form-control-sm", "type": "date"}
+        ),
+    )
+
+    fecha_descarga = forms.DateField(
+        required=False,
+        input_formats=["%Y-%m-%d"],
+        widget=forms.DateInput(
+            format="%Y-%m-%d",
+            attrs={"class": "form-control form-control-sm", "type": "date"}
+        ),
+    )
+
     class Meta:
         model = EstatusOperacionalViaje
         fields = [
@@ -48,7 +88,6 @@ class EstatusOperacionalViajeForm(forms.ModelForm):
             "observaciones",
         ]
         widgets = {
-            "fecha": forms.DateInput(attrs={"class": "form-control form-control-sm", "type": "date"}),
             "turno": forms.Select(attrs={"class": "form-control form-control-sm"}),
             "conductor": forms.Select(attrs={"class": "form-control form-control-sm"}),
             "tracto": forms.Select(attrs={"class": "form-control form-control-sm"}),
@@ -58,9 +97,7 @@ class EstatusOperacionalViajeForm(forms.ModelForm):
             "estado_guia": forms.TextInput(attrs={"class": "form-control form-control-sm", "placeholder": "Estado guía"}),
             "estado_carga": forms.Select(attrs={"class": "form-control form-control-sm"}),
             "lugar_carga": forms.TextInput(attrs={"class": "form-control form-control-sm", "placeholder": "Lugar de carga"}),
-            "fecha_carga": forms.DateInput(attrs={"class": "form-control form-control-sm", "type": "date"}),
             "lugar_descarga": forms.TextInput(attrs={"class": "form-control form-control-sm", "placeholder": "Lugar de descarga"}),
-            "fecha_descarga": forms.DateInput(attrs={"class": "form-control form-control-sm", "type": "date"}),
             "estado_texto": forms.Textarea(
                 attrs={
                     "class": "form-control form-control-sm",
@@ -82,6 +119,7 @@ class EstatusOperacionalViajeForm(forms.ModelForm):
         fecha_carga = cleaned_data.get("fecha_carga")
         fecha_descarga = cleaned_data.get("fecha_descarga")
 
+        # Validación simple para mantener coherencia del viaje
         if fecha_carga and fecha_descarga and fecha_descarga < fecha_carga:
             self.add_error("fecha_descarga", "La fecha de descarga no puede ser menor a la fecha de carga.")
 
