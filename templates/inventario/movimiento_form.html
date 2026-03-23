@@ -1,7 +1,7 @@
 {% extends "layout/base.html" %}
 
 {% block title %}Movimiento de Inventario{% endblock %}
-{% block page_title %}Movimiento de Inventario{% endblock %}
+{% block page_title %}Registrar Movimiento de Inventario{% endblock %}
 
 {% block content %}
 <div class="card">
@@ -10,42 +10,81 @@
     </div>
 
     <div class="card-body">
-        <form method="post">
+        {% if sin_bodegas %}
+            <div class="alert alert-warning">
+                <strong>No hay bodegas activas registradas.</strong><br>
+                Antes de registrar un movimiento, primero debes crear al menos una bodega.
+                <div class="mt-2">
+                    <a href="{% url 'inventario:crear_bodega' %}" class="btn btn-sm btn-primary">
+                        <i class="fas fa-warehouse"></i> Crear Bodega
+                    </a>
+                    <a href="{% url 'inventario:lista_bodegas' %}" class="btn btn-sm btn-outline-secondary">
+                        Ver Bodegas
+                    </a>
+                </div>
+            </div>
+        {% endif %}
+
+        {% if form.non_field_errors %}
+            <div class="alert alert-danger">
+                {{ form.non_field_errors }}
+            </div>
+        {% endif %}
+
+        <form method="post" novalidate>
             {% csrf_token %}
             <div class="row">
-                <!-- Columna izquierda -->
                 <div class="col-md-4">
                     <div class="form-group">
                         {{ form.tipo.label_tag }}
                         {{ form.tipo }}
+                        {% if form.tipo.errors %}
+                            <small class="text-danger">{{ form.tipo.errors|join:", " }}</small>
+                        {% endif %}
                     </div>
+
                     <div class="form-group">
                         {{ form.producto.label_tag }}
                         {{ form.producto }}
+                        {% if form.producto.errors %}
+                            <small class="text-danger">{{ form.producto.errors|join:", " }}</small>
+                        {% endif %}
                     </div>
                 </div>
 
-                <!-- Columna centro -->
                 <div class="col-md-4">
                     <div class="form-group">
                         {{ form.bodega.label_tag }}
                         {{ form.bodega }}
+                        {% if form.bodega.errors %}
+                            <small class="text-danger">{{ form.bodega.errors|join:", " }}</small>
+                        {% endif %}
                     </div>
+
                     <div class="form-group">
                         {{ form.cantidad.label_tag }}
                         {{ form.cantidad }}
+                        {% if form.cantidad.errors %}
+                            <small class="text-danger">{{ form.cantidad.errors|join:", " }}</small>
+                        {% endif %}
                     </div>
                 </div>
 
-                <!-- Columna derecha -->
                 <div class="col-md-4">
                     <div class="form-group">
                         {{ form.costo_unitario.label_tag }}
                         {{ form.costo_unitario }}
+                        {% if form.costo_unitario.errors %}
+                            <small class="text-danger">{{ form.costo_unitario.errors|join:", " }}</small>
+                        {% endif %}
                     </div>
+
                     <div class="form-group">
                         {{ form.referencia.label_tag }}
                         {{ form.referencia }}
+                        {% if form.referencia.errors %}
+                            <small class="text-danger">{{ form.referencia.errors|join:", " }}</small>
+                        {% endif %}
                     </div>
                 </div>
             </div>
@@ -53,9 +92,17 @@
             <div class="form-group">
                 {{ form.observacion.label_tag }}
                 {{ form.observacion }}
+                {% if form.observacion.errors %}
+                    <small class="text-danger">{{ form.observacion.errors|join:", " }}</small>
+                {% endif %}
             </div>
 
-            <button type="submit" class="btn btn-success">
+            <div class="alert alert-light border">
+                <i class="fas fa-info-circle"></i>
+                Para movimientos de tipo <strong>Salida</strong>, el sistema valida automáticamente que exista stock suficiente en la bodega seleccionada.
+            </div>
+
+            <button type="submit" class="btn btn-success" {% if sin_bodegas %}disabled{% endif %}>
                 <i class="fas fa-check"></i> Guardar Movimiento
             </button>
             <a href="{% url 'inventario:lista_movimientos' %}" class="btn btn-secondary">

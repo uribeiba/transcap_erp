@@ -1,0 +1,67 @@
+{% extends "layout/base.html" %}
+
+{% block title %}Bodega{% endblock %}
+{% block page_title %}{% if bodega %}Editar Bodega{% else %}Nueva Bodega{% endif %}{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <h3 class="card-title">
+            {% if bodega %}Editar Bodega{% else %}Nueva Bodega{% endif %}
+        </h3>
+    </div>
+
+    <div class="card-body">
+        {% if form.non_field_errors %}
+            <div class="alert alert-danger">
+                {{ form.non_field_errors }}
+            </div>
+        {% endif %}
+
+        <form method="post" novalidate>
+            {% csrf_token %}
+
+            <div class="form-group">
+                {{ form.nombre.label_tag }}
+                {{ form.nombre }}
+                {% if form.nombre.errors %}
+                    <small class="text-danger">{{ form.nombre.errors|join:", " }}</small>
+                {% endif %}
+            </div>
+
+            <div class="form-group">
+                {{ form.ubicacion.label_tag }}
+                {{ form.ubicacion }}
+                {% if form.ubicacion.errors %}
+                    <small class="text-danger">{{ form.ubicacion.errors|join:", " }}</small>
+                {% endif %}
+            </div>
+
+            <div class="form-group">
+                {{ form.descripcion.label_tag }}
+                {{ form.descripcion }}
+                {% if form.descripcion.errors %}
+                    <small class="text-danger">{{ form.descripcion.errors|join:", " }}</small>
+                {% endif %}
+            </div>
+
+            <div class="form-group form-check">
+                {{ form.activa }}
+                <label class="form-check-label" for="{{ form.activa.id_for_label }}">
+                    {{ form.activa.label }}
+                </label>
+                {% if form.activa.errors %}
+                    <br><small class="text-danger">{{ form.activa.errors|join:", " }}</small>
+                {% endif %}
+            </div>
+
+            <button type="submit" class="btn btn-success">
+                <i class="fas fa-save"></i> Guardar
+            </button>
+            <a href="{% url 'inventario:lista_bodegas' %}" class="btn btn-secondary">
+                Volver
+            </a>
+        </form>
+    </div>
+</div>
+{% endblock %}

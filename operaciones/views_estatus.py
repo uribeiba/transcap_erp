@@ -1,6 +1,8 @@
 from __future__ import annotations
+
 from io import BytesIO
 from urllib.parse import urlencode
+
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required, permission_required
 from django.db import models, transaction
@@ -9,24 +11,26 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_GET, require_POST
+
 from openpyxl import Workbook
 from openpyxl.styles import Alignment, Font, PatternFill
+
+from bitacora.models import Bitacora
 from taller.models import Conductor
+
 from .forms import EstatusOperacionalViajeForm
 from .models import EstatusOperacionalViaje, TurnoEstatus
 
-from operaciones.models import EstatusOperacionalViaje
-from bitacora.models import Bitacora
 
-
-
-
-
-from operaciones.models import EstatusOperacionalViaje
-
-
+# ============================================================
+# HELPERS GENERALES DEL PANEL
+# ============================================================
 
 def _parse_fecha(value: str | None):
+    """
+    Convierte una fecha en formato YYYY-MM-DD a date.
+    Si viene vacía o inválida, devuelve la fecha local de hoy.
+    """
     if not value:
         return timezone.localdate()
     try:
@@ -36,6 +40,11 @@ def _parse_fecha(value: str | None):
 
 
 def _turnos_a_mostrar(turno_param: str):
+    """
+    Normaliza el parámetro de turno.
+    Si viene AM o PM, devuelve solo ese turno.
+    Si viene vacío o distinto, devuelve ambos.
+    """
     turno_param = (turno_param or "TODOS").upper()
     if turno_param in [TurnoEstatus.AM, TurnoEstatus.PM]:
         return [turno_param]
@@ -43,6 +52,10 @@ def _turnos_a_mostrar(turno_param: str):
 
 
 def _get_conductores_queryset():
+    """
+    Obtiene conductores activos si el modelo tiene campo 'activo'.
+    Si no existe ese campo, devuelve todos.
+    """
     try:
         Conductor._meta.get_field("activo")
         return Conductor.objects.filter(activo=True)
@@ -51,6 +64,10 @@ def _get_conductores_queryset():
 
 
 def _qs_estatus(fecha, turnos, q=""):
+    """
+    Query base del panel de estatus de viajes.
+    Incluye relaciones frecuentes y filtro general de búsqueda.
+    """
     qs = (
         EstatusOperacionalViaje.objects
         .select_related("conductor", "tracto", "rampla", "cliente")
@@ -80,7 +97,13 @@ def _qs_estatus(fecha, turnos, q=""):
 
 
 def _missing_por_turno(fecha):
+    """
+    Retorna dos listas:
+    - conductores sin estatus AM
+    - conductores sin estatus PM
+    """
     conductores = _get_conductores_queryset().order_by("apellidos", "nombres")
+
     existentes_am = set(
         EstatusOperacionalViaje.objects.filter(fecha=fecha, turno=TurnoEstatus.AM)
         .values_list("conductor_id", flat=True)
@@ -96,8 +119,112 @@ def _missing_por_turno(fecha):
 
 
 def _estado_badge_count(qs, estado_carga):
+    """
+    Cuenta cuántos registros hay por tipo de estado de carga.
+    """
     return qs.filter(estado_carga=estado_carga).count()
 
+
+def _estatus_redirect(request: HttpRequest) -> str:
+    """
+    Reconstruye la URL del panel manteniendo filtros.
+    Se usa al guardar/eliminar/copiar para volver al contexto actual.
+    """
+    fecha = request.POST.get("fecha") or request.GET.get("fecha") or ""
+    turno = request.POST.get("turno") or request.GET.get("turno") or "TODOS"
+    q = request.POST.get("q") or request.GET.get("q") or ""
+
+    params = {}
+    if fecha:
+        params["fecha"] = fecha
+    if turno:
+        params["turno"] = turno
+    if q:
+        params["q"] = q
+
+    url = reverse("operaciones:estatus_viajes_panel")
+    return f"{url}?{urlencode(params)}" if params else url
+
+
+# ============================================================
+# BITÁCORA PRO
+# ============================================================
+
+def _sync_bitacora_from_estatus(bitacora: Bitacora, estatus: EstatusOperacionalViaje, request_user=None, preserve_manual=True):
+    """
+    Sincroniza una Bitácora desde un EstatusOperacionalViaje.
+
+    Campos operativos que SIEMPRE se sincronizan:
+    - cliente
+    - conductor
+    - tracto
+    - rampla
+    - fecha
+    - fecha_arribo (desde fecha_carga)
+    - fecha_descarga
+    - guias_raw
+    - origen
+    - destino
+    - descripcion_trabajo
+
+    Campos manuales que NO se pisan si preserve_manual=True:
+    - coordinador (si ya existe)
+    - tarifa_flete
+    - estadia
+    - oc_edp_raw
+    - estado
+
+    Nota:
+    - fecha_carga del estatus se mapea a fecha_arribo en bitácora
+      porque así está modelado hoy tu flujo.
+    """
+    descripcion = (estatus.estado_texto or "").strip()
+    if estatus.observaciones:
+        descripcion = (
+            f"{descripcion}\n{estatus.observaciones}".strip()
+            if descripcion
+            else estatus.observaciones.strip()
+        )
+
+    # -----------------------------
+    # Datos operativos base
+    # -----------------------------
+    bitacora.estatus_origen = estatus
+    bitacora.cliente = estatus.cliente
+    bitacora.conductor = estatus.conductor
+    bitacora.tracto = estatus.tracto
+    bitacora.rampla = estatus.rampla
+
+    bitacora.fecha = estatus.fecha
+    bitacora.fecha_arribo = estatus.fecha_carga
+    bitacora.fecha_descarga = estatus.fecha_descarga
+
+    bitacora.origen = (estatus.lugar_carga or "").strip()
+    bitacora.destino = (estatus.lugar_descarga or "").strip()
+    bitacora.guias_raw = (estatus.nro_guia or "").strip()
+    bitacora.descripcion_trabajo = descripcion
+
+    # -----------------------------
+    # Coordinador:
+    # solo lo completamos si no existe
+    # -----------------------------
+    if preserve_manual:
+        if not bitacora.coordinador and request_user:
+            bitacora.coordinador = (
+                getattr(request_user, "get_full_name", lambda: "")() or getattr(request_user, "username", "")
+            )
+    else:
+        if request_user:
+            bitacora.coordinador = (
+                getattr(request_user, "get_full_name", lambda: "")() or getattr(request_user, "username", "")
+            )
+
+    return bitacora
+
+
+# ============================================================
+# VISTAS PRINCIPALES
+# ============================================================
 
 @login_required
 @permission_required("operaciones.puede_ver_estatus_viajes", raise_exception=True)
@@ -108,7 +235,6 @@ def estatus_viajes_panel(request: HttpRequest):
     turnos = _turnos_a_mostrar(turno)
 
     qs = _qs_estatus(fecha, turnos, q)
-
     missing_am, missing_pm = _missing_por_turno(fecha)
 
     form = EstatusOperacionalViajeForm(
@@ -135,28 +261,12 @@ def estatus_viajes_panel(request: HttpRequest):
     return render(request, "operaciones/estatus_viajes.html", context)
 
 
-def _estatus_redirect(request):
-    fecha = request.POST.get("fecha") or request.GET.get("fecha") or ""
-    turno = request.POST.get("turno") or request.GET.get("turno") or "TODOS"
-    q = request.POST.get("q") or request.GET.get("q") or ""
-
-    params = {}
-    if fecha:
-        params["fecha"] = fecha
-    if turno:
-        params["turno"] = turno
-    if q:
-        params["q"] = q
-
-    url = reverse("operaciones:estatus_viajes_panel")
-    return f"{url}?{urlencode(params)}" if params else url
-
-
 @login_required
 @permission_required("operaciones.puede_editar_estatus_viajes", raise_exception=True)
 @require_POST
 def estatus_viajes_guardar(request: HttpRequest):
     form = EstatusOperacionalViajeForm(request.POST)
+
     if not form.is_valid():
         messages.error(request, "Revisa el formulario: hay campos inválidos.")
         return redirect(_estatus_redirect(request))
@@ -187,6 +297,7 @@ def estatus_viajes_guardar(request: HttpRequest):
         )
 
         if not created:
+            # Actualización completa del registro existente
             obj.tracto = d.get("tracto")
             obj.rampla = d.get("rampla")
             obj.cliente = d.get("cliente")
@@ -222,7 +333,9 @@ def estatus_viajes_eliminar(request: HttpRequest, pk: int):
 def estatus_viajes_copiar_am_a_pm(request: HttpRequest):
     fecha = _parse_fecha(request.POST.get("fecha"))
 
-    am_rows = list(EstatusOperacionalViaje.objects.filter(fecha=fecha, turno=TurnoEstatus.AM))
+    am_rows = list(
+        EstatusOperacionalViaje.objects.filter(fecha=fecha, turno=TurnoEstatus.AM)
+    )
     creados = 0
     actualizados = 0
 
@@ -248,9 +361,11 @@ def estatus_viajes_copiar_am_a_pm(request: HttpRequest):
                 "actualizado_por": request.user,
             },
         )
+
         if created:
             creados += 1
         else:
+            # Copia "inteligente": solo completa campos vacíos del PM
             obj.tracto = obj.tracto or r.tracto
             obj.rampla = obj.rampla or r.rampla
             obj.cliente = obj.cliente or r.cliente
@@ -267,8 +382,13 @@ def estatus_viajes_copiar_am_a_pm(request: HttpRequest):
             obj.save()
             actualizados += 1
 
-    messages.success(request, f"Copiado AM → PM. Nuevos: {creados} | Actualizados: {actualizados}")
-    return redirect(reverse("operaciones:estatus_viajes_panel") + f"?fecha={fecha.isoformat()}")
+    messages.success(
+        request,
+        f"Copiado AM → PM. Nuevos: {creados} | Actualizados: {actualizados}"
+    )
+    return redirect(
+        reverse("operaciones:estatus_viajes_panel") + f"?fecha={fecha.isoformat()}"
+    )
 
 
 @login_required
@@ -306,6 +426,7 @@ def estatus_viajes_export_xlsx(request: HttpRequest):
 
     header_fill = PatternFill("solid", fgColor="1F1F1F")
     header_font = Font(color="FFFFFF", bold=True)
+
     for cell in ws[1]:
         cell.fill = header_fill
         cell.font = header_font
@@ -335,6 +456,7 @@ def estatus_viajes_export_xlsx(request: HttpRequest):
         ws.append(row)
 
         excel_row = ws.max_row
+
         if r.estado_carga == EstatusOperacionalViaje.EstadoCargaChoices.DESCARGADO:
             fill = fill_ok
         elif r.estado_carga == EstatusOperacionalViaje.EstadoCargaChoices.CAMINO_DESCARGAR:
@@ -346,8 +468,20 @@ def estatus_viajes_export_xlsx(request: HttpRequest):
             cell.fill = fill
 
     widths = {
-        "A": 8, "B": 28, "C": 16, "D": 14, "E": 18, "F": 20, "G": 14,
-        "H": 16, "I": 24, "J": 22, "K": 14, "L": 22, "M": 14, "N": 30,
+        "A": 8,
+        "B": 28,
+        "C": 16,
+        "D": 14,
+        "E": 18,
+        "F": 20,
+        "G": 14,
+        "H": 16,
+        "I": 24,
+        "J": 22,
+        "K": 14,
+        "L": 22,
+        "M": 14,
+        "N": 30,
     }
     for col, width in widths.items():
         ws.column_dimensions[col].width = width
@@ -365,77 +499,50 @@ def estatus_viajes_export_xlsx(request: HttpRequest):
     return resp
 
 
-
 @login_required
 @permission_required("operaciones.puede_editar_estatus_viajes", raise_exception=True)
 @require_GET
 def estatus_viajes_a_bitacora(request: HttpRequest, pk: int):
+    """
+    Flujo pro:
+    - Si no existe bitácora vinculada al estatus, la crea.
+    - Si ya existe, la actualiza automáticamente antes de abrirla.
+    """
     obj = get_object_or_404(
-        EstatusOperacionalViaje.objects.select_related("cliente", "conductor", "tracto", "rampla"),
+        EstatusOperacionalViaje.objects.select_related(
+            "cliente", "conductor", "tracto", "rampla"
+        ),
         pk=pk,
     )
 
-    descripcion = obj.estado_texto or ""
-    if obj.observaciones:
-        descripcion = f"{descripcion}\n{obj.observaciones}".strip()
-
-    # Buscar si ya existe una bitácora generada desde este estatus
     bitacora = (
         Bitacora.objects.filter(estatus_origen=obj)
         .order_by("-id")
         .first()
     )
 
-    if bitacora:
-        # SINCRONIZAR SIEMPRE los datos principales desde estatus
-        bitacora.cliente = obj.cliente
-        bitacora.conductor = obj.conductor
-        bitacora.tracto = obj.tracto
-        bitacora.rampla = obj.rampla
+    creada = False
 
-        bitacora.origen = obj.lugar_carga or ""
-        bitacora.destino = obj.lugar_descarga or ""
+    if not bitacora:
+        bitacora = Bitacora(creado_por=request.user)
+        creada = True
 
-        # Mapeo de fechas
-        bitacora.fecha = obj.fecha
-        bitacora.fecha_arribo = obj.fecha_carga
-        bitacora.fecha_descarga = obj.fecha_descarga
+    bitacora = _sync_bitacora_from_estatus(
+        bitacora=bitacora,
+        estatus=obj,
+        request_user=request.user,
+        preserve_manual=True,
+    )
+    bitacora.save()
 
-        bitacora.guias_raw = obj.nro_guia or ""
-        bitacora.descripcion_trabajo = descripcion
-
-        if not bitacora.coordinador:
-            bitacora.coordinador = (
-                getattr(request.user, "get_full_name", lambda: "")() or request.user.username
-            )
-
-        bitacora.save()
-
+    if creada:
+        messages.success(request, "Bitácora creada desde Estatus de Viajes.")
+    else:
         messages.info(
             request,
-            "La bitácora ya existía y fue actualizada con los datos del estatus antes de abrirla."
+            "La bitácora ya existía y fue actualizada automáticamente desde el estatus."
         )
-        return redirect("bitacora:editar", bitacora.id)
 
-    # Si no existe, crear nueva
-    bitacora = Bitacora.objects.create(
-        estatus_origen=obj,
-        cliente=obj.cliente,
-        conductor=obj.conductor,
-        tracto=obj.tracto,
-        rampla=obj.rampla,
-        origen=obj.lugar_carga or "",
-        destino=obj.lugar_descarga or "",
-        fecha=obj.fecha,
-        fecha_arribo=obj.fecha_carga,
-        fecha_descarga=obj.fecha_descarga,
-        guias_raw=obj.nro_guia or "",
-        descripcion_trabajo=descripcion,
-        coordinador=getattr(request.user, "get_full_name", lambda: "")() or request.user.username,
-        creado_por=request.user,
-    )
-
-    messages.success(request, "Bitácora creada desde Estatus de Viajes.")
     return redirect("bitacora:editar", bitacora.id)
 
 
@@ -466,4 +573,8 @@ def estatus_viajes_planilla(request: HttpRequest):
 @permission_required("operaciones.puede_ver_estatus_viajes", raise_exception=True)
 @require_GET
 def estatus_viajes_export_planilla_xlsx(request: HttpRequest):
+    """
+    Hoy reutiliza exactamente la misma exportación del panel general.
+    Si más adelante quieres un layout distinto para planilla, aquí se separa.
+    """
     return estatus_viajes_export_xlsx(request)

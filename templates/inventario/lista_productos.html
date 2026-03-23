@@ -4,28 +4,32 @@
 {% block page_title %}Productos de Inventario{% endblock %}
 
 {% block content %}
-<div class="card">
+<div class="card card-outline card-primary">
     <div class="card-header">
         <h3 class="card-title">Listado de Productos</h3>
         <div class="card-tools">
-            <a href="{% url 'inventario:crear_producto' %}" class="btn btn-primary btn-sm">
+            <a href="{% url 'inventario:crear_producto' %}" class="btn btn-success btn-sm">
                 <i class="fas fa-plus"></i> Nuevo Producto
             </a>
         </div>
     </div>
+
     <div class="card-body">
-        <!-- Filtros -->
         <form method="get" class="mb-3">
-            <div class="form-row">
+            <div class="row">
                 <div class="col-md-4">
-                    {{ filtro_form.buscar.label_tag }}
+                    <label>{{ filtro_form.buscar.label }}</label>
                     {{ filtro_form.buscar }}
                 </div>
-                <div class="col-md-4">
-                    {{ filtro_form.categoria.label_tag }}
+                <div class="col-md-3">
+                    <label>{{ filtro_form.categoria.label }}</label>
                     {{ filtro_form.categoria }}
                 </div>
-                <div class="col-md-4 d-flex align-items-end">
+                <div class="col-md-3">
+                    <label>{{ filtro_form.estado_stock.label }}</label>
+                    {{ filtro_form.estado_stock }}
+                </div>
+                <div class="col-md-2 d-flex align-items-end">
                     <button type="submit" class="btn btn-secondary mr-2">
                         <i class="fas fa-search"></i> Filtrar
                     </button>
@@ -36,7 +40,10 @@
             </div>
         </form>
 
-        <!-- Tabla -->
+        <div class="mb-2 text-muted">
+            Total resultados: <strong>{{ total_resultados }}</strong>
+        </div>
+
         <div class="table-responsive">
             <table class="table table-striped table-hover table-sm">
                 <thead>
@@ -56,17 +63,16 @@
                         {% with stock=producto.stock_actual %}
                         <tr>
                             <td>{{ producto.codigo }}</td>
-                            <td>{{ producto.nombre }}</td>
-                            <td>{{ producto.categoria }}</td>
                             <td>
-                                {{ producto.get_unidad_medida_display|default:producto.unidad_medida }}
+                                {{ producto.nombre }}
+                                {% if not producto.activo %}
+                                    <span class="badge badge-secondary ml-1">Inactivo</span>
+                                {% endif %}
                             </td>
-                            <td class="text-right">
-                                {{ producto.stock_minimo|floatformat:0 }}
-                            </td>
-                            <td class="text-right">
-                                {{ stock|floatformat:0 }}
-                            </td>
+                            <td>{{ producto.categoria|default:"-" }}</td>
+                            <td>{{ producto.get_unidad_medida_display|default:producto.unidad_medida }}</td>
+                            <td class="text-right">{{ producto.stock_minimo|floatformat:2 }}</td>
+                            <td class="text-right font-weight-bold">{{ stock|floatformat:2 }}</td>
                             <td class="text-center">
                                 {% if stock <= 0 %}
                                     <span class="badge badge-danger">Sin stock</span>
@@ -77,12 +83,10 @@
                                 {% endif %}
                             </td>
                             <td class="text-center">
-                                <a href="{% url 'inventario:editar_producto' producto.pk %}"
-                                   class="btn btn-sm btn-info" title="Editar">
+                                <a href="{% url 'inventario:editar_producto' producto.pk %}" class="btn btn-sm btn-info" title="Editar">
                                     <i class="fas fa-edit"></i>
                                 </a>
-                                <a href="{% url 'inventario:kardex_producto' producto.pk %}"
-                                   class="btn btn-sm btn-secondary" title="Ver Kardex">
+                                <a href="{% url 'inventario:kardex_producto' producto.pk %}" class="btn btn-sm btn-secondary" title="Ver Kardex">
                                     <i class="fas fa-list"></i>
                                 </a>
                             </td>
@@ -90,7 +94,7 @@
                         {% endwith %}
                     {% empty %}
                         <tr>
-                            <td colspan="8" class="text-center py-3">
+                            <td colspan="8" class="text-center py-4 text-muted">
                                 No hay productos registrados.
                             </td>
                         </tr>

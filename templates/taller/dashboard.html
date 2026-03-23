@@ -1,0 +1,288 @@
+{% extends "layout/base.html" %}
+{% load humanize %}
+
+{% block title %}Dashboard Taller{% endblock %}
+{% block page_title %}Dashboard Taller{% endblock %}
+
+{% block content %}
+
+<div class="row">
+  <div class="col-md-3">
+    <div class="small-box bg-info">
+      <div class="inner">
+        <h3>{{ total }}</h3>
+        <p>Total mantenimientos</p>
+      </div>
+      <div class="icon"><i class="fas fa-tools"></i></div>
+    </div>
+  </div>
+
+  <div class="col-md-3">
+    <div class="small-box bg-warning">
+      <div class="inner">
+        <h3>{{ pendientes }}</h3>
+        <p>Pendientes</p>
+      </div>
+      <div class="icon"><i class="fas fa-clock"></i></div>
+    </div>
+  </div>
+
+  <div class="col-md-3">
+    <div class="small-box bg-primary">
+      <div class="inner">
+        <h3>{{ proceso }}</h3>
+        <p>En proceso</p>
+      </div>
+      <div class="icon"><i class="fas fa-cogs"></i></div>
+    </div>
+  </div>
+
+  <div class="col-md-3">
+    <div class="small-box bg-success">
+      <div class="inner">
+        <h3>{{ finalizados }}</h3>
+        <p>Finalizados</p>
+      </div>
+      <div class="icon"><i class="fas fa-check-circle"></i></div>
+    </div>
+  </div>
+</div>
+
+<div class="row">
+  <div class="col-md-4">
+    <div class="card card-outline card-success">
+      <div class="card-header">
+        <h3 class="card-title">Costo del mes</h3>
+      </div>
+      <div class="card-body text-center">
+        <h2 class="font-weight-bold text-success">
+          ${{ costo_mes|floatformat:0|intcomma }}
+        </h2>
+        <p class="text-muted mb-0">Costo total de mantenimientos del mes actual</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-8">
+    <div class="card">
+      <div class="card-header">
+        <h3 class="card-title">Evolución mensual</h3>
+      </div>
+      <div class="card-body">
+        <canvas id="graficoCostos" height="110"></canvas>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="row">
+  <div class="col-md-6">
+    <div class="card card-warning">
+      <div class="card-header">
+        <h3 class="card-title">Alertas por fecha</h3>
+      </div>
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table table-sm mb-0">
+            <thead>
+              <tr>
+                <th>Vehículo</th>
+                <th>Fecha</th>
+                <th>Tipo</th>
+                <th>Estado</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for a in alertas_fecha %}
+              <tr>
+                <td>{{ a.vehiculo.patente }}</td>
+                <td>{{ a.fecha_programada|date:"d/m/Y" }}</td>
+                <td>{{ a.get_tipo_display }}</td>
+                <td><span class="badge badge-warning">{{ a.get_estado_display }}</span></td>
+              </tr>
+              {% empty %}
+              <tr>
+                <td colspan="4" class="text-center text-muted">Sin alertas próximas por fecha.</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-6">
+    <div class="card card-danger">
+      <div class="card-header">
+        <h3 class="card-title">Alertas por kilometraje</h3>
+      </div>
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table table-sm mb-0">
+            <thead>
+              <tr>
+                <th>Vehículo</th>
+                <th>KM actual</th>
+                <th>KM programado</th>
+                <th>Tipo</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for a in alertas_km %}
+              <tr>
+                <td>{{ a.vehiculo.patente }}</td>
+                <td>{{ a.vehiculo.km_actual|default:"-" }}</td>
+                <td>{{ a.km_programado|default:"-" }}</td>
+                <td>{{ a.get_tipo_display }}</td>
+              </tr>
+              {% empty %}
+              <tr>
+                <td colspan="4" class="text-center text-muted">Sin alertas próximas por kilometraje.</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="row">
+  <div class="col-md-6">
+    <div class="card card-outline card-primary">
+      <div class="card-header">
+        <h3 class="card-title">Ranking vehículos más caros</h3>
+      </div>
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table table-sm mb-0">
+            <thead>
+              <tr>
+                <th>Vehículo</th>
+                <th class="text-right">Mant.</th>
+                <th class="text-right">Costo</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for r in ranking_vehiculos %}
+              <tr>
+                <td>
+                  {{ r.vehiculo__patente }}<br>
+                  <small class="text-muted">{{ r.vehiculo__marca }} {{ r.vehiculo__modelo }}</small>
+                </td>
+                <td class="text-right">{{ r.total_mantenimientos }}</td>
+                <td class="text-right font-weight-bold text-danger">
+                  ${{ r.costo_total|default:0|floatformat:0|intcomma }}
+                </td>
+              </tr>
+              {% empty %}
+              <tr>
+                <td colspan="3" class="text-center text-muted">Sin datos para ranking.</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-6">
+    <div class="card card-outline card-secondary">
+      <div class="card-header">
+        <h3 class="card-title">Últimos mantenimientos</h3>
+      </div>
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table table-sm mb-0">
+            <thead>
+              <tr>
+                <th>Vehículo</th>
+                <th>Tipo</th>
+                <th>Estado</th>
+                <th class="text-right">Costo</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for m in ultimos %}
+              <tr>
+                <td>{{ m.vehiculo.patente }}</td>
+                <td>{{ m.get_tipo_display }}</td>
+                <td>
+                  {% if m.estado == "PENDIENTE" %}
+                    <span class="badge badge-secondary">Pendiente</span>
+                  {% elif m.estado == "EN_PROCESO" %}
+                    <span class="badge badge-primary">En proceso</span>
+                  {% elif m.estado == "FINALIZADO" %}
+                    <span class="badge badge-success">Finalizado</span>
+                  {% else %}
+                    <span class="badge badge-danger">Cancelado</span>
+                  {% endif %}
+                </td>
+                <td class="text-right">${{ m.costo_total|default:0|floatformat:0|intcomma }}</td>
+              </tr>
+              {% empty %}
+              <tr>
+                <td colspan="4" class="text-center text-muted">Sin mantenimientos registrados.</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+const ctx = document.getElementById('graficoCostos');
+
+if (ctx) {
+  new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: {{ labels_meses|safe }},
+      datasets: [
+        {
+          label: 'Costo mensual',
+          data: {{ data_costos|safe }},
+          yAxisID: 'y',
+        },
+        {
+          label: 'Cantidad de mantenimientos',
+          data: {{ data_cantidad|safe }},
+          type: 'line',
+          yAxisID: 'y1',
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      interaction: {
+        mode: 'index',
+        intersect: false
+      },
+      scales: {
+        y: {
+          beginAtZero: true,
+          position: 'left'
+        },
+        y1: {
+          beginAtZero: true,
+          position: 'right',
+          grid: {
+            drawOnChartArea: false
+          }
+        }
+      }
+    }
+  });
+}
+</script>
+{% endblock %}

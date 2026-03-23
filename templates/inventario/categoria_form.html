@@ -1,36 +1,52 @@
 {% extends "layout/base.html" %}
 
 {% block title %}Categoría{% endblock %}
-{% block page_title %}Categoría de Producto{% endblock %}
+{% block page_title %}{% if categoria %}Editar Categoría{% else %}Nueva Categoría{% endif %}{% endblock %}
 
 {% block content %}
-<div class="card">
+<div class="card card-outline card-warning">
     <div class="card-header">
         <h3 class="card-title">
             {% if categoria %}Editar Categoría{% else %}Nueva Categoría{% endif %}
         </h3>
     </div>
-    <div class="card-body">
-        <form method="post">
-            {% csrf_token %}
+
+    <form method="post" novalidate>
+        {% csrf_token %}
+        <div class="card-body">
+            {% if form.non_field_errors %}
+                <div class="alert alert-danger">
+                    {{ form.non_field_errors }}
+                </div>
+            {% endif %}
+
             <div class="form-row">
                 <div class="form-group col-md-6">
-                    {{ form.nombre.label_tag }}
+                    <label for="{{ form.nombre.id_for_label }}">{{ form.nombre.label }}</label>
                     {{ form.nombre }}
+                    {% if form.nombre.errors %}
+                        <div class="text-danger small mt-1">{{ form.nombre.errors|join:", " }}</div>
+                    {% endif %}
                 </div>
             </div>
-            <div class="form-group">
-                {{ form.descripcion.label_tag }}
-                {{ form.descripcion }}
-            </div>
 
-            <button type="submit" class="btn btn-primary">
+            <div class="form-group">
+                <label for="{{ form.descripcion.id_for_label }}">{{ form.descripcion.label }}</label>
+                {{ form.descripcion }}
+                {% if form.descripcion.errors %}
+                    <div class="text-danger small mt-1">{{ form.descripcion.errors|join:", " }}</div>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="card-footer">
+            <button type="submit" class="btn btn-success">
                 <i class="fas fa-save"></i> Guardar
             </button>
             <a href="{% url 'inventario:lista_categorias' %}" class="btn btn-secondary">
                 Volver
             </a>
-        </form>
-    </div>
+        </div>
+    </form>
 </div>
 {% endblock %}

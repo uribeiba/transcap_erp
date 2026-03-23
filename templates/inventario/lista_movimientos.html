@@ -4,48 +4,137 @@
 {% block page_title %}Movimientos de Inventario{% endblock %}
 
 {% block content %}
-<div class="card">
-    <div class="card-header">
-        <div class="row">
-            <div class="col-md-6">
-                <h3 class="card-title">Movimientos de Inventario</h3>
-            </div>
-            <div class="col-md-6 text-right">
-                <a href="{% url 'inventario:registrar_movimiento' %}" class="btn btn-success btn-sm">
-                    <i class="fas fa-plus"></i> Nuevo Movimiento
-                </a>
-            </div>
-        </div>
+<div class="card card-outline card-success">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h3 class="card-title">
+            <i class="fas fa-exchange-alt mr-1"></i>
+            Historial de Movimientos
+        </h3>
+
+        <a href="{% url 'inventario:registrar_movimiento' %}" class="btn btn-success btn-sm">
+            <i class="fas fa-plus"></i> Nuevo Movimiento
+        </a>
     </div>
+
     <div class="card-body">
 
+        <div class="mb-3">
+            <form method="get">
+                <div class="row">
+                    <div class="col-md-5">
+                        <label for="producto">Producto</label>
+                        <select name="producto" id="producto" class="form-control form-control-sm">
+                            <option value="">Todos</option>
+                            {% for producto in productos %}
+                                <option value="{{ producto.id }}" {% if filtro_producto == producto.id|stringformat:"s" %}selected{% endif %}>
+                                    {{ producto.nombre }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="col-md-3">
+                        <label for="tipo">Tipo</label>
+                        <select name="tipo" id="tipo" class="form-control form-control-sm">
+                            <option value="">Todos</option>
+                            {% for value, label in tipos_movimiento %}
+                                <option value="{{ value }}" {% if filtro_tipo == value %}selected{% endif %}>
+                                    {{ label }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="col-md-4 d-flex align-items-end">
+                        <button type="submit" class="btn btn-secondary btn-sm mr-2">
+                            <i class="fas fa-search"></i> Filtrar
+                        </button>
+                        <a href="{% url 'inventario:lista_movimientos' %}" class="btn btn-outline-secondary btn-sm">
+                            <i class="fas fa-eraser"></i> Limpiar
+                        </a>
+                    </div>
+                </div>
+            </form>
+        </div>
+
+        <div class="mb-2 text-muted">
+            Total movimientos:
+            <strong>{{ movimientos|length }}</strong>
+        </div>
+
         <div class="table-responsive">
-            <table class="table table-striped table-sm table-hover">
-                <thead>
+            <table class="table table-striped table-hover table-sm">
+                <thead class="thead-dark">
                     <tr>
                         <th>Fecha</th>
                         <th>Tipo</th>
                         <th>Producto</th>
                         <th>Bodega</th>
-                        <th>Cantidad</th>
+                        <th class="text-right">Cantidad</th>
+                        <th class="text-right">Costo</th>
                         <th>Referencia</th>
                         <th>Usuario</th>
                     </tr>
                 </thead>
+
                 <tbody>
                     {% for m in movimientos %}
                         <tr>
                             <td>{{ m.fecha|date:"d/m/Y H:i" }}</td>
-                            <td>{{ m.get_tipo_display }}</td>
-                            <td>{{ m.producto }}</td>
-                            <td>{{ m.bodega }}</td>
-                            <td>{{ m.cantidad }}</td>
-                            <td>{{ m.referencia }}</td>
-                            <td>{{ m.usuario_registro }}</td>
+
+                            <td>
+                                {% if m.tipo == 'ING' %}
+                                    <span class="badge badge-success">Ingreso</span>
+                                {% elif m.tipo == 'SAL' %}
+                                    <span class="badge badge-danger">Salida</span>
+                                {% elif m.tipo == 'AJU' %}
+                                    <span class="badge badge-warning">Ajuste</span>
+                                {% else %}
+                                    <span class="badge badge-secondary">{{ m.get_tipo_display }}</span>
+                                {% endif %}
+                            </td>
+
+                            <td>
+                                <strong>{{ m.producto.nombre }}</strong><br>
+                                <small class="text-muted">{{ m.producto.codigo }}</small>
+                            </td>
+
+                            <td>{{ m.bodega.nombre }}</td>
+
+                            <td class="text-right font-weight-bold">
+                                {{ m.cantidad|floatformat:2 }}
+                            </td>
+
+                            <td class="text-right">
+                                {% if m.costo_unitario %}
+                                    $ {{ m.costo_unitario|floatformat:2 }}
+                                {% else %}
+                                    <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
+
+                            <td>
+                                {% if m.referencia %}
+                                    {{ m.referencia }}
+                                {% else %}
+                                    <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
+
+                            <td>
+                                {% if m.usuario_registro %}
+                                    {{ m.usuario_registro }}
+                                {% else %}
+                                    <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
                         </tr>
                     {% empty %}
                         <tr>
-                            <td colspan="7" class="text-center">No hay movimientos registrados.</td>
+                            <td colspan="8" class="text-center text-muted py-4">
+                                <i class="fas fa-inbox fa-2x mb-2"></i><br>
+                                No hay movimientos registrados.
+                            </td>
                         </tr>
                     {% endfor %}
                 </tbody>

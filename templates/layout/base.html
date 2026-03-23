@@ -205,105 +205,42 @@
                                 <a href="{% url 'operaciones:estatus_viajes_panel' %}"
                                    class="nav-link {% if 'estatus-viajes' in request.path and 'planilla' not in request.path %}active{% endif %}">
                                     <i class="far fa-circle nav-icon"></i>
-                                    <p>Estatus Viajes (AM/PM)</p>
+                                    <p>Estatus Viajes</p>
                                 </a>
                             </li>
 
                             <li class="nav-item">
-                                <a href="{% url 'operaciones:estatus_viajes_planilla' %}"
-                                   class="nav-link {% if 'planilla' in request.path %}active{% endif %}">
-                                    <i class="far fa-circle nav-icon"></i>
-                                    <p>Estatus Viajes (Planilla)</p>
-                                </a>
-                            </li>
+    <a href="#"
+       class="nav-link {% if 'planilla' in request.path %}active{% endif %}">
+        <i class="far fa-circle nav-icon"></i>
+        <p>Planillas</p>
+    </a>
+</li>
                         </ul>
                     </li>
 
                     <!-- Ventas / Compras -->
-                    <li class="nav-item has-treeview">
-                        <a href="#" class="nav-link">
+                    <li class="nav-item">
+                        <a href="#"
+                           class="nav-link">
                             <i class="nav-icon fas fa-file-invoice-dollar"></i>
-                            <p>
-                                Ventas / Compras
-                                <i class="right fas fa-angle-left"></i>
-                            </p>
+                            <p>Ventas / Compras</p>
                         </a>
-
-                        <ul class="nav nav-treeview">
-                            <li class="nav-item">
-                                <a href="#" class="nav-link">
-                                    <i class="far fa-circle nav-icon"></i>
-                                    <p>Cotizaciones y pedidos</p>
-                                </a>
-                            </li>
-                            <li class="nav-item">
-                                <a href="#" class="nav-link">
-                                    <i class="far fa-circle nav-icon"></i>
-                                    <p>Facturación Programada</p>
-                                </a>
-                            </li>
-                            <li class="nav-item">
-                                <a href="#" class="nav-link">
-                                    <i class="far fa-circle nav-icon"></i>
-                                    <p>Órdenes de Compra</p>
-                                </a>
-                            </li>
-                            <li class="nav-item">
-                                <a href="#" class="nav-link">
-                                    <i class="far fa-circle nav-icon"></i>
-                                    <p>Ventas</p>
-                                </a>
-                            </li>
-                            <li class="nav-item">
-                                <a href="#" class="nav-link">
-                                    <i class="far fa-circle nav-icon"></i>
-                                    <p>Compras</p>
-                                </a>
-                            </li>
-                        </ul>
                     </li>
 
                     <!-- Finanzas -->
-                    <li class="nav-item has-treeview">
-                        <a href="#" class="nav-link">
+                    <li class="nav-item">
+                        <a href="#"
+                           class="nav-link">
                             <i class="nav-icon fas fa-coins"></i>
-                            <p>
-                                Finanzas
-                                <i class="right fas fa-angle-left"></i>
-                            </p>
+                            <p>Finanzas</p>
                         </a>
-
-                        <ul class="nav nav-treeview">
-                            <li class="nav-item">
-                                <a href="#" class="nav-link">
-                                    <i class="far fa-circle nav-icon"></i>
-                                    <p>Cobros y Pagos</p>
-                                </a>
-                            </li>
-                            <li class="nav-item">
-                                <a href="#" class="nav-link">
-                                    <i class="far fa-circle nav-icon"></i>
-                                    <p>Flujo de Caja</p>
-                                </a>
-                            </li>
-                            <li class="nav-item">
-                                <a href="#" class="nav-link">
-                                    <i class="far fa-circle nav-icon"></i>
-                                    <p>Conciliación Bancaria</p>
-                                </a>
-                            </li>
-                            <li class="nav-item">
-                                <a href="#" class="nav-link">
-                                    <i class="far fa-circle nav-icon"></i>
-                                    <p>Presupuestos</p>
-                                </a>
-                            </li>
-                        </ul>
                     </li>
 
                     <!-- Contabilidad -->
                     <li class="nav-item">
-                        <a href="#" class="nav-link">
+                        <a href="#"
+                           class="nav-link">
                             <i class="nav-icon fas fa-book"></i>
                             <p>Contabilidad</p>
                         </a>
@@ -323,28 +260,39 @@
                         <ul class="nav nav-treeview">
                             <li class="nav-item">
                                 <a href="{% url 'inventario:dashboard' %}"
-                                   class="nav-link {% if '/inventario/' in request.path and 'dashboard' in request.path %}active{% endif %}">
+                                   class="nav-link {% if '/inventario/dashboard/' in request.path %}active{% endif %}">
                                     <i class="far fa-circle nav-icon"></i>
                                     <p>Panel de Inventario</p>
                                 </a>
                             </li>
+
+                            <li class="nav-item">
+                                <a href="{% url 'inventario:lista_bodegas' %}"
+                                   class="nav-link {% if '/inventario/bodegas/' in request.path %}active{% endif %}">
+                                    <i class="far fa-circle nav-icon"></i>
+                                    <p>Bodegas</p>
+                                </a>
+                            </li>
+
                             <li class="nav-item">
                                 <a href="{% url 'inventario:lista_categorias' %}"
-                                   class="nav-link {% if 'categor' in request.path %}active{% endif %}">
+                                   class="nav-link {% if '/inventario/categorias/' in request.path %}active{% endif %}">
                                     <i class="far fa-circle nav-icon"></i>
                                     <p>Categorías</p>
                                 </a>
                             </li>
+
                             <li class="nav-item">
                                 <a href="{% url 'inventario:lista_productos' %}"
-                                   class="nav-link {% if 'producto' in request.path %}active{% endif %}">
+                                   class="nav-link {% if '/inventario/productos/' in request.path %}active{% endif %}">
                                     <i class="far fa-circle nav-icon"></i>
                                     <p>Productos</p>
                                 </a>
                             </li>
+
                             <li class="nav-item">
                                 <a href="{% url 'inventario:lista_movimientos' %}"
-                                   class="nav-link {% if 'movimiento' in request.path %}active{% endif %}">
+                                   class="nav-link {% if '/inventario/movimientos/' in request.path %}active{% endif %}">
                                     <i class="far fa-circle nav-icon"></i>
                                     <p>Movimientos</p>
                                 </a>
@@ -363,7 +311,22 @@
                             </p>
                         </a>
 
+
+
+
                         <ul class="nav nav-treeview">
+
+                            <li class="nav-item">
+  <a href="{% url 'taller_dashboard' %}" class="nav-link">
+    <i class="fas fa-chart-line nav-icon text-success"></i>
+    <p>Dashboard</p>
+  </a>
+</li>
+
+
+
+
+
                             <li class="nav-item">
                                 <a href="{% url 'taller_flota' %}"
                                    class="nav-link {% if request.resolver_match.url_name == 'taller_flota' %}active{% endif %}">
@@ -371,6 +334,7 @@
                                     <p>Flota de Vehículos</p>
                                 </a>
                             </li>
+
                             <li class="nav-item">
                                 <a href="{% url 'taller_conductores' %}"
                                    class="nav-link {% if request.resolver_match.url_name == 'taller_conductores' %}active{% endif %}">
@@ -378,6 +342,7 @@
                                     <p>Conductores</p>
                                 </a>
                             </li>
+
                             <li class="nav-item">
                                 <a href="{% url 'taller_mantenimientos' %}"
                                    class="nav-link {% if request.resolver_match.url_name == 'taller_mantenimientos' %}active{% endif %}">
@@ -385,6 +350,7 @@
                                     <p>Mantenimientos</p>
                                 </a>
                             </li>
+
                             <li class="nav-item">
                                 <a href="{% url 'taller_docs_vehiculos' %}"
                                    class="nav-link {% if request.resolver_match.url_name == 'taller_docs_vehiculos' %}active{% endif %}">
@@ -392,108 +358,22 @@
                                     <p>Documentos y Seguros</p>
                                 </a>
                             </li>
-                            <li class="nav-item">
-                                <a href="{% url 'taller_rutas_viaje_lista' %}"
-                                   class="nav-link {% if request.resolver_match.url_name == 'taller_rutas_viaje_lista' %}active{% endif %}">
-                                    <i class="far fa-circle nav-icon"></i>
-                                    <p>Rutas de Viajes</p>
-                                </a>
-                            </li>
+
                             <li class="nav-item">
                                 <a href="#" class="nav-link">
                                     <i class="far fa-circle nav-icon"></i>
                                     <p>Multas Conductores</p>
                                 </a>
                             </li>
+
                             <li class="nav-item">
                                 <a href="{% url 'taller_reporte_vehiculo_selector' %}"
                                    class="nav-link {% if request.resolver_match.url_name == 'taller_reporte_vehiculo_selector' %}active{% endif %}">
                                     <i class="far fa-circle nav-icon"></i>
-                                    <p>Reporte por Vehículo</p>
-                                </a>
-                            </li>
-                            <li class="nav-item">
-                                <a href="{% url 'taller_reporte_conductor_selector' %}"
-                                   class="nav-link {% if request.resolver_match.url_name == 'taller_reporte_conductor_selector' %}active{% endif %}">
-                                    <i class="far fa-circle nav-icon"></i>
-                                    <p>Reporte por Conductor</p>
-                                </a>
-                            </li>
-                            <li class="nav-item">
-                                <a href="{% url 'taller_ranking_multas' %}"
-                                   class="nav-link {% if request.resolver_match.url_name == 'taller_ranking_multas' %}active{% endif %}">
-                                    <i class="far fa-circle nav-icon"></i>
-                                    <p>Ranking Multas</p>
-                                </a>
-                            </li>
-                            <li class="nav-item">
-                                <a href="{% url 'taller_coordinacion_viajes_lista' %}"
-                                   class="nav-link {% if request.resolver_match.url_name == 'taller_coordinacion_viajes_lista' %}active{% endif %}">
-                                    <i class="far fa-circle nav-icon"></i>
-                                    <p>Coordinación viajes</p>
+                                    <p>Reportes</p>
                                 </a>
                             </li>
                         </ul>
-                    </li>
-
-                    <!-- Remuneraciones -->
-                    <li class="nav-item has-treeview">
-                        <a href="#" class="nav-link">
-                            <i class="nav-icon fas fa-users"></i>
-                            <p>
-                                Remuneraciones
-                                <i class="right fas fa-angle-left"></i>
-                            </p>
-                        </a>
-
-                        <ul class="nav nav-treeview">
-                            <li class="nav-item">
-                                <a href="#" class="nav-link">
-                                    <i class="far fa-circle nav-icon"></i>
-                                    <p>Sueldos y Honorarios</p>
-                                </a>
-                            </li>
-                            <li class="nav-item">
-                                <a href="#" class="nav-link">
-                                    <i class="far fa-circle nav-icon"></i>
-                                    <p>Vacaciones</p>
-                                </a>
-                            </li>
-                        </ul>
-                    </li>
-
-                    <!-- Licitaciones -->
-                    <li class="nav-item">
-                        <a href="#" class="nav-link">
-                            <i class="nav-icon fas fa-file-contract"></i>
-                            <p>Licitaciones</p>
-                        </a>
-                    </li>
-
-                    <!-- Maestros / Configuración -->
-                    <li class="nav-item">
-                        <a href="#" class="nav-link">
-                            <i class="nav-icon fas fa-cogs"></i>
-                            <p>Maestros / Configuración</p>
-                        </a>
-                    </li>
-
-                    <li class="nav-header">SaaS</li>
-
-                    <li class="nav-item">
-                        <a href="{% url 'parametros:empresas_panel' %}"
-                           class="nav-link {% if 'empresas' in request.path %}active{% endif %}">
-                            <i class="nav-icon fas fa-building"></i>
-                            <p>Empresas</p>
-                        </a>
-                    </li>
-
-                    <li class="nav-item">
-                        <a href="{% url 'parametros:planes_panel' %}"
-                           class="nav-link {% if 'planes' in request.path %}active{% endif %}">
-                            <i class="nav-icon fas fa-layer-group"></i>
-                            <p>Planes</p>
-                        </a>
                     </li>
 
                     <!-- Parámetros -->

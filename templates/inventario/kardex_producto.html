@@ -4,7 +4,7 @@
 {% block page_title %}Kardex de Producto{% endblock %}
 
 {% block content %}
-<div class="card">
+<div class="card card-outline card-secondary">
     <div class="card-header">
         <h3 class="card-title">
             Kardex – {{ producto.codigo }} – {{ producto.nombre }}
@@ -15,47 +15,41 @@
                class="btn btn-sm btn-outline-primary">
                 <i class="fas fa-file-pdf"></i> Imprimir / PDF
             </a>
-            <a href{% url 'inventario:lista_productos' %} class="btn btn-sm btn-secondary">
+            <a href="{% url 'inventario:lista_productos' %}" class="btn btn-sm btn-secondary">
                 <i class="fas fa-arrow-left"></i> Volver a productos
             </a>
         </div>
     </div>
-    <div class="card-body">
 
-        <!-- Datos del producto -->
+    <div class="card-body">
         <div class="mb-3">
             <strong>Categoría:</strong> {{ producto.categoria|default:"-" }}<br>
             <strong>Unidad:</strong> {{ producto.get_unidad_medida_display|default:producto.unidad_medida }}<br>
-            <strong>Stock mínimo:</strong> {{ producto.stock_minimo|floatformat:0 }}<br>
-            <strong>Stock actual:</strong> {{ producto.stock_actual|floatformat:0 }}
+            <strong>Stock mínimo:</strong> {{ producto.stock_minimo|floatformat:2 }}<br>
+            <strong>Stock actual:</strong> {{ producto.stock_actual|floatformat:2 }}
         </div>
 
-        <!-- Filtros -->
         <form method="get" class="mb-3">
             <div class="form-row">
                 <div class="form-group col-md-3">
-                    <label for="id_desde">Desde (fecha)</label>
-                    <input type="date" name="desde" id="id_desde"
-                           value="{{ fecha_desde }}" class="form-control">
+                    <label for="id_desde">Desde</label>
+                    <input type="date" name="desde" id="id_desde" value="{{ fecha_desde }}" class="form-control">
                 </div>
                 <div class="form-group col-md-3">
-                    <label for="id_hasta">Hasta (fecha)</label>
-                    <input type="date" name="hasta" id="id_hasta"
-                           value="{{ fecha_hasta }}" class="form-control">
+                    <label for="id_hasta">Hasta</label>
+                    <input type="date" name="hasta" id="id_hasta" value="{{ fecha_hasta }}" class="form-control">
                 </div>
                 <div class="form-group col-md-3 d-flex align-items-end">
                     <button type="submit" class="btn btn-secondary mr-2">
                         <i class="fas fa-search"></i> Filtrar
                     </button>
-                    <a href="{% url 'inventario:kardex_producto' producto.pk %}"
-                       class="btn btn-outline-secondary">
+                    <a href="{% url 'inventario:kardex_producto' producto.pk %}" class="btn btn-outline-secondary">
                         Limpiar
                     </a>
                 </div>
             </div>
         </form>
 
-        <!-- Tabla kardex -->
         <div class="table-responsive">
             <table class="table table-sm table-striped table-hover">
                 <thead>
@@ -87,31 +81,23 @@
                                 {% endif %}
                             </td>
                             <td>{{ mov.bodega }}</td>
-                            <td class="text-right">
-                                {{ mov.cantidad|floatformat:0 }}
-                            </td>
-                            <td class="text-right font-weight-bold">
-                                {{ saldo|floatformat:0 }}
-                            </td>
-                            <td>{{ mov.referencia }}</td>
-                            <td>{{ mov.observacion }}</td>
+                            <td class="text-right">{{ mov.cantidad|floatformat:2 }}</td>
+                            <td class="text-right font-weight-bold">{{ saldo|floatformat:2 }}</td>
+                            <td>{{ mov.referencia|default:"-" }}</td>
+                            <td>{{ mov.observacion|default:"-" }}</td>
                             <td>{{ mov.usuario_registro|default:"-" }}</td>
                         </tr>
                         {% endwith %}
                     {% empty %}
                         <tr>
-                            <td colspan="8" class="text-center py-3">
-                                No hay movimientos registrados para este producto
-                                {% if fecha_desde or fecha_hasta %}
-                                    en el rango seleccionado.
-                                {% endif %}
+                            <td colspan="8" class="text-center py-4 text-muted">
+                                No hay movimientos registrados para este producto{% if fecha_desde or fecha_hasta %} en el rango seleccionado{% endif %}.
                             </td>
                         </tr>
                     {% endfor %}
                 </tbody>
             </table>
         </div>
-
     </div>
 </div>
 {% endblock %}

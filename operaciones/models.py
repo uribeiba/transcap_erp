@@ -4,8 +4,11 @@ from django.utils import timezone
 from taller.models import Conductor, Vehiculo
 
 
+# ============================================================
+# CLIENTES Y UBICACIÓN
+# ============================================================
+
 class Cliente(models.Model):
-    # Versión mínima. Si ya tienes clientes en otra app, luego cambiamos este FK.
     nombre = models.CharField(max_length=200, unique=True)
     rut = models.CharField(max_length=15, blank=True, null=True)
     activo = models.BooleanField(default=True)
@@ -27,6 +30,10 @@ class Ciudad(models.Model):
         return self.nombre
 
 
+# ============================================================
+# ESTADOS GENERALES (FACTURACIÓN / GUÍA)
+# ============================================================
+
 class EstadoRegistro(models.TextChoices):
     PENDIENTE = "PEND", "Pendiente"
     GUIA = "GUIA", "Guía emitida"
@@ -41,10 +48,6 @@ class Prioridad(models.TextChoices):
 
 
 class EstadoFacturacionGuia(models.Model):
-    """
-    1 registro = mezcla guía + factura (flujo por estado).
-    Se trabaja por día (fecha).
-    """
     fecha = models.DateField(default=timezone.localdate)
     correlativo_diario = models.PositiveIntegerField(default=1)
 
@@ -80,10 +83,10 @@ class EstadoFacturacionGuia(models.Model):
         settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
         null=True, blank=True, related_name="efg_actualizados"
     )
+
     creado_el = models.DateTimeField(auto_now_add=True)
     actualizado_el = models.DateTimeField(auto_now=True)
 
-    # Concurrencia (bloqueo por registro)
     bloqueado_por = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
         null=True, blank=True, related_name="efg_bloqueados"
@@ -98,52 +101,16 @@ class EstadoFacturacionGuia(models.Model):
                 name="uniq_efg_fecha_correlativo",
             )
         ]
-        permissions = [
-            ("puede_ver_estado", "Puede ver Estado Facturación/Guías"),
-            ("puede_editar_estado", "Puede editar Estado Facturación/Guías"),
-            ("puede_desbloquear_estado", "Puede desbloquear registros"),
-        ]
 
     def __str__(self):
         return f"{self.fecha} #{self.correlativo_diario:03d}"
 
-    def esta_bloqueado(self) -> bool:
-        return bool(self.bloqueado_por_id and self.bloqueado_desde)
 
-    def bloqueo_expirado(self, minutos=10) -> bool:
-        if not self.esta_bloqueado():
-            return False
-        return timezone.now() - self.bloqueado_desde > timezone.timedelta(minutes=minutos)
-
-    def puede_editar(self, user) -> bool:
-        if not self.esta_bloqueado():
-            return True
-        if self.bloqueo_expirado():
-            return True
-        return self.bloqueado_por_id == getattr(user, "id", None)
-
-    def bloquear(self, user):
-        self.bloqueado_por = user
-        self.bloqueado_desde = timezone.now()
-
-    def desbloquear(self):
-        self.bloqueado_por = None
-        self.bloqueado_desde = None
-
-    @classmethod
-    def siguiente_correlativo(cls, fecha):
-        ultimo = cls.objects.filter(fecha=fecha).order_by("-correlativo_diario").first()
-        return (ultimo.correlativo_diario + 1) if ultimo else 1
-
-
-
-
+# ============================================================
+# SESIONES OPERACIONES
+# ============================================================
 
 class SessionOperaciones(models.Model):
-    """
-    Presencia multiusuario (quién está conectado / en qué tab/fecha).
-    Se actualiza con 'ping' periódico desde el tablero.
-    """
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
@@ -154,86 +121,17 @@ class SessionOperaciones(models.Model):
     tab = models.CharField(max_length=10, blank=True, default="")
 
     class Meta:
-        verbose_name = "Sesión Operaciones"
-        verbose_name_plural = "Sesiones Operaciones"
         indexes = [
             models.Index(fields=["last_seen"]),
             models.Index(fields=["fecha", "tab"]),
         ]
 
     def __str__(self):
-        return f"{self.user} ({self.tab}) {self.fecha} - {self.last_seen}"
-    
-   # ============================================================
-# Estatus Operacional de Viajes (AM/PM) - reemplaza planilla Excel
-# ============================================================
-
-from taller.models import Conductor, Vehiculo  # noqa: E402
-
-
-class TurnoEstatus(models.TextChoices):
-    AM = "AM", "AM"
-    PM = "PM", "PM"
-
-
-class EstatusOperacionalViaje(models.Model):
-    """
-    Registro diario por chofer, por fecha y turno (AM/PM).
-    Independiente de 'CoordinacionViaje' (opción A).
-    """
-
-    fecha = models.DateField(default=timezone.localdate)
-    turno = models.CharField(max_length=2, choices=TurnoEstatus.choices, default=TurnoEstatus.AM)
-
-    conductor = models.ForeignKey(
-        Conductor, on_delete=models.PROTECT, related_name="estatus_operacional"
-    )
-
-    tracto = models.ForeignKey(
-        Vehiculo, on_delete=models.PROTECT, null=True, blank=True,
-        related_name="estatus_tracto",
-        limit_choices_to={"tipo": "TRACTO"},
-        help_text="Vehículo tipo TRACTO (patente)."
-    )
-    rampla = models.ForeignKey(
-        Vehiculo, on_delete=models.PROTECT, null=True, blank=True,
-        related_name="estatus_rampla",
-        limit_choices_to={"tipo": "SEMIRREMOLQUE"},
-        help_text="Vehículo tipo SEMIRREMOLQUE (rampla)."
-    )
-
-    estado_texto = models.TextField(blank=True, null=True)
-
-    creado_por = models.ForeignKey(
-        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
-        null=True, blank=True, related_name="estatus_viajes_creados"
-    )
-    actualizado_por = models.ForeignKey(
-        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
-        null=True, blank=True, related_name="estatus_viajes_actualizados"
-    )
-    creado_el = models.DateTimeField(auto_now_add=True)
-    actualizado_el = models.DateTimeField(auto_now=True)
-
-    class Meta:
-        ordering = ["-fecha", "turno", "conductor__apellidos", "conductor__nombres"]
-        constraints = [
-            models.UniqueConstraint(
-                fields=["fecha", "turno", "conductor"],
-                name="uniq_estatus_fecha_turno_conductor",
-            )
-        ]
-        permissions = [
-            ("puede_ver_estatus_viajes", "Puede ver Estatus de Viajes (Operaciones)"),
-            ("puede_editar_estatus_viajes", "Puede editar Estatus de Viajes (Operaciones)"),
-        ]
-
-    def __str__(self):
-        return f"{self.fecha} {self.turno} - {self.conductor}"
+        return f"{self.user} ({self.tab}) {self.fecha}"
 
 
 # ============================================================
-# Estatus de viajes (AM/PM)
+# ESTATUS OPERACIONAL DE VIAJES (VERSIÓN FINAL)
 # ============================================================
 
 class TurnoEstatus(models.TextChoices):
@@ -242,43 +140,7 @@ class TurnoEstatus(models.TextChoices):
 
 
 class EstatusOperacionalViaje(models.Model):
-    fecha = models.DateField(db_index=True)
-    turno = models.CharField(max_length=2, choices=TurnoEstatus.choices, db_index=True)
 
-    # Choferes (tú ya tienes choferes en el sistema)
-    conductor = models.ForeignKey("taller.Conductor", on_delete=models.PROTECT, related_name="estatus_viajes")
-
-    # Patentes (si tienes modelos de flota, apuntamos ahí)
-    tracto = models.ForeignKey("taller.Vehiculo", on_delete=models.SET_NULL, null=True, blank=True, related_name="estatus_tracto")
-    rampla = models.ForeignKey("taller.Vehiculo", on_delete=models.SET_NULL, null=True, blank=True, related_name="estatus_rampla")
-
-    estado_texto = models.TextField(blank=True, default="")
-
-    creado_por = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="estatus_viajes_creados")
-    actualizado_por = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="estatus_viajes_actualizados")
-    creado_el = models.DateTimeField(auto_now_add=True)
-    actualizado_el = models.DateTimeField(auto_now=True)
-
-    class Meta:
-        unique_together = ("fecha", "turno", "conductor")
-        ordering = ["fecha", "turno", "conductor__apellidos", "conductor__nombres"]
-        permissions = [
-            ("puede_ver_estatus_viajes", "Puede ver estatus de viajes"),
-            ("puede_editar_estatus_viajes", "Puede editar estatus de viajes"),
-        ]
-
-    def __str__(self):
-        return f"{self.fecha} {self.turno} - {self.conductor}"
-    
-    
-    
-    
-class TurnoEstatus(models.TextChoices):
-    AM = "AM", "AM"
-    PM = "PM", "PM"
-
-
-class EstatusOperacionalViaje(models.Model):
     class EstadoCargaChoices(models.TextChoices):
         DESCARGADO = "DESCARGADO", "Descargado"
         CAMINO_DESCARGAR = "CAMINO_DESCARGAR", "Camino a descargar"
@@ -288,7 +150,13 @@ class EstatusOperacionalViaje(models.Model):
         OTRO = "OTRO", "Otro"
 
     fecha = models.DateField(default=timezone.localdate, db_index=True)
-    turno = models.CharField(max_length=2, choices=TurnoEstatus.choices, default=TurnoEstatus.AM, db_index=True)
+
+    turno = models.CharField(
+        max_length=2,
+        choices=TurnoEstatus.choices,
+        default=TurnoEstatus.AM,
+        db_index=True,
+    )
 
     conductor = models.ForeignKey(
         Conductor,
@@ -303,8 +171,8 @@ class EstatusOperacionalViaje(models.Model):
         blank=True,
         related_name="estatus_tracto",
         limit_choices_to={"tipo": "TRACTO"},
-        help_text="Vehículo tipo TRACTO (patente).",
     )
+
     rampla = models.ForeignKey(
         Vehiculo,
         on_delete=models.PROTECT,
@@ -312,7 +180,6 @@ class EstatusOperacionalViaje(models.Model):
         blank=True,
         related_name="estatus_rampla",
         limit_choices_to={"tipo": "SEMIRREMOLQUE"},
-        help_text="Vehículo tipo SEMIRREMOLQUE (rampla).",
     )
 
     cliente = models.ForeignKey(
@@ -325,6 +192,7 @@ class EstatusOperacionalViaje(models.Model):
 
     nro_guia = models.CharField(max_length=50, blank=True, default="")
     estado_guia = models.CharField(max_length=120, blank=True, default="")
+
     estado_carga = models.CharField(
         max_length=25,
         choices=EstadoCargaChoices.choices,
@@ -347,6 +215,7 @@ class EstatusOperacionalViaje(models.Model):
         blank=True,
         related_name="estatus_viajes_creados",
     )
+
     actualizado_por = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
@@ -354,6 +223,7 @@ class EstatusOperacionalViaje(models.Model):
         blank=True,
         related_name="estatus_viajes_actualizados",
     )
+
     creado_el = models.DateTimeField(auto_now_add=True)
     actualizado_el = models.DateTimeField(auto_now=True)
 
@@ -364,10 +234,6 @@ class EstatusOperacionalViaje(models.Model):
                 fields=["fecha", "turno", "conductor"],
                 name="uniq_estatus_fecha_turno_conductor",
             )
-        ]
-        permissions = [
-            ("puede_ver_estatus_viajes", "Puede ver Estatus de Viajes (Operaciones)"),
-            ("puede_editar_estatus_viajes", "Puede editar Estatus de Viajes (Operaciones)"),
         ]
 
     def __str__(self):

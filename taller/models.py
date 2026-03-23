@@ -1,7 +1,6 @@
 from django.db import models
+from django.db.models import Sum
 from django.utils import timezone
-from taller.models import *
-
 
 
 # ============================================
@@ -57,7 +56,6 @@ class Vehiculo(models.Model):
         max_length=100, blank=True, null=True, help_text="Compañía de seguros"
     )
 
-    # info extra para semirremolques / rampas
     descripcion_equipo = models.CharField(
         "Descripción equipo", max_length=150, blank=True, null=True
     )
@@ -89,14 +87,12 @@ class Vehiculo(models.Model):
 
     def __str__(self):
         return f"{self.patente} - {self.marca} {self.modelo}"
-    
-    
-    
+
+
 class Remolque(models.Model):
     """
     Modelo específico para remolques y semirremolques.
-    Se deja para compatibilidad con formularios / vistas antiguos
-    que aún lo usan.
+    Se deja para compatibilidad con formularios / vistas antiguos.
     """
     codigo = models.CharField("Código interno", max_length=20, unique=True)
     patente = models.CharField(
@@ -114,7 +110,6 @@ class Remolque(models.Model):
 
     def __str__(self):
         return f"{self.patente} ({self.codigo})"
-
 
 
 # ============================================
@@ -295,13 +290,13 @@ class Mantenimiento(models.Model):
     descripcion = models.TextField(blank=True, null=True)
 
     costo_mano_obra = models.DecimalField(
-        max_digits=12, decimal_places=2, blank=True, null=True
+        max_digits=12, decimal_places=2, blank=True, null=True, default=0
     )
     costo_repuestos = models.DecimalField(
-        max_digits=12, decimal_places=2, blank=True, null=True
+        max_digits=12, decimal_places=2, blank=True, null=True, default=0
     )
     costo_total = models.DecimalField(
-        max_digits=12, decimal_places=2, blank=True, null=True
+        max_digits=12, decimal_places=2, blank=True, null=True, default=0
     )
 
     estado = models.CharField(
@@ -316,18 +311,43 @@ class Mantenimiento(models.Model):
     def __str__(self):
         return f"{self.vehiculo} - {self.tipo} ({self.estado})"
 
+    def recalcular_costos(self, guardar=True):
+        total_repuestos = self.repuestos.aggregate(
+            total=Sum("costo_total")
+        )["total"] or 0
+
+        self.costo_repuestos = total_repuestos
+        self.costo_total = (self.costo_mano_obra or 0) + (self.costo_repuestos or 0)
+
+        if guardar and self.pk:
+            Mantenimiento.objects.filter(pk=self.pk).update(
+                costo_repuestos=self.costo_repuestos,
+                costo_total=self.costo_total,
+            )
+
+    def save(self, *args, **kwargs):
+        if self.costo_mano_obra is None:
+            self.costo_mano_obra = 0
+        if self.costo_repuestos is None:
+            self.costo_repuestos = 0
+        self.costo_total = (self.costo_mano_obra or 0) + (self.costo_repuestos or 0)
+        super().save(*args, **kwargs)
+
 
 class RepuestoMantenimiento(models.Model):
     """
     Repuestos utilizados en un mantenimiento específico.
-    Cada registro genera un movimiento de SALIDA en inventario.
+    Al crear uno nuevo:
+    - toma costo_unitario desde el último movimiento de inventario con costo
+    - guarda snapshot del costo en esta línea
+    - genera salida en inventario
+    - recalcula costo del mantenimiento
     """
     mantenimiento = models.ForeignKey(
         Mantenimiento,
         on_delete=models.CASCADE,
         related_name="repuestos"
     )
-    # Referencias por string para evitar import circular
     producto = models.ForeignKey(
         "inventario.Producto",
         on_delete=models.PROTECT,
@@ -340,6 +360,17 @@ class RepuestoMantenimiento(models.Model):
     )
     cantidad = models.DecimalField(max_digits=10, decimal_places=2)
 
+    costo_unitario = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        default=0
+    )
+    costo_total = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        default=0
+    )
+
     class Meta:
         verbose_name = "Repuesto utilizado en mantenimiento"
         verbose_name_plural = "Repuestos utilizados en mantenimientos"
@@ -347,12 +378,44 @@ class RepuestoMantenimiento(models.Model):
     def __str__(self):
         return f"{self.producto} x {self.cantidad} (Mant. {self.mantenimiento.id})"
 
+    def obtener_costo_unitario_desde_inventario(self):
+        from inventario.models import MovimientoInventario
+
+        movimiento = (
+            MovimientoInventario.objects.filter(
+                producto=self.producto,
+                bodega=self.bodega,
+                costo_unitario__isnull=False,
+            )
+            .exclude(costo_unitario=0)
+            .order_by("-fecha", "-id")
+            .first()
+        )
+
+        if not movimiento:
+            movimiento = (
+                MovimientoInventario.objects.filter(
+                    producto=self.producto,
+                    costo_unitario__isnull=False,
+                )
+                .exclude(costo_unitario=0)
+                .order_by("-fecha", "-id")
+                .first()
+            )
+
+        return movimiento.costo_unitario if movimiento else 0
+
     def save(self, *args, **kwargs):
         es_nuevo = self.pk is None
+
+        if not self.costo_unitario:
+            self.costo_unitario = self.obtener_costo_unitario_desde_inventario()
+
+        self.costo_total = (self.cantidad or 0) * (self.costo_unitario or 0)
+
         super().save(*args, **kwargs)
 
         if es_nuevo:
-            # Import local para evitar circular import
             from inventario.models import MovimientoInventario, TipoMovimiento
 
             MovimientoInventario.objects.create(
@@ -360,14 +423,12 @@ class RepuestoMantenimiento(models.Model):
                 producto=self.producto,
                 bodega=self.bodega,
                 cantidad=self.cantidad,
-                referencia=f"Mantención #{self.mantenimiento.id} – {self.mantenimiento.vehiculo.patente}",
+                costo_unitario=self.costo_unitario,
+                referencia=f"Mantención #{self.mantenimiento.id} - {self.mantenimiento.vehiculo.patente}",
                 usuario_registro=getattr(self.mantenimiento, "usuario", None),
             )
 
-
-
-
-
+        self.mantenimiento.recalcular_costos()
 
 
 # ============================================
@@ -410,6 +471,8 @@ class MultaConductor(models.Model):
 
 # ============================================
 # RUTAS Y COORDINACIÓN DE VIAJES
+# Se mantienen por compatibilidad temporal.
+# Ya no deberían usarse como flujo principal en Taller.
 # ============================================
 
 class RutaViaje(models.Model):

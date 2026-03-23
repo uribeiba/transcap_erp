@@ -1,19 +1,18 @@
 {% extends "layout/base.html" %}
 
-{% block title %}Dashboard Inventario{% endblock %}
+{% block title %}Panel de Inventario{% endblock %}
 {% block page_title %}Dashboard de Inventario{% endblock %}
 
 {% block content %}
-<div class="row">
-    <!-- Productos totales -->
-    <div class="col-lg-3 col-6">
+<div class="row mb-3">
+    <div class="col-md-3">
         <div class="small-box bg-info">
             <div class="inner">
                 <h3>{{ total_productos }}</h3>
                 <p>Productos registrados</p>
             </div>
             <div class="icon">
-                <i class="fas fa-box"></i>
+                <i class="fas fa-boxes"></i>
             </div>
             <a href="{% url 'inventario:lista_productos' %}" class="small-box-footer">
                 Ver productos <i class="fas fa-arrow-circle-right"></i>
@@ -21,8 +20,7 @@
         </div>
     </div>
 
-    <!-- Productos activos -->
-    <div class="col-lg-3 col-6">
+    <div class="col-md-3">
         <div class="small-box bg-primary">
             <div class="inner">
                 <h3>{{ productos_activos }}</h3>
@@ -31,14 +29,13 @@
             <div class="icon">
                 <i class="fas fa-check-circle"></i>
             </div>
-            <a href="{% url 'inventario:lista_productos' %}" class="small-box-footer">
+            <a href="{% url 'inventario:crear_producto' %}" class="small-box-footer">
                 Gestionar catálogo <i class="fas fa-arrow-circle-right"></i>
             </a>
         </div>
     </div>
 
-    <!-- Productos sin stock -->
-    <div class="col-lg-3 col-6">
+    <div class="col-md-3">
         <div class="small-box bg-danger">
             <div class="inner">
                 <h3>{{ productos_sin_stock }}</h3>
@@ -47,14 +44,13 @@
             <div class="icon">
                 <i class="fas fa-exclamation-triangle"></i>
             </div>
-            <a href="{% url 'inventario:lista_productos' %}" class="small-box-footer">
+            <a href="{% url 'inventario:lista_productos' %}?estado_stock=sin_stock" class="small-box-footer">
                 Revisar inventario <i class="fas fa-arrow-circle-right"></i>
             </a>
         </div>
     </div>
 
-    <!-- Productos bajo mínimo -->
-    <div class="col-lg-3 col-6">
+    <div class="col-md-3">
         <div class="small-box bg-warning">
             <div class="inner">
                 <h3>{{ productos_bajo_minimo }}</h3>
@@ -63,145 +59,152 @@
             <div class="icon">
                 <i class="fas fa-arrow-down"></i>
             </div>
-            <a href="#tabla-bajo-minimo" class="small-box-footer">
-                Ver detalle <i class="fas fa-arrow-circle-down"></i>
+            <a href="{% url 'inventario:lista_productos' %}?estado_stock=bajo_minimo" class="small-box-footer">
+                Ver detalle <i class="fas fa-arrow-circle-right"></i>
             </a>
         </div>
     </div>
 </div>
 
-<div class="row">
-    <!-- Gráfico de movimientos -->
-    <div class="col-md-8">
-        <div class="card">
-            <div class="card-header bg-secondary">
-                <h3 class="card-title mb-0">Movimientos de Inventario (últimos 7 días)</h3>
-            </div>
-            <div class="card-body">
-                <canvas id="invChart" height="120"></canvas>
+<div class="row mb-3">
+    <div class="col-md-4">
+        <div class="info-box">
+            <span class="info-box-icon bg-success"><i class="fas fa-cubes"></i></span>
+            <div class="info-box-content">
+                <span class="info-box-text">Stock total</span>
+                <span class="info-box-number">{{ stock_total_unidades|floatformat:2 }}</span>
             </div>
         </div>
     </div>
-
-    <!-- Top productos con más movimiento -->
     <div class="col-md-4">
-        <div class="card">
-            <div class="card-header bg-primary">
-                <h3 class="card-title mb-0">Top productos con más movimiento</h3>
+        <div class="info-box">
+            <span class="info-box-icon bg-secondary"><i class="fas fa-calendar-day"></i></span>
+            <div class="info-box-content">
+                <span class="info-box-text">Movimientos hoy</span>
+                <span class="info-box-number">{{ movimientos_hoy }}</span>
             </div>
-            <div class="card-body p-0">
-                <div class="table-responsive">
-                    <table class="table table-striped table-sm mb-0">
-                        <thead>
-                            <tr>
-                                <th>Código</th>
-                                <th>Producto</th>
-                                <th class="text-right">Cantidad</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for item in top_movimientos %}
-                                <tr>
-                                    <td>{{ item.producto__codigo }}</td>
-                                    <td>{{ item.producto__nombre }}</td>
-                                    <td class="text-right">
-                                        {{ item.total_mov|default:0|floatformat:0 }}
-                                    </td>
-                                </tr>
-                            {% empty %}
-                                <tr>
-                                    <td colspan="3" class="text-center py-3">
-                                        Aún no hay movimientos registrados.
-                                    </td>
-                                </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="info-box">
+            <span class="info-box-icon bg-dark"><i class="fas fa-chart-line"></i></span>
+            <div class="info-box-content">
+                <span class="info-box-text">Movimientos últimos 7 días</span>
+                <span class="info-box-number">{{ movimientos_ultimos_7 }}</span>
             </div>
         </div>
     </div>
 </div>
 
-<!-- Productos bajo mínimo -->
-<div class="row" id="tabla-bajo-minimo">
-    <div class="col-md-12">
-        <div class="card">
-            <div class="card-header bg-warning">
-                <h3 class="card-title mb-0">Productos con stock bajo mínimo</h3>
+<div class="row">
+    <div class="col-md-8">
+        <div class="card card-outline card-secondary">
+            <div class="card-header">
+                <h3 class="card-title">Movimientos de Inventario (últimos 7 días)</h3>
             </div>
-            <div class="card-body p-0">
-                <div class="table-responsive">
-                    <table class="table table-striped table-sm mb-0">
-                        <thead>
-                            <tr>
-                                <th>Código</th>
-                                <th>Producto</th>
-                                <th>Categoría</th>
-                                <th class="text-right">Stock mínimo</th>
-                                <th class="text-right">Stock actual</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for prod, stock in productos_bajo_minimo_lista %}
-                                <tr>
-                                    <td>{{ prod.codigo }}</td>
-                                    <td>{{ prod.nombre }}</td>
-                                    <td>{{ prod.categoria }}</td>
-                                    <td class="text-right">
-                                        {{ prod.stock_minimo|floatformat:0 }}
-                                    </td>
-                                    <td class="text-right">
-                                        {{ stock|floatformat:0 }}
-                                    </td>
-                                </tr>
-                            {% empty %}
-                                <tr>
-                                    <td colspan="5" class="text-center py-3">
-                                        No hay productos bajo mínimo actualmente.
-                                    </td>
-                                </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
+            <div class="card-body">
+                <canvas id="movimientosChart" height="100"></canvas>
             </div>
         </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card card-outline card-primary">
+            <div class="card-header">
+                <h3 class="card-title">Top productos con más movimiento</h3>
+            </div>
+            <div class="card-body table-responsive p-0">
+                <table class="table table-sm table-striped mb-0">
+                    <thead>
+                        <tr>
+                            <th>Código</th>
+                            <th>Producto</th>
+                            <th class="text-right">Cantidad</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in top_movimientos %}
+                            <tr>
+                                <td>{{ item.producto__codigo }}</td>
+                                <td>{{ item.producto__nombre }}</td>
+                                <td class="text-right">{{ item.total_mov|floatformat:2 }}</td>
+                            </tr>
+                        {% empty %}
+                            <tr>
+                                <td colspan="3" class="text-center text-muted py-3">
+                                    Aún no hay movimientos registrados.
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card card-outline card-warning">
+    <div class="card-header">
+        <h3 class="card-title">Productos con stock bajo mínimo</h3>
+    </div>
+    <div class="card-body table-responsive p-0">
+        <table class="table table-sm table-hover mb-0">
+            <thead>
+                <tr>
+                    <th>Código</th>
+                    <th>Producto</th>
+                    <th>Categoría</th>
+                    <th class="text-right">Stock mínimo</th>
+                    <th class="text-right">Stock actual</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for producto, stock in productos_bajo_minimo_lista %}
+                    <tr>
+                        <td>{{ producto.codigo }}</td>
+                        <td>{{ producto.nombre }}</td>
+                        <td>{{ producto.categoria|default:"-" }}</td>
+                        <td class="text-right">{{ producto.stock_minimo|floatformat:2 }}</td>
+                        <td class="text-right">
+                            <span class="badge badge-warning">{{ stock|floatformat:2 }}</span>
+                        </td>
+                    </tr>
+                {% empty %}
+                    <tr>
+                        <td colspan="5" class="text-center text-muted py-4">
+                            No hay productos bajo mínimo actualmente.
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
     </div>
 </div>
 {% endblock %}
 
 {% block extra_js %}
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-    const invLabels = {{ chart_labels|safe }};
-    const invData = {{ chart_movimientos|safe }};
+document.addEventListener("DOMContentLoaded", function () {
+    const ctx = document.getElementById("movimientosChart");
+    if (!ctx) return;
 
-    const ctx = document.getElementById('invChart').getContext('2d');
-    const invChart = new Chart(ctx, {
-        type: 'bar',
+    new Chart(ctx, {
+        type: "line",
         data: {
-            labels: invLabels,
+            labels: {{ chart_labels|safe }},
             datasets: [{
-                label: 'Cantidad movida',
-                data: invData,
-                backgroundColor: 'rgba(54, 162, 235, 0.6)',
-                borderColor: 'rgba(54, 162, 235, 1)',
-                borderWidth: 1
+                label: "Cantidad movida",
+                data: {{ chart_movimientos|safe }},
+                borderWidth: 2,
+                fill: false,
+                tension: 0.25
             }]
         },
         options: {
             responsive: true,
-            maintainAspectRatio: false,
-            scales: {
-                yAxes: [{
-                    ticks: {
-                        beginAtZero: true,
-                        precision: 0
-                    }
-                }]
-            }
+            maintainAspectRatio: false
         }
     });
+});
 </script>
 {% endblock %}

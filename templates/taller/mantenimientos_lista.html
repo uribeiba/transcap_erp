@@ -92,12 +92,14 @@
             </td>
             <td>{{ m.km_programado|default:"-" }} / {{ m.km_real|default:"-" }}</td>
             <td>
-              {% if m.estado == "PLANIFICADO" %}
-                <span class="badge badge-secondary">Planificado</span>
+              {% if m.estado == "PENDIENTE" %}
+                <span class="badge badge-secondary">Pendiente</span>
               {% elif m.estado == "EN_PROCESO" %}
                 <span class="badge badge-primary">En proceso</span>
-              {% else %}
+              {% elif m.estado == "FINALIZADO" %}
                 <span class="badge badge-success">Finalizado</span>
+              {% else %}
+                <span class="badge badge-danger">Cancelado</span>
               {% endif %}
             </td>
             <td class="text-right">${{ m.costo_total|floatformat:0|intcomma }}</td>
