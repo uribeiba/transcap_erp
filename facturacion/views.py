@@ -4,7 +4,10 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.contrib import messages
 from django.http import HttpResponse, JsonResponse
 from django.template.loader import get_template
-from weasyprint import HTML
+from django.db.models import Sum, Q
+from django.utils import timezone
+from datetime import datetime
+from django.contrib.auth.decorators import login_required, permission_required
 
 from .models import Factura, EstadoFactura, TipoDTE
 from .forms import FacturaForm
@@ -12,23 +15,24 @@ from operaciones.models import Viaje
 from centro_comercio.models import Cliente
 from .services.sii_client import enviar_dte_sii
 
-# facturacion/views.py
-from django.db.models import Sum, Q
-from django.utils import timezone
-from datetime import datetime
-
-from django.contrib.auth.decorators import permission_required
-from django.contrib.auth.decorators import login_required
-
+# ------------------------------------------------------------
+# Importación condicional de WeasyPrint (para evitar errores en servidores sin librerías)
+# ------------------------------------------------------------
+try:
+    from weasyprint import HTML
+    WEASYPRINT_AVAILABLE = True
+except ImportError:
+    WEASYPRINT_AVAILABLE = False
+    HTML = None
+    print("Advertencia: WeasyPrint no está disponible. La generación de PDF no funcionará.")
 
 
 # ---------- VISTAS BASADAS EN CLASES ----------
-
 class FacturaListView(ListView):
     model = Factura
     template_name = 'facturacion/factura_list.html'
     context_object_name = 'facturas'
-    
+
     def get_queryset(self):
         qs = super().get_queryset()
         estado = self.request.GET.get('estado')
@@ -41,7 +45,7 @@ class FacturaCreateView(CreateView):
     form_class = FacturaForm
     template_name = 'facturacion/factura_form.html'
     success_url = reverse_lazy('facturacion:lista')
-    
+
     def get_initial(self):
         initial = super().get_initial()
         viajes_ids = self.request.GET.getlist('viajes')
@@ -50,7 +54,7 @@ class FacturaCreateView(CreateView):
             if viajes.exists():
                 initial['cliente'] = viajes.first().cliente
         return initial
-    
+
     def form_valid(self, form):
         response = super().form_valid(form)
         for viaje in form.cleaned_data.get('viajes', []):
@@ -70,9 +74,8 @@ class FacturaUpdateView(UpdateView):
 
 
 # ---------- VISTAS BASADAS EN FUNCIONES ----------
-
+@login_required
 def enviar_factura_sii(request, pk):
-    """Envía la factura al SII (simulado por ahora)"""
     factura = get_object_or_404(Factura, pk=pk)
     if factura.estado == EstadoFactura.EMITIDA:
         aceptado, mensaje, track_id = enviar_dte_sii(factura)
@@ -88,8 +91,15 @@ def enviar_factura_sii(request, pk):
         messages.warning(request, "⚠️ La factura no está en estado EMITIDA")
     return redirect('facturacion:detalle', pk=pk)
 
+
+@login_required
 def generar_pdf_factura(request, pk):
-    """Genera el PDF de la factura (formato tributario)"""
+    if not WEASYPRINT_AVAILABLE:
+        return HttpResponse(
+            "La generación de PDF no está disponible en este servidor. "
+            "Contacte al administrador para instalar las dependencias necesarias.",
+            status=503
+        )
     factura = get_object_or_404(Factura, pk=pk)
     template = get_template('facturacion/factura_pdf.html')
     html = template.render({'factura': factura})
@@ -98,8 +108,9 @@ def generar_pdf_factura(request, pk):
     HTML(string=html).write_pdf(response)
     return response
 
+
+@login_required
 def obtener_datos_cliente(request, cliente_id):
-    """Retorna los datos de un cliente en JSON para autocompletar el formulario"""
     try:
         cliente = Cliente.objects.get(pk=cliente_id)
         data = {
@@ -107,53 +118,23 @@ def obtener_datos_cliente(request, cliente_id):
             'rut': cliente.rut,
             'giro': cliente.giro or '',
             'direccion': cliente.direccion or '',
-            'comuna': cliente.localidad or '',   # mapeamos localidad → comuna
-            'ciudad': cliente.localidad or '',   # si no tienes ciudad, usa localidad también
+            'comuna': cliente.localidad or '',
+            'ciudad': cliente.localidad or '',
         }
         return JsonResponse(data)
     except Cliente.DoesNotExist:
         return JsonResponse({'error': 'Cliente no encontrado'}, status=404)
-    except Exception as e:
-        # Captura cualquier otro error y lo muestra en la consola del navegador
-        return JsonResponse({'error': str(e)}, status=500)
-    
-    
-
-@login_required
-def emitir_factura(request, pk):
-    factura = get_object_or_404(Factura, pk=pk)
-    if factura.estado == EstadoFactura.BORRADOR:
-        factura.estado = EstadoFactura.EMITIDA
-        factura.save()  # aquí se asigna el folio automáticamente
-        messages.success(request, f'Factura N° {factura.folio} emitida correctamente.')
-    else:
-        messages.warning(request, 'La factura ya no está en estado borrador.')
-    return redirect('facturacion:lista')
-
-@login_required
-def eliminar_factura(request, pk):
-    factura = get_object_or_404(Factura, pk=pk)
-    if factura.estado == EstadoFactura.BORRADOR:
-        factura.delete()
-        messages.success(request, 'Factura eliminada correctamente.')
-    else:
-        messages.error(request, 'No se puede eliminar una factura que ya ha sido emitida.')
-    return redirect('facturacion:lista')
 
 
 @login_required
 def informe_facturas(request):
-    # Obtener parámetros de filtro
     fecha_desde = request.GET.get('fecha_desde')
     fecha_hasta = request.GET.get('fecha_hasta')
     cliente_id = request.GET.get('cliente')
     estado = request.GET.get('estado')
     tipo_dte = request.GET.get('tipo_dte')
 
-    # Base queryset
     facturas = Factura.objects.select_related('cliente').all()
-
-    # Aplicar filtros
     if fecha_desde:
         try:
             fecha_desde_obj = datetime.strptime(fecha_desde, '%Y-%m-%d').date()
@@ -173,12 +154,9 @@ def informe_facturas(request):
     if tipo_dte and tipo_dte != '':
         facturas = facturas.filter(tipo_dte=tipo_dte)
 
-    # Totales generales
     total_neto = facturas.aggregate(Sum('monto_neto'))['monto_neto__sum'] or 0
     total_iva = facturas.aggregate(Sum('monto_iva'))['monto_iva__sum'] or 0
     total_final = facturas.aggregate(Sum('monto_total'))['monto_total__sum'] or 0
-
-    # Lista de clientes para el select
     clientes = Cliente.objects.all().order_by('razon_social')
 
     context = {
@@ -198,3 +176,26 @@ def informe_facturas(request):
         'tipos_dte': TipoDTE.choices,
     }
     return render(request, 'facturacion/informe_facturas.html', context)
+
+
+@login_required
+def emitir_factura(request, pk):
+    factura = get_object_or_404(Factura, pk=pk)
+    if factura.estado == EstadoFactura.BORRADOR:
+        factura.estado = EstadoFactura.EMITIDA
+        factura.save()
+        messages.success(request, f'Factura N° {factura.folio} emitida correctamente.')
+    else:
+        messages.warning(request, 'La factura ya no está en estado borrador.')
+    return redirect('facturacion:lista')
+
+
+@login_required
+def eliminar_factura(request, pk):
+    factura = get_object_or_404(Factura, pk=pk)
+    if factura.estado == EstadoFactura.BORRADOR:
+        factura.delete()
+        messages.success(request, 'Factura eliminada correctamente.')
+    else:
+        messages.error(request, 'No se puede eliminar una factura que ya ha sido emitida.')
+    return redirect('facturacion:lista')
