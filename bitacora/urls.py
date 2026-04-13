@@ -9,6 +9,7 @@ urlpatterns = [
     path("editar/<int:pk>/", views.editar, name="editar"),
     path("detalle/<int:pk>/", views.detalle, name="detalle"),
     path("eliminar/<int:pk>/", views.eliminar, name="eliminar"),
+    path('reporte-guias/', views.reporte_guias, name='reporte_guias'),
 
     path(
         "api/coordinacion/<int:id>/",

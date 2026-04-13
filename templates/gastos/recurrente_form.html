@@ -1,0 +1,77 @@
+{% extends "layout/base.html" %}
+{% block title %}{% if form.instance.pk %}Editar Servicio Recurrente{% else %}Nuevo Servicio Recurrente{% endif %}{% endblock %}
+{% block page_title %}{% if form.instance.pk %}✏️ Editar Servicio{% else %}➕ Nuevo Servicio Recurrente{% endif %}{% endblock %}
+
+{% block content %}
+<div class="card card-primary card-outline">
+    <div class="card-header">
+        <h3 class="card-title">Datos del Servicio Recurrente</h3>
+    </div>
+    <form method="post">
+        {% csrf_token %}
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="form-group">
+                        <label>{{ form.descripcion.label }}</label>
+                        {{ form.descripcion }}
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="form-group">
+                        <label>{{ form.categoria.label }}</label>
+                        {{ form.categoria }}
+                    </div>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="form-group">
+                        <label>{{ form.proveedor.label }}</label>
+                        {{ form.proveedor }}
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="form-group">
+                        <label>{{ form.monto_neto.label }}</label>
+                        {{ form.monto_neto }}
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="form-group">
+                        <label>{{ form.iva.label }}</label>
+                        {{ form.iva }}
+                    </div>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-md-4">
+                    <div class="form-group">
+                        <label>{{ form.periodicidad.label }}</label>
+                        {{ form.periodicidad }}
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="form-group">
+                        <label>{{ form.dia_pago.label }}</label>
+                        {{ form.dia_pago }}
+                        <small class="form-text text-muted">1-31 o -1 para último día del mes.</small>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="form-group">
+                        <div class="custom-control custom-switch">
+                            {{ form.activo }}
+                            <label class="custom-control-label" for="{{ form.activo.id_for_label }}">{{ form.activo.label }}</label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="card-footer">
+            <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Guardar</button>
+            <a href="{% url 'gastos:recurrentes' %}" class="btn btn-secondary">Cancelar</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

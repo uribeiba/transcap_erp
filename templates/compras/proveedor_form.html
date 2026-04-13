@@ -1,0 +1,7 @@
+{% extends "layout/base.html" %}
+{% block title %}{% if form.instance.pk %}Editar{% else %}Nuevo{% endif %} Proveedor{% endblock %}
+{% block page_title %}{% if form.instance.pk %}✏️ Editar Proveedor{% else %}➕ Nuevo Proveedor{% endif %}{% endblock %}
+{% block content %}
+<div class="card card-primary"><div class="card-header"><h3 class="card-title">Datos del Proveedor</h3></div>
+<form method="post">{% csrf_token %}<div class="card-body">{{ form.as_p }}</div><div class="card-footer"><button type="submit" class="btn btn-primary">Guardar</button><a href="{% url 'compras:proveedores' %}" class="btn btn-secondary">Cancelar</a></div></form></div>
+{% endblock %}

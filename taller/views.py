@@ -441,9 +441,8 @@ def documento_vehiculo_editar(request, pk):
 
 
 # -------------------- Documentos de Conductores --------------------
-
 def documentos_conductor_lista(request):
-    """Lista documentos de conductores con filtros"""
+    """Lista documentos de conductores con filtros, KPIs e historial por conductor."""
     tipo = request.GET.get("tipo") or ""
     estado = request.GET.get("estado") or ""
     conductor_id = request.GET.get("conductor") or ""
@@ -452,18 +451,71 @@ def documentos_conductor_lista(request):
 
     if tipo:
         qs = qs.filter(tipo=tipo)
+
     if conductor_id:
         qs = qs.filter(conductor_id=conductor_id)
 
     docs = _anotar_estado_documentos(qs)
 
+    # Alias visual para template
+    for d in docs:
+        if d.estado_flag == 0:
+            d.estado_doc = "vencido"
+        elif d.estado_flag == 1:
+            d.estado_doc = "por_vencer"
+        else:
+            d.estado_doc = "vigente"
+
+    # KPIs generales
+    total_vencidos = sum(1 for d in docs if d.estado_doc == "vencido")
+    total_por_vencer = sum(1 for d in docs if d.estado_doc == "por_vencer")
+    total_vigentes = sum(1 for d in docs if d.estado_doc == "vigente")
+
+    # Filtro por estado
     if estado:
         mapa = {"vencido": 0, "por_vencer": 1, "vigente": 2}
         docs = [d for d in docs if d.estado_flag == mapa.get(estado, 2)]
 
+    # Historial del conductor seleccionado
+    conductor_actual = None
+    historial_conductor = []
+    historial_vencidos = 0
+    historial_por_vencer = 0
+    historial_vigentes = 0
+
+    if conductor_id:
+        conductor_actual = Conductor.objects.filter(pk=conductor_id).first()
+
+        if conductor_actual:
+            historial_qs = DocumentoConductor.objects.filter(
+                conductor=conductor_actual
+            ).select_related("conductor")
+
+            historial_conductor = _anotar_estado_documentos(historial_qs)
+
+            for d in historial_conductor:
+                if d.estado_flag == 0:
+                    d.estado_doc = "vencido"
+                elif d.estado_flag == 1:
+                    d.estado_doc = "por_vencer"
+                else:
+                    d.estado_doc = "vigente"
+
+            historial_vencidos = sum(1 for d in historial_conductor if d.estado_doc == "vencido")
+            historial_por_vencer = sum(1 for d in historial_conductor if d.estado_doc == "por_vencer")
+            historial_vigentes = sum(1 for d in historial_conductor if d.estado_doc == "vigente")
+
     ctx = {
         "docs": docs,
         "conductores": Conductor.objects.order_by("apellidos", "nombres"),
+        "total_vencidos": total_vencidos,
+        "total_por_vencer": total_por_vencer,
+        "total_vigentes": total_vigentes,
+        "conductor_actual": conductor_actual,
+        "historial_conductor": historial_conductor,
+        "historial_vencidos": historial_vencidos,
+        "historial_por_vencer": historial_por_vencer,
+        "historial_vigentes": historial_vigentes,
         "f": {
             "tipo": tipo,
             "estado": estado,
@@ -1193,11 +1245,14 @@ def coordinacion_viaje_pdf(request, pk):
 
 
 
+@login_required
 def dashboard_taller(request):
     hoy = timezone.now().date()
     inicio_mes = hoy.replace(day=1)
+    proxima_semana = hoy + timezone.timedelta(days=7)
+    limite_docs = hoy + timezone.timedelta(days=30)
 
-    # KPIs
+    # KPIs generales
     total = Mantenimiento.objects.count()
     pendientes = Mantenimiento.objects.filter(estado="PENDIENTE").count()
     proceso = Mantenimiento.objects.filter(estado="EN_PROCESO").count()
@@ -1207,32 +1262,106 @@ def dashboard_taller(request):
         fecha_programada__gte=inicio_mes
     ).aggregate(total=Sum("costo_total"))["total"] or 0
 
-    # últimos mantenimientos
-    ultimos = Mantenimiento.objects.select_related("vehiculo").order_by("-id")[:10]
+    # Alertas por fecha
+    alertas_fecha = Mantenimiento.objects.select_related("vehiculo").filter(
+        estado__in=["PENDIENTE", "EN_PROCESO"],
+        fecha_programada__isnull=False,
+        fecha_programada__lte=proxima_semana,
+    ).order_by("fecha_programada")[:10]
 
-    # gráfico mensual
-    datos_mes = (
+    # Alertas por kilometraje
+    alertas_km = Mantenimiento.objects.select_related("vehiculo").filter(
+        estado__in=["PENDIENTE", "EN_PROCESO"],
+        km_programado__isnull=False,
+        vehiculo__km_actual__isnull=False,
+        km_programado__lte=F("vehiculo__km_actual") + 1000,
+    ).order_by("km_programado")[:10]
+
+    # Ranking vehículos por costo
+    ranking_vehiculos = (
         Mantenimiento.objects
-        .extra(select={"mes": "strftime('%%m', fecha_programada)"})
+        .values("vehiculo__id", "vehiculo__patente", "vehiculo__marca", "vehiculo__modelo")
+        .annotate(
+            total_mantenimientos=Count("id"),
+            costo_total=Sum("costo_total"),
+        )
+        .order_by("-costo_total", "-total_mantenimientos")[:10]
+    )
+
+    # Últimos mantenimientos
+    ultimos = (
+        Mantenimiento.objects
+        .select_related("vehiculo", "taller")
+        .order_by("-id")[:10]
+    )
+
+    # Serie mensual
+    serie_costos = (
+        Mantenimiento.objects
+        .filter(fecha_programada__isnull=False)
+        .annotate(mes=TruncMonth("fecha_programada"))
         .values("mes")
-        .annotate(total=Count("id"))
+        .annotate(total=Sum("costo_total"), cantidad=Count("id"))
         .order_by("mes")
     )
 
-    meses = [d["mes"] for d in datos_mes]
-    totales = [d["total"] for d in datos_mes]
+    labels_meses = [
+        item["mes"].strftime("%m/%Y") if item["mes"] else ""
+        for item in serie_costos
+    ]
+    data_costos = [float(item["total"] or 0) for item in serie_costos]
+    data_cantidad = [int(item["cantidad"] or 0) for item in serie_costos]
 
-    return render(request, "taller/dashboard.html", {
-        "total": total,
-        "pendientes": pendientes,
-        "proceso": proceso,
-        "finalizados": finalizados,
-        "costo_mes": costo_mes,
-        "ultimos": ultimos,
-        "meses": meses,
-        "totales": totales,
-    })
-    
+    # ============================
+    # Documentos conductores
+    # ============================
+    docs_conductor_vencidos = (
+        DocumentoConductor.objects
+        .select_related("conductor")
+        .filter(fecha_vencimiento__lt=hoy)
+        .order_by("fecha_vencimiento")[:10]
+    )
+
+    docs_conductor_por_vencer = (
+        DocumentoConductor.objects
+        .select_related("conductor")
+        .filter(
+            fecha_vencimiento__gte=hoy,
+            fecha_vencimiento__lte=limite_docs,
+        )
+        .order_by("fecha_vencimiento")[:10]
+    )
+
+    total_docs_conductor_vencidos = DocumentoConductor.objects.filter(
+        fecha_vencimiento__lt=hoy
+    ).count()
+
+    total_docs_conductor_por_vencer = DocumentoConductor.objects.filter(
+        fecha_vencimiento__gte=hoy,
+        fecha_vencimiento__lte=limite_docs,
+    ).count()
+
+    # ============================
+    # Documentos vehículos
+    # ============================
+    docs_vehiculo_vencidos = (
+        DocumentoVehiculo.objects
+        .select_related("vehiculo")
+        .filter(fecha_vencimiento__lt=hoy)
+        .order_by("fecha_vencimiento")[:10]
+    )
+
+    docs_vehiculo_por_vencer = (
+        DocumentoVehiculo.objects
+        .select_related("vehiculo")
+        .filter(
+            fecha_vencimiento__gte=hoy,
+            fecha_vencimiento__lte=limite_docs,
+        )
+        .order_by("fecha_vencimiento")[:10]
+    )
+
+    total_docs_vehiculo
     
     
 

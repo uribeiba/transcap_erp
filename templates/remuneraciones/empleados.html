@@ -1,0 +1,272 @@
+<!-- templates/remuneraciones/empleados.html -->
+{% extends "remuneraciones/base_remuneraciones.html" %}
+
+{% block title %}Empleados - Remuneraciones{% endblock %}
+{% block page_title %}Gestión de Empleados{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <span><i class="fas fa-users"></i> Listado de Empleados</span>
+        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#empleadoModal" onclick="limpiarForm()">
+            <i class="fas fa-plus"></i> Nuevo Empleado
+        </button>
+    </div>
+    <div class="card-body">
+        <table id="empleadosTable" class="table table-striped">
+            <thead>
+                <tr>
+                    <th>RUT</th>
+                    <th>Nombre Completo</th>
+                    <th>Cargo</th>
+                    <th>Área</th>
+                    <th>Estado</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody id="tablaEmpleados">
+                <!-- Se llena con JavaScript -->
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Modal Empleado -->
+<div class="modal fade" id="empleadoModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Empleado</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="empleadoForm">
+                    <input type="hidden" id="empleado_id" name="id">
+                    <div class="mb-3">
+                        <label>RUT</label>
+                        <input type="text" id="rut" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label>Nombres</label>
+                        <input type="text" id="nombres" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label>Apellidos</label>
+                        <input type="text" id="apellidos" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label>Fecha Nacimiento</label>
+                        <input type="date" id="fecha_nacimiento" class="form-control">
+                    </div>
+                    <div class="mb-3">
+                        <label>Fecha Ingreso</label>
+                        <input type="date" id="fecha_ingreso" class="form-control">
+                    </div>
+                    <div class="mb-3">
+                        <label>Cargo</label>
+                        <input type="text" id="cargo" class="form-control">
+                    </div>
+                    <div class="mb-3">
+                        <label>Área</label>
+                        <input type="text" id="area" class="form-control">
+                    </div>
+                    <div class="mb-3 form-check">
+                        <input type="checkbox" id="activo" class="form-check-input" checked>
+                        <label class="form-check-label">Activo</label>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" onclick="guardarEmpleado()">Guardar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Obtener CSRF token
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+    
+    const csrftoken = getCookie('csrftoken');
+    
+    // Función para cargar empleados
+    function cargarEmpleados() {
+        console.log('Cargando empleados...');
+        
+        fetch('/remuneraciones/api/empleados/')
+            .then(response => {
+                console.log('Response status:', response.status);
+                if (!response.ok) {
+                    throw new Error('Error en la respuesta: ' + response.status);
+                }
+                return response.json();
+            })
+            .then(data => {
+                console.log('Datos recibidos:', data);
+                const tbody = document.getElementById('tablaEmpleados');
+                tbody.innerHTML = '';
+                
+                if (data.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="6" class="text-center">No hay empleados registrados</td></tr>';
+                    return;
+                }
+                
+                data.forEach(emp => {
+                    const row = tbody.insertRow();
+                    row.innerHTML = `
+                        <td>${emp.rut || '-'}</td>
+                        <td>${emp.nombre_completo || emp.nombres + ' ' + emp.apellidos}</td>
+                        <td>${emp.cargo || '-'}</td>
+                        <td>${emp.area || '-'}</td>
+                        <td>${emp.activo ? '<span class="badge bg-success">Activo</span>' : '<span class="badge bg-danger">Inactivo</span>'}</td>
+                        <td class="table-actions">
+                            <i class="fas fa-edit text-primary" onclick="editarEmpleado(${emp.id})" style="cursor:pointer;"></i>
+                            <i class="fas fa-trash text-danger" onclick="eliminarEmpleado(${emp.id})" style="cursor:pointer;"></i>
+                        </td>
+                    `;
+                });
+                
+                // Inicializar DataTable
+                if ($.fn.DataTable.isDataTable('#empleadosTable')) {
+                    $('#empleadosTable').DataTable().destroy();
+                }
+                $('#empleadosTable').DataTable({
+                    language: {
+                        url: '//cdn.datatables.net/plug-ins/1.13.4/i18n/es-ES.json'
+                    }
+                });
+            })
+            .catch(error => {
+                console.error('Error al cargar empleados:', error);
+                const tbody = document.getElementById('tablaEmpleados');
+                tbody.innerHTML = '<tr><td colspan="6" class="text-center text-danger">Error al cargar empleados</td></tr>';
+            });
+    }
+    
+    // Función para guardar empleado
+    function guardarEmpleado() {
+        const id = document.getElementById('empleado_id').value;
+        
+        const data = {
+            rut: document.getElementById('rut').value,
+            nombres: document.getElementById('nombres').value,
+            apellidos: document.getElementById('apellidos').value,
+            fecha_nacimiento: document.getElementById('fecha_nacimiento').value,
+            fecha_ingreso: document.getElementById('fecha_ingreso').value,
+            cargo: document.getElementById('cargo').value,
+            area: document.getElementById('area').value,
+            tipo_contrato: 'INDEFINIDO',
+            activo: document.getElementById('activo').checked
+        };
+        
+        console.log('Enviando datos:', data);
+        
+        const method = id ? 'PUT' : 'POST';
+        const url = id ? `/remuneraciones/api/empleados/${id}/` : '/remuneraciones/api/empleados/';
+        
+        fetch(url, {
+            method: method,
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrftoken
+            },
+            credentials: 'same-origin',
+            body: JSON.stringify(data)
+        })
+        .then(response => {
+            console.log('Response status:', response.status);
+            if (!response.ok) {
+                return response.json().then(err => { throw err; });
+            }
+            return response.json();
+        })
+        .then(result => {
+            console.log('Resultado:', result);
+            if (result.id || result.success) {
+                alert('Empleado guardado correctamente');
+                $('#empleadoModal').modal('hide');
+                cargarEmpleados(); // Recargar sin recargar página
+                limpiarForm();
+            } else {
+                alert('Error: ' + JSON.stringify(result));
+            }
+        })
+        .catch(error => {
+            console.error('Error detallado:', error);
+            alert('Error al guardar: ' + (error.error || error.message || 'Error desconocido'));
+        });
+    }
+    
+    // Función para editar empleado
+    function editarEmpleado(id) {
+        fetch(`/remuneraciones/api/empleados/${id}/`)
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('empleado_id').value = data.id;
+                document.getElementById('rut').value = data.rut;
+                document.getElementById('nombres').value = data.nombres;
+                document.getElementById('apellidos').value = data.apellidos;
+                document.getElementById('fecha_nacimiento').value = data.fecha_nacimiento;
+                document.getElementById('fecha_ingreso').value = data.fecha_ingreso;
+                document.getElementById('cargo').value = data.cargo || '';
+                document.getElementById('area').value = data.area || '';
+                document.getElementById('activo').checked = data.activo;
+                $('#empleadoModal').modal('show');
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error al cargar empleado');
+            });
+    }
+    
+    // Función para eliminar empleado
+    function eliminarEmpleado(id) {
+        if(confirm('¿Eliminar este empleado?')) {
+            fetch(`/remuneraciones/api/empleados/${id}/`, {
+                method: 'DELETE',
+                headers: {
+                    'X-CSRFToken': csrftoken
+                }
+            })
+            .then(response => {
+                if (response.ok) {
+                    alert('Empleado eliminado');
+                    cargarEmpleados();
+                } else {
+                    alert('Error al eliminar');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error al eliminar');
+            });
+        }
+    }
+    
+    // Función para limpiar formulario
+    function limpiarForm() {
+        document.getElementById('empleadoForm').reset();
+        document.getElementById('empleado_id').value = '';
+        document.getElementById('activo').checked = true;
+    }
+    
+    // Cargar empleados al iniciar
+    document.addEventListener('DOMContentLoaded', function() {
+        cargarEmpleados();
+    });
+</script>
+{% endblock %}

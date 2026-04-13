@@ -1,0 +1,511 @@
+<!-- templates/remuneraciones/liquidaciones.html -->
+{% extends "remuneraciones/base_remuneraciones.html" %}
+
+{% block title %}Liquidaciones - Remuneraciones{% endblock %}
+{% block page_title %}Liquidaciones de Sueldo{% endblock %}
+
+{% block content %}
+<div class="row mb-3">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header">
+                <ul class="nav nav-tabs card-header-tabs" id="liquidacionesTabs" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#listado" type="button" role="tab">
+                            <i class="fas fa-list"></i> Listado de Liquidaciones
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" data-bs-toggle="tab" data-bs-target="#calcular" type="button" role="tab">
+                            <i class="fas fa-calculator"></i> Calcular Liquidación
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" data-bs-toggle="tab" data-bs-target="#masiva" type="button" role="tab">
+                            <i class="fas fa-layer-group"></i> Generación Masiva
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" data-bs-toggle="tab" data-bs-target="#resumen" type="button" role="tab">
+                            <i class="fas fa-chart-bar"></i> Resumen Mensual
+                        </button>
+                    </li>
+                </ul>
+            </div>
+            <div class="card-body">
+                <div class="tab-content">
+                    
+                    <!-- TAB 1: LISTADO DE LIQUIDACIONES -->
+                    <div class="tab-pane fade show active" id="listado" role="tabpanel">
+                        <div class="table-responsive">
+                            <table id="liquidacionesTable" class="table table-striped">
+                                <thead>
+                                    <tr>
+                                        <th>Período</th>
+                                        <th>Empleado</th>
+                                        <th>RUT</th>
+                                        <th>Total Haberes</th>
+                                        <th>Total Descuentos</th>
+                                        <th>Líquido a Pagar</th>
+                                        <th>Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tablaLiquidaciones">
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    
+                    <!-- TAB 2: CALCULAR LIQUIDACIÓN INDIVIDUAL -->
+                    <div class="tab-pane fade" id="calcular" role="tabpanel">
+                        <div class="row">
+                            <div class="col-md-5">
+                                <div class="card bg-light">
+                                    <div class="card-body">
+                                        <h5><i class="fas fa-user"></i> Datos del Contrato</h5>
+                                        <hr>
+                                        <div class="mb-3">
+                                            <label>Contrato / Empleado</label>
+                                            <select id="contratoSelect" class="form-select">
+                                                <option value="">-- Seleccione un contrato --</option>
+                                            </select>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label>Período</label>
+                                            <input type="month" id="periodoCal" class="form-control" value="2026-04">
+                                        </div>
+                                        <div class="mb-3">
+                                            <label>Bonos Extra ($)</label>
+                                            <input type="number" id="bonosCal" class="form-control" value="0" step="10000">
+                                        </div>
+                                        <div class="mb-3">
+                                            <label>Horas Extra</label>
+                                            <input type="number" id="horasExtraCal" class="form-control" value="0" step="1">
+                                        </div>
+                                        <button class="btn btn-primary w-100" id="btnPrevisualizar">
+                                            <i class="fas fa-chart-line"></i> Previsualizar
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-7">
+                                <div id="resultadoPrevisualizacion" style="display:none;">
+                                    <div class="card">
+                                        <div class="card-header bg-success text-white">
+                                            <i class="fas fa-file-invoice"></i> Previsualización Liquidación
+                                        </div>
+                                        <div class="card-body" id="previewContent">
+                                        </div>
+                                        <div class="card-footer">
+                                            <button class="btn btn-success w-100" id="btnGuardarLiquidacion">
+                                                <i class="fas fa-save"></i> Guardar Liquidación
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div id="loadingPreview" style="display:none;" class="text-center">
+                                    <div class="spinner-border text-primary" role="status">
+                                        <span class="visually-hidden">Calculando...</span>
+                                    </div>
+                                    <p>Calculando liquidación...</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- TAB 3: GENERACIÓN MASIVA -->
+                    <div class="tab-pane fade" id="masiva" role="tabpanel">
+                        <div class="row">
+                            <div class="col-md-4">
+                                <div class="card bg-light">
+                                    <div class="card-body">
+                                        <h5><i class="fas fa-cogs"></i> Parámetros</h5>
+                                        <hr>
+                                        <div class="mb-3">
+                                            <label>Período</label>
+                                            <input type="month" id="periodoMasivo" class="form-control" value="2026-04">
+                                        </div>
+                                        <div class="mb-3">
+                                            <label>Bonos Generales ($)</label>
+                                            <input type="number" id="bonosMasivo" class="form-control" value="0">
+                                        </div>
+                                        <div class="mb-3">
+                                            <label>Horas Extra Generales</label>
+                                            <input type="number" id="horasExtraMasivo" class="form-control" value="0">
+                                        </div>
+                                        <button class="btn btn-primary w-100" id="btnEjecutarMasivo">
+                                            <i class="fas fa-play"></i> Generar Liquidaciones Masivas
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-8">
+                                <div id="resultadoMasivo" style="display:none;">
+                                    <div class="card">
+                                        <div class="card-header">
+                                            <i class="fas fa-check-circle text-success"></i> Resultado Generación
+                                        </div>
+                                        <div class="card-body" id="masivoContent">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- TAB 4: RESUMEN MENSUAL -->
+                    <div class="tab-pane fade" id="resumen" role="tabpanel">
+                        <div class="row">
+                            <div class="col-md-3">
+                                <div class="card bg-light">
+                                    <div class="card-body">
+                                        <label>Seleccionar Período</label>
+                                        <input type="month" id="periodoResumen" class="form-control" value="2026-04">
+                                        <button class="btn btn-primary mt-3 w-100" id="btnCargarResumen">
+                                            <i class="fas fa-chart-line"></i> Cargar Resumen
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-9">
+                                <div id="resultadoResumen" style="display:none;">
+                                    <div class="card">
+                                        <div class="card-header bg-info text-white">
+                                            <i class="fas fa-chart-pie"></i> Resumen Mensual
+                                        </div>
+                                        <div class="card-body" id="resumenContent">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    let contratoSeleccionado = null;
+    
+    // Obtener CSRF token
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+    
+    const csrftoken = getCookie('csrftoken');
+    
+    // Formatear números CLP
+    function formatCLP(value) {
+        return new Intl.NumberFormat('es-CL', {
+            style: 'currency',
+            currency: 'CLP',
+            minimumFractionDigits: 0
+        }).format(value);
+    }
+    
+    // Cargar contratos para el select
+    async function cargarContratos() {
+        try {
+            const response = await fetch('/remuneraciones/api/contratos/');
+            const contratos = await response.json();
+            
+            const select = document.getElementById('contratoSelect');
+            select.innerHTML = '<option value="">-- Seleccione un contrato --</option>';
+            
+            contratos.forEach(cont => {
+                if (cont.activo) {
+                    select.innerHTML += `<option value="${cont.id}">${cont.empleado_nombre} - $${cont.sueldo_base.toLocaleString()}</option>`;
+                }
+            });
+        } catch (error) {
+            console.error('Error cargando contratos:', error);
+        }
+    }
+    
+    // Cargar listado de liquidaciones
+    async function cargarLiquidaciones() {
+        try {
+            const response = await fetch('/remuneraciones/api/liquidaciones/');
+            const liquidaciones = await response.json();
+            
+            const tbody = document.getElementById('tablaLiquidaciones');
+            tbody.innerHTML = '';
+            
+            if (liquidaciones.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" class="text-center">No hay liquidaciones registradas</td></tr>';
+                return;
+            }
+            
+            liquidaciones.forEach(liq => {
+                const row = tbody.insertRow();
+                row.innerHTML = `
+                    <td>${liq.periodo}</td>
+                    <td>${liq.empleado_nombre}</td>
+                    <td>${liq.empleado_rut}</td>
+                    <td class="text-end">${formatCLP(liq.total_haberes)}</td>
+                    <td class="text-end">${formatCLP(liq.total_descuentos)}</td>
+                    <td class="text-end fw-bold text-success">${formatCLP(liq.liquido_pagar)}</td>
+                    <td>
+                        <button class="btn btn-sm btn-info" onclick="verDetalle(${liq.id})">
+                            <i class="fas fa-eye"></i> Ver
+                        </button>
+                    </td>
+                `;
+            });
+            
+            if (window.liquidacionesDataTable) {
+                window.liquidacionesDataTable.destroy();
+            }
+            window.liquidacionesDataTable = $('#liquidacionesTable').DataTable({
+                order: [[0, 'desc']],
+                language: { url: '//cdn.datatables.net/plug-ins/1.13.4/i18n/es-ES.json' }
+            });
+        } catch (error) {
+            console.error('Error cargando liquidaciones:', error);
+        }
+    }
+    
+    // Previsualizar liquidación
+    document.getElementById('btnPrevisualizar')?.addEventListener('click', async function() {
+        const contratoId = document.getElementById('contratoSelect').value;
+        const bonos = document.getElementById('bonosCal').value;
+        const horasExtra = document.getElementById('horasExtraCal').value;
+        
+        if (!contratoId) {
+            alert('Seleccione un contrato');
+            return;
+        }
+        
+        document.getElementById('loadingPreview').style.display = 'block';
+        document.getElementById('resultadoPrevisualizacion').style.display = 'none';
+        
+        try {
+            const response = await fetch(`/remuneraciones/liquidaciones/calcular/${contratoId}/?bonos=${bonos}&horas_extra=${horasExtra}`);
+            const data = await response.json();
+            
+            const previewContent = document.getElementById('previewContent');
+            previewContent.innerHTML = `
+                <table class="table table-bordered">
+                    <tr class="table-primary">
+                        <th colspan="2">HABERES</th>
+                    </tr>
+                    <tr>
+                        <td>Sueldo Base</td>
+                        <td class="text-end">${formatCLP(data.sueldo_base)}</td>
+                    </tr>
+                    <tr>
+                        <td>Horas Extra</td>
+                        <td class="text-end">${formatCLP(data.horas_extra)}</td>
+                    </tr>
+                    <tr>
+                        <td>Gratificación (25%)</td>
+                        <td class="text-end">${formatCLP(data.gratificacion)}</td>
+                    </tr>
+                    <tr class="table-secondary">
+                        <td><strong>Total Imponible</strong></td>
+                        <td class="text-end"><strong>${formatCLP(data.imponible)}</strong></td>
+                    </tr>
+                    <tr class="table-danger">
+                        <th colspan="2">DESCUENTOS</th>
+                    </tr>
+                    <tr>
+                        <td>AFP</td>
+                        <td class="text-end">${formatCLP(data.afp)}</td>
+                    </tr>
+                    <tr>
+                        <td>Salud (7%)</td>
+                        <td class="text-end">${formatCLP(data.salud)}</td>
+                    </tr>
+                    <tr>
+                        <td>AFC (0.6%)</td>
+                        <td class="text-end">${formatCLP(data.afc)}</td>
+                    </tr>
+                    <tr>
+                        <td>Impuesto Único</td>
+                        <td class="text-end">${formatCLP(data.impuesto)}</td>
+                    </tr>
+                    <tr class="table-success">
+                        <td><strong>Líquido a Pagar</strong></td>
+                        <td class="text-end"><strong>${formatCLP(data.liquido)}</strong></td>
+                    </tr>
+                </table>
+            `;
+            
+            contratoSeleccionado = contratoId;
+            document.getElementById('resultadoPrevisualizacion').style.display = 'block';
+        } catch (error) {
+            alert('Error al calcular: ' + error);
+        } finally {
+            document.getElementById('loadingPreview').style.display = 'none';
+        }
+    });
+    
+    // Guardar liquidación
+    document.getElementById('btnGuardarLiquidacion')?.addEventListener('click', async function() {
+        const periodo = document.getElementById('periodoCal').value;
+        const bonos = document.getElementById('bonosCal').value;
+        const horasExtra = document.getElementById('horasExtraCal').value;
+        
+        if (!periodo) {
+            alert('Seleccione un período');
+            return;
+        }
+        
+        const formData = new FormData();
+        formData.append('periodo', periodo);
+        formData.append('bonos', bonos);
+        formData.append('horas_extra', horasExtra);
+        
+        try {
+            const response = await fetch(`/remuneraciones/liquidaciones/guardar/${contratoSeleccionado}/`, {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-CSRFToken': csrftoken
+                }
+            });
+            
+            const result = await response.json();
+            if (result.success) {
+                alert('✅ Liquidación guardada correctamente');
+                location.reload();
+            } else {
+                alert('❌ Error: ' + result.error);
+            }
+        } catch (error) {
+            alert('Error al guardar: ' + error);
+        }
+    });
+    
+    // Generación masiva
+    document.getElementById('btnEjecutarMasivo')?.addEventListener('click', async function() {
+        const periodo = document.getElementById('periodoMasivo').value;
+        const bonos = document.getElementById('bonosMasivo').value;
+        const horasExtra = document.getElementById('horasExtraMasivo').value;
+        
+        if (!periodo) {
+            alert('Seleccione un período');
+            return;
+        }
+        
+        const formData = new FormData();
+        formData.append('periodo', periodo);
+        formData.append('bonos_generales', bonos);
+        formData.append('horas_extra_generales', horasExtra);
+        
+        try {
+            const response = await fetch('/remuneraciones/liquidaciones/generar_periodo/', {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-CSRFToken': csrftoken
+                }
+            });
+            
+            const result = await response.json();
+            
+            const masivoContent = document.getElementById('masivoContent');
+            masivoContent.innerHTML = `
+                <h5>Período: ${result.periodo}</h5>
+                <div class="alert alert-success">
+                    <strong>✅ Exitosas:</strong> ${result.liquidaciones_creadas.length}
+                </div>
+                <div class="alert alert-warning">
+                    <strong>❌ Errores:</strong> ${result.errores.length}
+                </div>
+                <table class="table table-sm">
+                    <thead>
+                        <tr><th>Empleado</th><th>Líquido a Pagar</th></tr>
+                    </thead>
+                    <tbody>
+                        ${result.liquidaciones_creadas.map(l => `<tr><td>${l.empleado}</td><td class="text-end">${formatCLP(l.liquido_pagar)}</td></tr>`).join('')}
+                    </tbody>
+                </table>
+            `;
+            
+            document.getElementById('resultadoMasivo').style.display = 'block';
+            cargarLiquidaciones();
+        } catch (error) {
+            alert('Error: ' + error);
+        }
+    });
+    
+    // Cargar resumen mensual
+    document.getElementById('btnCargarResumen')?.addEventListener('click', async function() {
+        const periodo = document.getElementById('periodoResumen').value;
+        
+        try {
+            const response = await fetch(`/remuneraciones/liquidaciones/resumen/?periodo=${periodo}`);
+            const data = await response.json();
+            
+            if (response.status === 404) {
+                document.getElementById('resumenContent').innerHTML = `
+                    <div class="alert alert-warning">No hay liquidaciones para el período ${periodo}</div>
+                `;
+            } else {
+                const conceptosHtml = Object.entries(data.totales_por_concepto).map(([key, value]) => `
+                    <tr>
+                        <td>${value.nombre}</td>
+                        <td class="text-end">${formatCLP(value.total)}</td>
+                    </tr>
+                `).join('');
+                
+                document.getElementById('resumenContent').innerHTML = `
+                    <h4>Período: ${data.periodo}</h4>
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <div class="alert alert-info">
+                                <strong>Total Haberes</strong><br>
+                                ${formatCLP(data.totales_generales.total_haberes)}
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="alert alert-warning">
+                                <strong>Total Descuentos</strong><br>
+                                ${formatCLP(data.totales_generales.total_descuentos)}
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="alert alert-success">
+                                <strong>Total Líquido</strong><br>
+                                ${formatCLP(data.totales_generales.total_liquido)}
+                            </div>
+                        </div>
+                    </div>
+                    <h5>Detalle por Concepto</h5>
+                    <table class="table table-striped">
+                        <thead><tr><th>Concepto</th><th>Total</th></tr></thead>
+                        <tbody>${conceptosHtml}</tbody>
+                    </table>
+                `;
+            }
+            
+            document.getElementById('resultadoResumen').style.display = 'block';
+        } catch (error) {
+            alert('Error: ' + error);
+        }
+    });
+    
+    function verDetalle(id) {
+        window.open(`/remuneraciones/liquidaciones/detalle/${id}/`, '_blank');
+    }
+    
+    // Inicializar
+    cargarContratos();
+    cargarLiquidaciones();
+</script>
+{% endblock %}

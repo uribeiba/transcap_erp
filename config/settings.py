@@ -72,6 +72,11 @@ INSTALLED_APPS = [
     "centro_comercio",
     "servicios",
     "edp",
+    'remuneraciones',
+    'facturacion',
+    'gastos',
+    'dashboard',
+    'compras',
 ]
 
 MIDDLEWARE = [
@@ -105,7 +110,6 @@ TEMPLATES = [
 
 WSGI_APPLICATION = "config.wsgi.application"
 
-
 # =========================
 # Database
 # =========================
@@ -126,8 +130,10 @@ if DB_ENGINE == "sqlite":
     DATABASES = {
         "default": {
             "ENGINE": "django.db.backends.sqlite3",
-            # Queda en /.../transcap_erp/config/db.sqlite3
             "NAME": BASE_DIR / "db.sqlite3",
+            "OPTIONS": {
+                "timeout": 20,  # Solo para SQLite
+            },
         }
     }
 else:
@@ -139,6 +145,16 @@ else:
             "PASSWORD": os.getenv("DB_PASS", ""),
             "HOST": os.getenv("DB_HOST", "127.0.0.1"),
             "PORT": os.getenv("DB_PORT", "5432"),
+            # Configuraciones para PostgreSQL
+            "OPTIONS": {
+                "connect_timeout": 10,
+                "keepalives": 1,
+                "keepalives_idle": 30,
+                "keepalives_interval": 10,
+                "keepalives_count": 5,
+            },
+            # Aumentar el pool de conexiones
+            "CONN_MAX_AGE": 60,
         }
     }
 
@@ -191,3 +207,10 @@ MEDIA_ROOT = BASE_DIR / "media"
 # =========================
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+# =========================
+# Folio inicial para facturas
+# Ejemplo: si en Kame la última factura fue 1250, ponemos 1251
+# =========================
+
+FOLIO_INICIAL_FACTURA = 1251

@@ -1,0 +1,207 @@
+{% extends "remuneraciones/base_remuneraciones.html" %}
+{% load humanize %}
+
+{% block title %}Detalle Liquidación {{ liquidacion.periodo }} - {{ liquidacion.empleado.nombre_completo }}{% endblock %}
+{% block page_title %}Detalle de Liquidación{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">
+                    <i class="fas fa-file-invoice-dollar"></i> 
+                    Liquidación {{ liquidacion.periodo }} - {{ liquidacion.empleado.nombre_completo }}
+                </h5>
+                <div>
+                    <button class="btn btn-light btn-sm" onclick="window.print()">
+                        <i class="fas fa-print"></i> Imprimir
+                    </button>
+                    <button class="btn btn-light btn-sm" onclick="window.close()">
+                        <i class="fas fa-times"></i> Cerrar
+                    </button>
+                </div>
+            </div>
+            <div class="card-body">
+                
+                <!-- Datos del Empleado -->
+                <div class="row mb-4">
+                    <div class="col-md-6">
+                        <div class="card bg-light">
+                            <div class="card-body">
+                                <h6><i class="fas fa-user"></i> Datos del Empleado</h6>
+                                <hr>
+                                <table class="table table-sm table-borderless">
+                                    <tr>
+                                        <th width="40%">Nombre:</th>
+                                        <td>{{ liquidacion.empleado.nombre_completo }}</td>
+                                    </tr>
+                                    <tr>
+                                        <th>RUT:</th>
+                                        <td>{{ liquidacion.empleado.rut }}</td>
+                                    </tr>
+                                    <tr>
+                                        <th>Cargo:</th>
+                                        <td>{{ liquidacion.empleado.cargo|default:"-" }}</td>
+                                    </tr>
+                                    <tr>
+                                        <th>Área:</th>
+                                        <td>{{ liquidacion.empleado.area|default:"-" }}</td>
+                                    </tr>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="card bg-light">
+                            <div class="card-body">
+                                <h6><i class="fas fa-file-contract"></i> Datos del Contrato</h6>
+                                <hr>
+                                <table class="table table-sm table-borderless">
+                                    <tr>
+                                        <th width="40%">Sueldo Base:</th>
+                                        <td class="text-end">${{ liquidacion.contrato.sueldo_base|floatformat:0|default:"0"|intcomma }}</td>
+                                    </tr>
+                                    <tr>
+                                        <th>Tipo Jornada:</th>
+                                        <td>{{ liquidacion.contrato.tipo_jornada|default:"-" }}</td>
+                                    </tr>
+                                    <tr>
+                                        <th>AFP:</th>
+                                        <td>{{ liquidacion.contrato.afp.nombre|default:"-" }}</td>
+                                    </tr>
+                                    <tr>
+                                        <th>Salud:</th>
+                                        <td>{{ liquidacion.contrato.salud.nombre|default:"-" }}</td>
+                                    </tr>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Detalle de Haberes y Descuentos -->
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="card">
+                            <div class="card-header bg-success text-white">
+                                <i class="fas fa-plus-circle"></i> HABERES
+                            </div>
+                            <div class="card-body">
+                                <table class="table table-bordered">
+                                    <thead>
+                                        <tr class="table-success">
+                                            <th>Concepto</th>
+                                            <th class="text-end">Monto</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for detalle in detalles %}
+                                            {% if detalle.concepto.tipo == 'HABER_IMPONIBLE' or detalle.concepto.tipo == 'HABER_NO_IMPONIBLE' %}
+                                            <tr>
+                                                <td>{{ detalle.concepto.nombre }}</td>
+                                                <td class="text-end">${{ detalle.monto|floatformat:0|intcomma }}</td>
+                                            </tr>
+                                            {% endif %}
+                                        {% endfor %}
+                                        <tr class="table-secondary">
+                                            <th>Total Haberes</th>
+                                            <th class="text-end">${{ liquidacion.total_haberes|floatformat:0|intcomma }}</th>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <div class="card">
+                            <div class="card-header bg-danger text-white">
+                                <i class="fas fa-minus-circle"></i> DESCUENTOS
+                            </div>
+                            <div class="card-body">
+                                <table class="table table-bordered">
+                                    <thead>
+                                        <tr class="table-danger">
+                                            <th>Concepto</th>
+                                            <th class="text-end">Monto</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for detalle in detalles %}
+                                            {% if detalle.concepto.tipo == 'DESCUENTO' %}
+                                            <tr>
+                                                <td>{{ detalle.concepto.nombre }}</td>
+                                                <td class="text-end">${{ detalle.monto|floatformat:0|intcomma }}</td>
+                                            </tr>
+                                            {% endif %}
+                                        {% endfor %}
+                                        <tr class="table-secondary">
+                                            <th>Total Descuentos</th>
+                                            <th class="text-end">${{ liquidacion.total_descuentos|floatformat:0|intcomma }}</th>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Total Líquido a Pagar -->
+                <div class="row mt-4">
+                    <div class="col-md-12">
+                        <div class="alert alert-success text-center">
+                            <h4>
+                                <i class="fas fa-money-bill-wave"></i> 
+                                LÍQUIDO A PAGAR: 
+                                <strong>${{ liquidacion.liquido_pagar|floatformat:0|intcomma }}</strong>
+                            </h4>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Firma -->
+                <div class="row mt-5">
+                    <div class="col-md-6 text-center">
+                        <hr>
+                        <small>Firma Empleado</small>
+                    </div>
+                    <div class="col-md-6 text-center">
+                        <hr>
+                        <small>Firma Empleador</small>
+                    </div>
+                </div>
+                
+                <div class="row mt-3">
+                    <div class="col-md-12 text-center">
+                        <small class="text-muted">
+                            Documento generado el {{ liquidacion.created_at|date:"d/m/Y H:i:s" }} - 
+                            Liquidación de Sueldo correspondiente al período {{ liquidacion.periodo }}
+                        </small>
+                    </div>
+                </div>
+                
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    @media print {
+        .btn, .sidebar, .main-header, .navbar, .main-footer {
+            display: none !important;
+        }
+        .card-header {
+            background-color: #f8f9fa !important;
+            color: black !important;
+        }
+        body {
+            margin: 0;
+            padding: 0;
+        }
+        .content-wrapper {
+            margin-left: 0 !important;
+        }
+    }
+</style>
+{% endblock %}

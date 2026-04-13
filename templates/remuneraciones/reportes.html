@@ -1,0 +1,170 @@
+<!-- templates/remuneraciones/reportes.html -->
+{% extends "remuneraciones/base_remuneraciones.html" %}
+{% load humanize %}
+
+{% block title %}Reportes - Remuneraciones{% endblock %}
+{% block page_title %}Generación de Reportes{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <i class="fas fa-file-alt"></i> Generar Reportes
+            </div>
+            <div class="card-body">
+                <form id="reporteForm" method="get">
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label class="form-label">Período</label>
+                                <input type="month" id="periodo" name="periodo" class="form-control" required>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label class="form-label">RUT Empresa</label>
+                                <input type="text" id="rut_empresa" name="rut_empresa" class="form-control" value="76.123.456-7">
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label class="form-label">Razón Social</label>
+                                <input type="text" id="razon_social" name="razon_social" class="form-control" value="TRANSCAP SPA">
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-3">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header bg-success text-white">
+                <i class="fas fa-chart-line"></i> Reportes Previred
+            </div>
+            <div class="card-body">
+                <div class="list-group">
+                    <button class="list-group-item list-group-item-action" onclick="generarReporte('previred')">
+                        <i class="fas fa-file-alt"></i> Archivo Previred
+                        <small class="text-muted d-block">Formato para declaración de remuneraciones</small>
+                    </button>
+                    <button class="list-group-item list-group-item-action" onclick="generarReporte('cotizaciones')">
+                        <i class="fas fa-file-invoice-dollar"></i> Cotizaciones Previred
+                        <small class="text-muted d-block">AFP, Salud, AFC, Seguro Cesantía</small>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header bg-info text-white">
+                <i class="fas fa-book"></i> Libros y Anexos
+            </div>
+            <div class="card-body">
+                <div class="list-group">
+                    <button class="list-group-item list-group-item-action" onclick="generarReporte('libro')">
+                        <i class="fas fa-book"></i> Libro de Remuneraciones
+                        <small class="text-muted d-block">Formato Excel (CSV) con detalle de empleados</small>
+                    </button>
+                    <button class="list-group-item list-group-item-action" onclick="generarReporte('anexo')">
+                        <i class="fas fa-file-contract"></i> Anexo SII
+                        <small class="text-muted d-block">Para declaración jurada</small>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-3">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header bg-warning text-white">
+                <i class="fas fa-chart-pie"></i> Reportes Ejecutivos
+            </div>
+            <div class="card-body">
+                <div class="list-group">
+                    <button class="list-group-item list-group-item-action" onclick="generarReporte('resumen')">
+                        <i class="fas fa-chart-bar"></i> Resumen Ejecutivo
+                        <small class="text-muted d-block">Estadísticas y totales del período</small>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-3">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header bg-secondary text-white">
+                <i class="fas fa-history"></i> Reportes SII
+            </div>
+            <div class="card-body">
+                <div class="list-group">
+                    <button class="list-group-item list-group-item-action" onclick="generarReporte('dj1847')">
+                        <i class="fas fa-file-invoice"></i> DJ 1847 - Honorarios
+                        <small class="text-muted d-block">Declaración de honorarios para el SII</small>
+                    </button>
+                    <button class="list-group-item list-group-item-action" onclick="generarReporte('dj1879')">
+                        <i class="fas fa-file-invoice-dollar"></i> DJ 1879 - Liquidaciones
+                        <small class="text-muted d-block">Detalle de liquidaciones para el SII</small>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Establecer período actual
+    document.getElementById('periodo').value = new Date().toISOString().slice(0, 7);
+    
+    function generarReporte(tipo) {
+        const periodo = document.getElementById('periodo').value;
+        const rutEmpresa = document.getElementById('rut_empresa').value;
+        const razonSocial = document.getElementById('razon_social').value;
+        
+        if (!periodo) {
+            alert('Seleccione un período');
+            return;
+        }
+        
+        let url = '';
+        
+        switch(tipo) {
+            case 'previred':
+                url = `/remuneraciones/reportes/previred/?periodo=${periodo}&rut_empresa=${rutEmpresa}&razon_social=${encodeURIComponent(razonSocial)}`;
+                break;
+            case 'cotizaciones':
+                url = `/remuneraciones/reportes/cotizaciones/?periodo=${periodo}&rut_empresa=${rutEmpresa}&razon_social=${encodeURIComponent(razonSocial)}`;
+                break;
+            case 'libro':
+                url = `/remuneraciones/reportes/libro/?periodo=${periodo}&rut_empresa=${rutEmpresa}&razon_social=${encodeURIComponent(razonSocial)}`;
+                break;
+            case 'anexo':
+                url = `/remuneraciones/reportes/anexo/?periodo=${periodo}&rut_empresa=${rutEmpresa}&razon_social=${encodeURIComponent(razonSocial)}`;
+                break;
+            case 'resumen':
+                url = `/remuneraciones/reportes/resumen/?periodo=${periodo}&rut_empresa=${rutEmpresa}&razon_social=${encodeURIComponent(razonSocial)}`;
+                break;
+            case 'dj1847':
+                url = `/remuneraciones/exportar/dj1847/?periodo=${periodo}`;
+                break;
+            case 'dj1879':
+                url = `/remuneraciones/exportar/dj1879/?periodo=${periodo}`;
+                break;
+        }
+        
+        if (url) {
+            window.open(url, '_blank');
+        }
+    }
+</script>
+{% endblock %}

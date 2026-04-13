@@ -1,45 +1,342 @@
 {% extends "layout/base.html" %}
-{% block title %}EDP{% endblock %}
-{% block page_title %}EDP{% endblock %}
+{% load humanize %}
+{% load edp_filters %}
+{% block title %}EDP - Estado de Pago{% endblock %}
+{% block page_title %}EDP - Estado de Pago{% endblock %}
+
+{% block extra_css %}
+<style>
+    .badge-estado {
+        padding: 5px 10px;
+        border-radius: 20px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        display: inline-block;
+        min-width: 90px;
+        text-align: center;
+    }
+    .estado-borrador {
+        background-color: #ffc107;
+        color: #333;
+    }
+    .estado-proceso {
+        background-color: #17a2b8;
+        color: white;
+    }
+    .estado-pagado {
+        background-color: #28a745;
+        color: white;
+    }
+    .estado-anulado {
+        background-color: #dc3545;
+        color: white;
+    }
+    .filtros-panel {
+        background-color: #f8f9fa;
+        border-radius: 0.5rem;
+        padding: 0.75rem;
+        margin-bottom: 1rem;
+    }
+    .total-pagado {
+        font-size: 0.8rem;
+        color: #28a745;
+    }
+    .saldo-pendiente {
+        font-size: 0.8rem;
+        color: #dc3545;
+    }
+    .table-edp tbody tr {
+        transition: background-color 0.2s ease;
+    }
+    .table-edp tbody tr:hover {
+        background-color: rgba(0, 123, 255, 0.05);
+    }
+</style>
+{% endblock %}
 
 {% block content %}
-<div class="card">
-  <div class="card-body">
-    <div class="d-flex justify-content-between align-items-center">
-      <h5 class="mb-0">EDP</h5>
-      <a class="btn btn-success" href="{% url 'edp:wizard_new' %}">
-        + Nuevo EDP
-      </a>
-    </div>
-    <hr>
+<div class="card shadow-sm">
+    <div class="card-body">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <div>
+                <h5 class="mb-0">
+                    <i class="fas fa-file-invoice-dollar text-primary mr-2"></i>
+                    Estado de Pago (EDP)
+                </h5>
+                <small class="text-muted">Documentos de pago a transportistas</small>
+            </div>
+            <a class="btn btn-success" href="{% url 'edp:wizard_new' %}">
+                <i class="fas fa-plus mr-1"></i> Nuevo EDP
+            </a>
+        </div>
+        <hr>
 
-    <table class="table table-sm table-hover">
-      <thead>
-        <tr>
-          <th>Código</th>
-          <th>Fecha</th>
-          <th>Estado</th>
-          <th class="text-right">Total</th>
-          <th></th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for e in edps %}
-          <tr>
-            <td><strong>{{ e.codigo }}</strong></td>
-            <td>{{ e.fecha_pago|date:"d/m/Y" }}</td>
-            <td>{{ e.get_estado_display }}</td>
-            <td class="text-right">$ {{ e.total }}</td>
-            <td class="text-right">
-              <a class="btn btn-sm btn-primary" href="{% url 'edp:wizard' e.id 'edp' %}">Abrir</a>
-              <a class="btn btn-sm btn-outline-secondary" href="{% url 'edp:detalle' e.id %}">Detalle</a>
-            </td>
-          </tr>
-        {% empty %}
-          <tr><td colspan="5" class="text-center text-muted py-4">Sin EDP aún.</td></tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
+        <!-- Filtros -->
+        <div class="filtros-panel">
+            <div class="row">
+                <div class="col-md-3 mb-2">
+                    <label class="small text-muted mb-1">Filtrar por estado</label>
+                    <select id="filtroEstado" class="form-control form-control-sm">
+                        <option value="">Todos</option>
+                        <option value="BORR">Borrador</option>
+                        <option value="PROC">En proceso</option>
+                        <option value="PAGA">Pagado</option>
+                        <option value="ANUL">Anulado</option>
+                    </select>
+                </div>
+                <div class="col-md-4 mb-2">
+                    <label class="small text-muted mb-1">Buscar por código</label>
+                    <div class="input-group input-group-sm">
+                        <input type="text" id="buscarCodigo" class="form-control" placeholder="EDP_001, EDP_002...">
+                        <div class="input-group-append">
+                            <button id="btnFiltrar" class="btn btn-secondary" type="button">
+                                <i class="fas fa-search"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-5 text-right">
+                    <small class="text-muted">
+                        <i class="fas fa-info-circle"></i> 
+                        Total EDPs: {{ edps|length }}
+                    </small>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tabla de EDPs -->
+        <div class="table-responsive">
+            <table class="table table-sm table-hover table-edp" id="tablaEdp">
+                <thead class="thead-light">
+                    <tr>
+                        <th style="width: 15%">Código</th>
+                        <th style="width: 12%">Fecha creación</th>
+                        <th style="width: 20%">Cliente</th>
+                        <th style="width: 12%">Estado</th>
+                        <th style="width: 15%" class="text-right">Total</th>
+                        <th style="width: 15%" class="text-right">Pagado</th>
+                        <th style="width: 11%" class="text-center">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for e in edps %}
+                    <tr data-estado="{{ e.estado }}" data-codigo="{{ e.codigo|lower }}">
+                        <td>
+                            <strong>{{ e.codigo }}</strong>
+                            <br>
+                            <small class="text-muted">ID: {{ e.id }}</small>
+                        </td>
+                        <td>
+                            {{ e.created_at|date:"d/m/Y" }}
+                            <br>
+                            <small class="text-muted">{{ e.created_at|date:"H:i" }}</small>
+                        </td>
+                        <td>
+                            <div>{{ e.razon_social_pdf|default:"-" }}</div>
+                            <small class="text-muted">{{ e.rut_pdf|default:"" }}</small>
+                        </td>
+                        <td>
+                            <span class="badge-estado 
+                                {% if e.estado == 'BORR' %}estado-borrador
+                                {% elif e.estado == 'PROC' %}estado-proceso
+                                {% elif e.estado == 'PAGA' %}estado-pagado
+                                {% else %}estado-anulado{% endif %}">
+                                {{ e.get_estado_display }}
+                            </span>
+                        </td>
+                        <td class="text-right">
+                            <strong>$ {{ e.total|floatformat:0|intcomma }}</strong>
+                        </td>
+                        <td class="text-right">
+                            {% with total_pagado=e.pagos.all|sum_attribute:"monto" %}
+                                <span class="total-pagado">$ {{ total_pagado|floatformat:0|intcomma }}</span>
+                                <br>
+                                <small class="saldo-pendiente">
+                                    Saldo: $ {{ e.total|add:total_pagado|negative|floatformat:0|intcomma }}
+                                </small>
+                            {% endwith %}
+                        </td>
+                        <td class="text-center">
+                            <div class="btn-group btn-group-sm" role="group">
+                                <a class="btn btn-outline-primary" href="{% url 'edp:wizard' e.id 'edp' %}" title="Editar">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                                <a class="btn btn-outline-info" href="{% url 'edp:detalle' e.id %}" title="Ver detalle">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                                <a class="btn btn-outline-danger" href="{% url 'edp:pdf' e.id %}" target="_blank" title="Generar PDF">
+                                    <i class="fas fa-file-pdf"></i>
+                                </a>
+                                <button type="button" class="btn btn-outline-danger btn-eliminar" data-id="{{ e.id }}" data-codigo="{{ e.codigo }}" title="Eliminar">
+                                    <i class="fas fa-trash-alt"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="7" class="text-center py-5">
+                            <i class="fas fa-file-invoice fa-3x text-muted mb-3 d-block"></i>
+                            <em class="text-muted">No hay EDP registrados.</em>
+                            <div class="mt-2">
+                                <a href="{% url 'edp:wizard_new' %}" class="btn btn-sm btn-success">
+                                    <i class="fas fa-plus"></i> Crear primer EDP
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Resumen de totales -->
+        {% if edps %}
+        <hr>
+        <div class="row">
+            <div class="col-md-12">
+                <div class="d-flex justify-content-end">
+                    <div class="mr-4">
+                        <small class="text-muted">Total documentos:</small>
+                        <strong>{{ edps|length }}</strong>
+                    </div>
+                    <div class="mr-4">
+                        <small class="text-muted">Total general:</small>
+                        <strong>$ {{ edps|sum_attribute:"total"|floatformat:0|intcomma }}</strong>
+                    </div>
+                    <div>
+                        <small class="text-muted">Total pagado:</small>
+                        <strong class="text-success">$ {{ edps|sum_attribute:"pagos__monto"|floatformat:0|intcomma }}</strong>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
 </div>
+
+<!-- Modal de confirmación para eliminar -->
+<div class="modal fade" id="modalEliminar" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title">Confirmar eliminación</h5>
+                <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                ¿Estás seguro de que deseas eliminar el EDP <strong id="edpCodigoEliminar"></strong>?
+                <br>
+                <small class="text-danger">Esta acción no se puede deshacer.</small>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-danger" id="confirmarEliminar">Eliminar</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Variables
+        let edpIdAEliminar = null;
+        
+        // Elementos del DOM
+        const filtroEstado = document.getElementById('filtroEstado');
+        const buscarCodigo = document.getElementById('buscarCodigo');
+        const btnFiltrar = document.getElementById('btnFiltrar');
+        const tabla = document.getElementById('tablaEdp');
+        const filas = () => tabla.querySelectorAll('tbody tr:not(.empty-row)');
+        
+        // Función para filtrar
+        function filtrarTabla() {
+            const estadoFiltro = filtroEstado.value;
+            const codigoFiltro = buscarCodigo.value.toLowerCase().trim();
+            
+            filas().forEach(fila => {
+                let mostrar = true;
+                
+                // Filtrar por estado
+                if (estadoFiltro && fila.dataset.estado !== estadoFiltro) {
+                    mostrar = false;
+                }
+                
+                // Filtrar por código
+                if (codigoFiltro && fila.dataset.codigo && !fila.dataset.codigo.includes(codigoFiltro)) {
+                    mostrar = false;
+                }
+                
+                fila.style.display = mostrar ? '' : 'none';
+            });
+            
+            // Mostrar mensaje si no hay resultados
+            const filasVisibles = Array.from(filas()).filter(f => f.style.display !== 'none');
+            let mensajeExistente = document.querySelector('#mensajeSinResultados');
+            
+            if (filasVisibles.length === 0 && !mensajeExistente) {
+                const tr = document.createElement('tr');
+                tr.id = 'mensajeSinResultados';
+                tr.innerHTML = '<td colspan="7" class="text-center py-4 text-muted">No hay EDP que coincidan con los filtros.</td>';
+                tabla.querySelector('tbody').appendChild(tr);
+            } else if (filasVisibles.length > 0 && mensajeExistente) {
+                mensajeExistente.remove();
+            }
+        }
+        
+        // Eventos de filtrado
+        if (btnFiltrar) btnFiltrar.addEventListener('click', filtrarTabla);
+        if (filtroEstado) filtroEstado.addEventListener('change', filtrarTabla);
+        if (buscarCodigo) {
+            buscarCodigo.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') filtrarTabla();
+            });
+        }
+        
+        // Eliminar EDP con confirmación
+        const csrfToken = document.querySelector('input[name="csrfmiddlewaretoken"]')?.value || '';
+        
+        // Delegación de eventos para botones de eliminar
+        document.querySelectorAll('.btn-eliminar').forEach(btn => {
+            btn.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                edpIdAEliminar = this.getAttribute('data-id');
+                const codigo = this.getAttribute('data-codigo');
+                document.getElementById('edpCodigoEliminar').textContent = codigo;
+                $('#modalEliminar').modal('show');
+            });
+        });
+        
+        // Confirmar eliminación
+        document.getElementById('confirmarEliminar').addEventListener('click', function() {
+            if (edpIdAEliminar) {
+                fetch(`/edp/${edpIdAEliminar}/eliminar/`, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': csrfToken,
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.ok) {
+                        $('#modalEliminar').modal('hide');
+                        location.reload();
+                    } else {
+                        alert('Error al eliminar el EDP');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Error de conexión');
+                });
+            }
+        });
+    });
+</script>
 {% endblock %}

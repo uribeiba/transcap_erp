@@ -1,0 +1,43 @@
+{% extends "layout/base.html" %}
+{% block title %}Reporte de Guías{% endblock %}
+{% block page_title %}📄 Reporte de Guías de Despacho{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <form method="get" class="row">
+            <div class="col-md-3"><input type="date" name="fecha_desde" value="{{ fecha_desde }}" class="form-control" placeholder="Fecha desde"></div>
+            <div class="col-md-3"><input type="date" name="fecha_hasta" value="{{ fecha_hasta }}" class="form-control" placeholder="Fecha hasta"></div>
+            <div class="col-md-2"><button type="submit" class="btn btn-primary">Filtrar</button></div>
+            <div class="col-md-2"><a href="{% url 'bitacora:reporte_guias' %}" class="btn btn-secondary">Limpiar</a></div>
+        </form>
+    </div>
+    <div class="card-body table-responsive">
+        <table class="table table-bordered table-hover">
+            <thead class="thead-light">
+                <tr><th>Nº Guía</th><th>OC/EDP</th><th>Fecha</th><th>Cliente</th><th>Origen</th><th>Destino</th><th>Factura</th></tr>
+            </thead>
+            <tbody>
+                {% for guia in guias %}
+                <tr>
+                    <td>{{ guia.nro_guia }}</td>
+                    <td>{{ guia.oc_edp|default:"-" }}</td>
+                    <td>{{ guia.fecha|date:"d/m/Y" }}</td>
+                    <td>{{ guia.cliente }}</td>
+                    <td>{{ guia.origen|default:"-" }}</td>
+                    <td>{{ guia.destino|default:"-" }}</td>
+                    <td>
+                        {% if guia.factura_id %}
+                            <a href="{% url 'facturacion:detalle' guia.factura_id %}" class="btn btn-sm btn-info">Factura N° {{ guia.factura_folio }}</a>
+                        {% else %}
+                            <span class="badge badge-secondary">Sin facturar</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="7">No hay guías en el rango seleccionado.{% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

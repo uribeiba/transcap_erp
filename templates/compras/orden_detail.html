@@ -1,0 +1,89 @@
+{% extends "layout/base.html" %}
+
+{% block title %}Orden {{ orden.numero }}{% endblock %}
+{% block page_title %}📄 Orden de Compra {{ orden.numero }}{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-12">
+        <div class="card card-primary card-outline">
+            <div class="card-header">
+                <h3 class="card-title">Información de la orden</h3>
+                <div class="card-tools">
+                    <a href="{% url 'compras:orden_editar' orden.pk %}" class="btn btn-warning btn-sm">
+                        <i class="fas fa-edit"></i> Editar
+                    </a>
+                    <a href="{% url 'compras:ordenes' %}" class="btn btn-secondary btn-sm">
+                        <i class="fas fa-arrow-left"></i> Volver
+                    </a>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <table class="table table-sm table-bordered">
+                            <tr><th>Nº Orden</th><td>{{ orden.numero }}</td></tr>
+                            <tr><th>Fecha</th><td>{{ orden.fecha|date:"d/m/Y" }}</td></tr>
+                            <tr><th>Proveedor</th><td>{{ orden.proveedor.razon_social }} ({{ orden.proveedor.rut }})</td></tr>
+                            <tr><th>Estado</th>
+                                <td>
+                                    {% if orden.estado == 'BOR' %}
+                                        <span class="badge badge-secondary">Borrador</span>
+                                    {% elif orden.estado == 'ENV' %}
+                                        <span class="badge badge-primary">Enviada</span>
+                                    {% elif orden.estado == 'PAR' %}
+                                        <span class="badge badge-warning">Recibida parcial</span>
+                                    {% elif orden.estado == 'TOT' %}
+                                        <span class="badge badge-success">Recibida total</span>
+                                    {% elif orden.estado == 'ANU' %}
+                                        <span class="badge badge-danger">Anulada</span>
+                                    {% endif %}
+                                 </td>
+                             </tr>
+                            <tr><th>Creado por</th><td>{{ orden.creado_por|default:"-" }}</td></tr>
+                            <tr><th>Creado el</th><td>{{ orden.creado_el|date:"d/m/Y H:i" }}</td></tr>
+                         </table>
+                    </div>
+                    <div class="col-md-6">
+                        <table class="table table-sm table-bordered">
+                            <tr><th>Observaciones</th><td>{{ orden.observaciones|default:"-" }}</td></tr>
+                         </table>
+                    </div>
+                </div>
+
+                <hr>
+                <h5>Detalle de productos</h5>
+                <div class="table-responsive">
+                    <table class="table table-bordered table-striped">
+                        <thead class="thead-light">
+                            <tr>
+                                <th>Producto</th>
+                                <th>Descripción</th>
+                                <th>Cantidad</th>
+                                <th>Precio Unitario</th>
+                                <th>Total</th>
+                             </tr>
+                        </thead>
+                        <tbody>
+                            {% for detalle in orden.detalles.all %}
+                            <tr>
+                                <td>{{ detalle.producto|default:"-" }}</td>
+                                <td>{{ detalle.descripcion }}</td>
+                                <td>{{ detalle.cantidad|floatformat:2 }}</td>
+                                <td>${{ detalle.precio_unitario|floatformat:0 }}</td>
+                                <td class="text-right">${{ detalle.total|floatformat:0 }}</td>
+                            </tr>
+                            {% empty %}
+                            <tr><td colspan="5" class="text-center">Sin ítems registrados.</td></tr>
+                            {% endfor %}
+                        </tbody>
+                        <tfoot>
+                            <tr><th colspan="4" class="text-right">Total:</th><th class="text-right">${{ orden.total|floatformat:0 }}</th></tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

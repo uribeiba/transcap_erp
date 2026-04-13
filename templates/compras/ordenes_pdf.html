@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Órdenes de Compra</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 2cm; }
+        h1 { text-align: center; color: #048B36; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background-color: #f2f2f2; }
+        .footer { margin-top: 30px; text-align: center; font-size: 12px; color: gray; }
+    </style>
+</head>
+<body>
+    <h1>TRANSCAP ERP - Órdenes de Compra</h1>
+    <p>Generado: {{ fecha_generacion|date:"d/m/Y H:i" }}</p>
+    <table>
+        <thead>
+            <tr>
+                <th>Nº Orden</th><th>Fecha</th><th>Proveedor</th><th>RUT</th><th>Total</th><th>Estado</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for orden in ordenes %}
+            <tr>
+                <td>{{ orden.numero }}</td>
+                <td>{{ orden.fecha|date:"d/m/Y" }}</td>
+                <td>{{ orden.proveedor.razon_social }}</td>
+                <td>{{ orden.proveedor.rut }}</td>
+                <td>${{ orden.total|floatformat:0 }}</td>
+                <td>{{ orden.get_estado_display }}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="6">No hay órdenes registradas.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    <div class="footer">Documento generado por Transcap ERP</div>
+</body>
+</html>

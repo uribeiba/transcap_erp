@@ -1,0 +1,280 @@
+{% load humanize %}
+{% load edp_filters %}
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>EDP {{ edp.codigo }}</title>
+    <style>
+        @page {
+            size: letter;
+            margin: 1.5cm;
+        }
+        body {
+            font-family: 'DejaVu Sans', 'Arial', sans-serif;
+            font-size: 9px;
+            line-height: 1.2;
+            color: #333;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #003366;
+            padding-bottom: 10px;
+        }
+        .empresa-nombre {
+            font-size: 16px;
+            font-weight: bold;
+            color: #003366;
+        }
+        .titulo-documento {
+            font-size: 14px;
+            font-weight: bold;
+            margin-top: 5px;
+        }
+        .info-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 15px;
+            font-size: 9px;
+        }
+        .info-table td {
+            padding: 5px;
+            border: 1px solid #ddd;
+            vertical-align: top;
+        }
+        .info-table td:first-child {
+            width: 20%;
+            background-color: #f5f5f5;
+            font-weight: bold;
+        }
+        .items-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 15px;
+            font-size: 8px;
+        }
+        .items-table th {
+            background-color: #003366;
+            color: white;
+            padding: 5px;
+            text-align: center;
+            font-weight: bold;
+        }
+        .items-table td {
+            border: 1px solid #ddd;
+            padding: 4px;
+        }
+        .items-table .text-right {
+            text-align: right;
+        }
+        .items-table .text-center {
+            text-align: center;
+        }
+        .totales-table {
+            width: 280px;
+            float: right;
+            border-collapse: collapse;
+            margin-top: 15px;
+            font-size: 10px;
+        }
+        .totales-table td {
+            padding: 5px;
+        }
+        .totales-table tr:last-child td {
+            border-top: 2px solid #003366;
+            font-weight: bold;
+            font-size: 12px;
+        }
+        .footer {
+            margin-top: 30px;
+            text-align: center;
+            font-size: 7px;
+            color: #666;
+            border-top: 1px solid #ddd;
+            padding-top: 8px;
+        }
+        .clearfix {
+            clear: both;
+        }
+        .badge-estado {
+            display: inline-block;
+            padding: 2px 6px;
+            border-radius: 10px;
+            font-size: 8px;
+            font-weight: bold;
+        }
+        .estado-borrador { background-color: #ffc107; color: #333; }
+        .estado-proceso { background-color: #17a2b8; color: white; }
+        .estado-pagado { background-color: #28a745; color: white; }
+        .estado-anulado { background-color: #dc3545; color: white; }
+        
+        .items-table tbody tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <div class="empresa-nombre">TRANSCAP ERP</div>
+    <div class="titulo-documento">ESTADO DE PAGO (EDP)</div>
+    <div><strong>{{ edp.codigo }}</strong></div>
+</div>
+
+<!-- Información del cliente -->
+<table class="info-table">
+    <tr>
+        <td>Razón Social:</td>
+        <td><strong>{{ edp.razon_social_pdf|default:"-" }}</strong></td>
+        <td>Fecha de Inicio:</td>
+        <td>{{ edp.fecha_inicio|date:"d/m/Y"|default:"-" }}</td>
+    </tr>
+    <tr>
+        <td>RUT:</td>
+        <td>{{ edp.rut_pdf|default:"-" }}</td>
+        <td>Fecha de Término:</td>
+        <td>{{ edp.fecha_termino|date:"d/m/Y"|default:"-" }}</td>
+    </tr>
+    <tr>
+        <td>Giro:</td>
+        <td>{{ edp.giro_pdf|default:"-" }}</td>
+        <td>Responsable:</td>
+        <td>{{ edp.responsable|default:"-" }}</td>
+    </tr>
+    <tr>
+        <td>Estado:</td>
+        <td colspan="3">
+            <span class="badge-estado 
+                {% if edp.estado == 'BORR' %}estado-borrador
+                {% elif edp.estado == 'PROC' %}estado-proceso
+                {% elif edp.estado == 'PAGA' %}estado-pagado
+                {% else %}estado-anulado{% endif %}">
+                {{ edp.get_estado_display }}
+            </span>
+        </td>
+    </tr>
+    {% if edp.glosa %}
+    <tr>
+        <td>Glosa:</td>
+        <td colspan="3">{{ edp.glosa }}</td>
+    </tr>
+    {% endif %}
+</table>
+
+<!-- Tabla de Fletes/Conductores -->
+<table class="items-table">
+    <thead>
+        <tr>
+            <th>Conductor</th>
+            <th>RUT</th>
+            <th>Tracto</th>
+            <th>Origen</th>
+            <th>Destino</th>
+            <th>N° Guía</th>
+            <th>Fecha Carga</th>
+            <th>Fecha Arribo</th>
+            <th>Fecha Descarga</th>
+            <th>Tarifa</th>
+            <th>Estadía</th>
+            <th>Total</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for item in edp.items.all %}
+        <tr>
+            <td>{{ item.conductor_pdf|default:"-" }}</td>
+            <td class="text-center">{{ item.rut_conductor_pdf|default:"-" }}</td>
+            <td class="text-center">{{ item.tracto_pdf|default:"-" }}</td>
+            <td>{{ item.origen_pdf|default:"-" }}</td>
+            <td>{{ item.destino_pdf|default:"-" }}</td>
+            <td class="text-center">{{ item.numero_guia_pdf|default:"-" }}</td>
+            <td class="text-center">
+                {% if item.fecha_carga_pdf %}
+                    {{ item.fecha_carga_pdf|date:"d/m/Y" }}
+                {% else %}-
+                {% endif %}
+            </td>
+            <td class="text-center">
+                {% if item.fecha_arribo_pdf %}
+                    {{ item.fecha_arribo_pdf|date:"d/m/Y" }}
+                {% else %}-
+                {% endif %}
+            </td>
+            <td class="text-center">
+                {% if item.fecha_descarga_pdf %}
+                    {{ item.fecha_descarga_pdf|date:"d/m/Y" }}
+                {% else %}-
+                {% endif %}
+            </td>
+            <td class="text-right">$ {{ item.tarifa|floatformat:0|intcomma }}</td>
+            <td class="text-right">$ {{ item.estadia|floatformat:0|intcomma }}</td>
+            <td class="text-right">$ {{ item.total_linea|floatformat:0|intcomma }}</td>
+        </tr>
+        {% empty %}
+        <tr>
+            <td colspan="12" class="text-center">No hay servicios asociados</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+    <tfoot style="background-color: #f0f0f0; font-weight: bold;">
+        <tr>
+            <td colspan="9" class="text-right">TOTALES:</td>
+            <td class="text-right">$ {{ edp.items.all|sum_attribute:"tarifa"|floatformat:0|intcomma }}</td>
+            <td class="text-right">$ {{ edp.items.all|sum_attribute:"estadia"|floatformat:0|intcomma }}</td>
+            <td class="text-right">$ {{ edp.neto|floatformat:0|intcomma }}</td>
+        </tr>
+    </tfoot>
+</table>
+
+<!-- Totales generales -->
+<table class="totales-table">
+    <tr><td width="70%">NETO:</td><td class="text-right">$ {{ edp.neto|floatformat:0|intcomma }}</td></tr>
+    <tr><td>IVA (19%):</td><td class="text-right">$ {{ edp.iva|floatformat:0|intcomma }}</td></tr>
+    <tr style="border-top: 1px solid #ddd;">
+        <td><strong>TOTAL:</strong></td>
+        <td class="text-right"><strong>$ {{ edp.total|floatformat:0|intcomma }}</strong></td>
+    </tr>
+</table>
+
+<div class="clearfix"></div>
+
+<!-- Pagos realizados -->
+{% if edp.pagos.all %}
+<div style="margin-top: 20px;">
+    <h4 style="font-size: 11px; margin-bottom: 8px;">Registro de Pagos</h4>
+    <table style="width: 100%; border-collapse: collapse; font-size: 8px;">
+        <thead>
+            <tr style="background-color: #28a745; color: white;">
+                <th style="padding: 5px; text-align: center;">Fecha</th>
+                <th style="padding: 5px; text-align: center;">Medio de pago</th>
+                <th style="padding: 5px; text-align: right;">Monto</th>
+                <th style="padding: 5px; text-align: left;">Referencia</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for pago in edp.pagos.all %}
+            <tr>
+                <td style="padding: 4px; border: 1px solid #ddd; text-align: center;">{{ pago.fecha|date:"d/m/Y" }}</td>
+                <td style="padding: 4px; border: 1px solid #ddd; text-align: center;">{{ pago.get_medio_pago_display }}</td>
+                <td style="padding: 4px; border: 1px solid #ddd; text-align: right;">$ {{ pago.monto|floatformat:0|intcomma }}</td>
+                <td style="padding: 4px; border: 1px solid #ddd;">{{ pago.referencia|default:"-" }}</td>
+            </tr>
+            {% endfor %}
+            <tr style="background-color: #f0f0f0; font-weight: bold;">
+                <td colspan="2" style="padding: 4px; border: 1px solid #ddd; text-align: right;">TOTAL PAGADO:</td>
+                <td style="padding: 4px; border: 1px solid #ddd; text-align: right;">$ {{ edp.pagos.all|sum_attribute:"monto"|floatformat:0|intcomma }}</td>
+                <td style="border: 1px solid #ddd;"></td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+{% endif %}
+
+<div class="footer">
+    <p>Documento generado el {{ edp.created_at|date:"d/m/Y H:i" }}</p>
+    <p>Este documento es un comprobante de Estado de Pago.</p>
+</div>
+
+</body>
+</html>

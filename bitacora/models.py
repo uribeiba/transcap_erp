@@ -76,7 +76,6 @@ class Bitacora(models.Model):
     tarifa_flete = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     estadia = models.DecimalField(max_digits=12, decimal_places=2, default=0)
 
-    # 👉 COORDINADOR = TEXTO LIBRE (lo que tú quieres)
     coordinador = models.CharField(
         max_length=120,
         blank=True,
@@ -94,13 +93,30 @@ class Bitacora(models.Model):
         default=EstadoBitacora.VIGENTE
     )
 
-
     estatus_origen = models.ForeignKey(
-    "operaciones.EstatusOperacionalViaje",
-    on_delete=models.SET_NULL,
-    null=True,
-    blank=True,
-    related_name="bitacoras_generadas",
+        "operaciones.EstatusOperacionalViaje",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="bitacoras_generadas",
+    )
+
+    # =========================
+    # Facturación (NUEVO)
+    # =========================
+    facturado = models.BooleanField(
+        default=False,
+        verbose_name="Facturado",
+        help_text="Indica si este servicio ya fue incluido en una factura"
+    )
+    factura = models.ForeignKey(
+        "facturacion.Factura",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="bitacoras",
+        verbose_name="Factura asociada",
+        help_text="Factura que incluye este servicio"
     )
 
     # =========================
@@ -161,7 +177,6 @@ class BitacoraDetalle(models.Model):
         on_delete=models.CASCADE,
         related_name="detalles"
     )
-
     nro_guia = models.CharField(max_length=50, blank=True, default="")
     oc_edp = models.CharField(max_length=50, blank=True, default="")
 

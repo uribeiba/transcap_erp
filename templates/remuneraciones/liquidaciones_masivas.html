@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% block page_title %}Liquidaciones Masivas{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-body">
+        <form id="form-liquidaciones">
+            <div class="form-row mb-3">
+                <div class="col">
+                    <label>Mes</label>
+                    <input type="number" name="mes" class="form-control" value="{{ now|date:'m' }}">
+                </div>
+                <div class="col">
+                    <label>Año</label>
+                    <input type="number" name="anio" class="form-control" value="{{ now|date:'Y' }}">
+                </div>
+            </div>
+
+            <table class="table table-bordered">
+                <thead>
+                    <tr>
+                        <th>Empleado</th>
+                        <th>Sueldo Base</th>
+                        <th>Bonos</th>
+                        <th>Horas Extra</th>
+                        <th>Imponible</th>
+                        <th>Liquido Estimado</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for contrato in empleados %}
+                    <tr>
+                        <td>{{ contrato.empleado.nombre_completo }}</td>
+                        <td>{{ contrato.sueldo_base }}</td>
+                        <td><input type="number" name="bonos_{{ contrato.id }}" value="0" class="form-control"></td>
+                        <td><input type="number" name="horas_extra_{{ contrato.id }}" value="0" class="form-control"></td>
+                        <td id="imponible_{{ contrato.id }}">-</td>
+                        <td id="liquido_{{ contrato.id }}">-</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+
+            <button type="submit" class="btn btn-success">Guardar Liquidaciones</button>
+        </form>
+    </div>
+</div>
+
+<script>
+document.getElementById('form-liquidaciones').addEventListener('submit', async function(e){
+    e.preventDefault();
+    let formData = new FormData(this);
+    let res = await fetch("{% url 'remuneraciones:guardar_liquidaciones_masivas' %}", {
+        method: 'POST',
+        headers: {'X-CSRFToken': '{{ csrf_token }}'},
+        body: formData
+    });
+    let data = await res.json();
+    if(data.status === 'ok'){
+        alert('Liquidaciones guardadas correctamente');
+        console.log(data.resultados);
+    } else {
+        alert('Error guardando liquidaciones');
+    }
+});
+</script>
+{% endblock %}

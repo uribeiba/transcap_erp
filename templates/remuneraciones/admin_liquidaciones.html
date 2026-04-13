@@ -1,0 +1,209 @@
+<!-- templates/remuneraciones/admin_liquidaciones.html -->
+{% extends "remuneraciones/base_remuneraciones.html" %}
+{% load humanize %}
+
+
+{% block title %}Admin Liquidaciones - Remuneraciones{% endblock %}
+{% block page_title %}Administración de Liquidaciones (Solo Staff){% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header bg-warning">
+        <i class="fas fa-shield-alt"></i> Panel de Administración - Edición de Liquidaciones
+        <span class="badge bg-danger ms-2">Solo personal autorizado</span>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table id="liquidacionesTable" class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Período</th>
+                        <th>Empleado</th>
+                        <th>RUT</th>
+                        <th>Total Haberes</th>
+                        <th>Total Descuentos</th>
+                        <th>Líquido a Pagar</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for liq in liquidaciones %}
+                    <tr id="row-{{ liq.id }}">
+                        <td>{{ liq.id }}</td>
+                        <td>{{ liq.periodo }}</td>
+                        <td>{{ liq.empleado.nombre_completo }}</td>
+                        <td>{{ liq.empleado.rut }}</td>
+                        <td class="text-end">${{ liq.total_haberes|floatformat:0|default:"0"|intcomma }}</td>
+                        <td class="text-end">${{ liq.total_descuentos|floatformat:0|default:"0"|intcomma }}</td>
+                        <td class="text-end fw-bold text-success">${{ liq.liquido_pagar|floatformat:0|default:"0"|intcomma }}</td>
+                        <td>
+                            <button class="btn btn-sm btn-warning" onclick="editarLiquidacion({{ liq.id }})">
+                                <i class="fas fa-edit"></i> Editar
+                            </button>
+                            <button class="btn btn-sm btn-danger" onclick="eliminarLiquidacion({{ liq.id }})">
+                                <i class="fas fa-trash"></i> Eliminar
+                            </button>
+                            <button class="btn btn-sm btn-info" onclick="verDetalle({{ liq.id }})">
+                                <i class="fas fa-eye"></i> Ver
+                            </button>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="8" class="text-center">No hay liquidaciones registradas</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Editar Liquidación -->
+<div class="modal fade" id="editarModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Editar Liquidación</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="edit_liquidacion_id">
+                <div class="mb-3">
+                    <label class="form-label">Período</label>
+                    <input type="month" id="edit_periodo" class="form-control">
+                    <small class="text-muted">Dejar vacío para mantener el período actual</small>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Bonos Extra ($)</label>
+                    <input type="number" id="edit_bonos" class="form-control" step="10000" value="0">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Horas Extra</label>
+                    <input type="number" id="edit_horas_extra" class="form-control" step="1" value="0">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" onclick="guardarEdicion()">Guardar Cambios</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Función para obtener CSRF token
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+    
+    const csrftoken = getCookie('csrftoken');
+    
+    // Función para editar liquidación
+    function editarLiquidacion(id) {
+        // Obtener datos actuales de la liquidación
+        fetch(`/remuneraciones/api/liquidaciones/${id}/`)
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('edit_liquidacion_id').value = id;
+                document.getElementById('edit_periodo').value = data.periodo || '';
+                document.getElementById('edit_bonos').value = '0';
+                document.getElementById('edit_horas_extra').value = '0';
+                $('#editarModal').modal('show');
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error al cargar datos de la liquidación');
+            });
+    }
+    
+    // Función para guardar edición
+    function guardarEdicion() {
+        const id = document.getElementById('edit_liquidacion_id').value;
+        const periodo = document.getElementById('edit_periodo').value;
+        const bonos = document.getElementById('edit_bonos').value;
+        const horasExtra = document.getElementById('edit_horas_extra').value;
+        
+        const formData = new FormData();
+        if (periodo) formData.append('periodo', periodo);
+        formData.append('bonos', bonos);
+        formData.append('horas_extra', horasExtra);
+        
+        fetch(`/remuneraciones/api/liquidaciones/${id}/editar/`, {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-CSRFToken': csrftoken
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('✅ Liquidación actualizada correctamente');
+                location.reload();
+            } else {
+                alert('❌ Error: ' + (data.error || 'Error desconocido'));
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error al guardar: ' + error);
+        });
+    }
+    
+    // Función para eliminar liquidación
+    function eliminarLiquidacion(id) {
+        if (confirm('⚠️ ¿Estás seguro de eliminar esta liquidación?\n\nEsta acción no se puede deshacer.')) {
+            fetch(`/remuneraciones/api/liquidaciones/${id}/eliminar/`, {
+                method: 'DELETE',
+                headers: {
+                    'X-CSRFToken': csrftoken
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert('✅ Liquidación eliminada correctamente');
+                    document.getElementById(`row-${id}`).remove();
+                } else {
+                    alert('❌ Error: ' + (data.error || 'Error desconocido'));
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error al eliminar: ' + error);
+            });
+        }
+    }
+    
+    // Función para ver detalle
+    function verDetalle(id) {
+        window.open(`/remuneraciones/liquidaciones/detalle/${id}/`, '_blank');
+    }
+    
+    // Inicializar DataTable cuando el DOM esté listo
+    document.addEventListener('DOMContentLoaded', function() {
+        if (typeof $ !== 'undefined' && $.fn.DataTable) {
+            $('#liquidacionesTable').DataTable({
+                order: [[0, 'desc']],
+                pageLength: 25,
+                language: {
+                    url: '//cdn.datatables.net/plug-ins/1.13.4/i18n/es-ES.json'
+                }
+            });
+        }
+    });
+</script>
+{% endblock %}

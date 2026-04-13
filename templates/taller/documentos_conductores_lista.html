@@ -1,27 +1,88 @@
 {% extends "layout/base.html" %}
+{% load humanize %}
+
 {% block title %}Documentos de Conductores{% endblock %}
 {% block page_title %}Documentos de Conductores{% endblock %}
 
 {% block content %}
+
+<div class="row mb-3">
+
+  <div class="col-md-3">
+    <div class="small-box bg-danger">
+      <div class="inner">
+        <h3>{{ total_vencidos|default:0 }}</h3>
+        <p>Vencidos</p>
+      </div>
+      <div class="icon"><i class="fas fa-exclamation-triangle"></i></div>
+    </div>
+  </div>
+
+  <div class="col-md-3">
+    <div class="small-box bg-warning">
+      <div class="inner">
+        <h3>{{ total_por_vencer|default:0 }}</h3>
+        <p>Por vencer</p>
+      </div>
+      <div class="icon"><i class="fas fa-clock"></i></div>
+    </div>
+  </div>
+
+  <div class="col-md-3">
+    <div class="small-box bg-success">
+      <div class="inner">
+        <h3>{{ total_vigentes|default:0 }}</h3>
+        <p>Vigentes</p>
+      </div>
+      <div class="icon"><i class="fas fa-check-circle"></i></div>
+    </div>
+  </div>
+
+  <div class="col-md-3">
+    <div class="small-box bg-info">
+      <div class="inner">
+        <h3>{{ docs|length }}</h3>
+        <p>Total documentos</p>
+      </div>
+      <div class="icon"><i class="fas fa-folder"></i></div>
+    </div>
+  </div>
+
+</div>
+
 <div class="card">
   <div class="card-header p-2">
     <ul class="nav nav-pills">
-      <li class="nav-item"><a class="nav-link" href="{% url 'taller_docs_vehiculos' %}">Vehículos</a></li>
-      <li class="nav-item"><a class="nav-link active" href="{% url 'taller_docs_conductores' %}">Conductores</a></li>
+      <li class="nav-item">
+        <a class="nav-link" href="{% url 'taller_docs_vehiculos' %}">
+          <i class="fas fa-truck"></i> Vehículos
+        </a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link active" href="{% url 'taller_docs_conductores' %}">
+          <i class="fas fa-id-card"></i> Conductores
+        </a>
+      </li>
     </ul>
   </div>
+
   <div class="card-body">
+
     <form class="mb-3">
       <div class="form-row">
+
         <div class="col-md-4">
           <label>Conductor</label>
           <select name="conductor" class="form-control">
             <option value="">-- Todos --</option>
             {% for c in conductores %}
-              <option value="{{ c.id }}" {% if f.conductor == c.id|stringformat:'s' %}selected{% endif %}>{{ c.apellidos }}, {{ c.nombres }}</option>
+              <option value="{{ c.id }}" {% if f.conductor == c.id|stringformat:'s' %}selected{% endif %}>
+                {{ c.apellidos }}, {{ c.nombres }}
+              </option>
             {% endfor %}
           </select>
         </div>
+
         <div class="col-md-3">
           <label>Tipo</label>
           <select name="tipo" class="form-control">
@@ -31,50 +92,88 @@
             <option value="OTRO" {% if f.tipo == 'OTRO' %}selected{% endif %}>Otro</option>
           </select>
         </div>
+
         <div class="col-md-3">
           <label>Estado</label>
           <select name="estado" class="form-control">
             <option value="">-- Todos --</option>
             <option value="vencido" {% if f.estado == 'vencido' %}selected{% endif %}>Vencido</option>
-            <option value="por_vencer" {% if f.estado == 'por_vencer' %}selected{% endif %}>Por vencer (≤30d)</option>
+            <option value="por_vencer" {% if f.estado == 'por_vencer' %}selected{% endif %}>Por vencer</option>
             <option value="vigente" {% if f.estado == 'vigente' %}selected{% endif %}>Vigente</option>
           </select>
         </div>
+
         <div class="col-md-1 d-flex align-items-end">
-          <button class="btn btn-outline-secondary btn-block"><i class="fas fa-sync"></i></button>
+          <button class="btn btn-outline-secondary btn-block">
+            <i class="fas fa-search"></i>
+          </button>
         </div>
+
         <div class="col-md-1 d-flex align-items-end">
-          <a href="{% url 'taller_doc_conductor_nuevo' %}" class="btn btn-primary btn-block"><i class="fas fa-plus"></i></a>
+          <a href="{% url 'taller_doc_conductor_nuevo' %}" class="btn btn-primary btn-block">
+            <i class="fas fa-plus"></i>
+          </a>
         </div>
+
       </div>
     </form>
 
     <div class="table-responsive">
-      <table class="table table-hover">
-        <thead>
+      <table class="table table-hover table-sm">
+        <thead class="thead-light">
           <tr>
             <th>Conductor</th>
             <th>Tipo</th>
             <th>Emisión</th>
             <th>Vencimiento</th>
+            <th>Días</th>
             <th>Estado</th>
             <th>Archivo</th>
             <th></th>
           </tr>
         </thead>
+
         <tbody>
           {% for d in docs %}
-          <tr>
-            <td>{{ d.conductor.apellidos }}, {{ d.conductor.nombres }}</td>
+          <tr class="
+            {% if d.estado_doc == 'vencido' %}table-danger
+            {% elif d.estado_doc == 'por_vencer' %}table-warning
+            {% elif d.estado_doc == 'vigente' %}table-success
+            {% endif %}
+          ">
+            <td>
+              <strong>{{ d.conductor.apellidos }}</strong><br>
+              <small class="text-muted">{{ d.conductor.nombres }}</small>
+            </td>
+
             <td>{{ d.get_tipo_display }}</td>
             <td>{{ d.fecha_emision|date:"d/m/Y"|default:"-" }}</td>
-            <td>{{ d.fecha_vencimiento|date:"d/m/Y"|default:"-" }}</td>
+            <td><strong>{{ d.fecha_vencimiento|date:"d/m/Y"|default:"-" }}</strong></td>
+
+            <td>
+              {% if d.dias_restantes is not None %}
+                {% if d.dias_restantes < 0 %}
+                  <span class="text-danger">{{ d.dias_restantes }} días</span>
+                {% else %}
+                  <span class="text-muted">{{ d.dias_restantes }} días</span>
+                {% endif %}
+              {% else %}
+                -
+              {% endif %}
+            </td>
+
             <td>{% include "taller/_badges_doc.html" %}</td>
+
             <td>
               {% if d.archivo %}
-                <a href="{{ d.archivo.url }}" target="_blank" class="btn btn-xs btn-outline-secondary"><i class="fas fa-file"></i></a>
-              {% else %}-{% endif %}
+                <a href="{{ d.archivo.url }}" target="_blank" class="btn btn-xs btn-outline-secondary">
+                  <i class="fas fa-file"></i>
+                </a>
+              {% else %}
+                -
+              {% endif %}
             </td>
+
             <td class="text-right">
               <a href="{% url 'taller_doc_conductor_editar' d.id %}" class="btn btn-sm btn-outline-secondary">
                 <i class="fas fa-edit"></i>
@@ -82,7 +181,11 @@
             </td>
           </tr>
           {% empty %}
-          <tr><td colspan="7" class="text-center">Sin documentos.</td></tr>
+          <tr>
+            <td colspan="8" class="text-center text-muted">
+              Sin documentos registrados
+            </td>
+          </tr>
           {% endfor %}
         </tbody>
       </table>
@@ -90,4 +193,90 @@
 
   </div>
 </div>
+
+{% if conductor_actual %}
+<div class="card mt-3">
+  <div class="card-header">
+    <h3 class="card-title">
+      <i class="fas fa-history"></i> Historial del conductor
+    </h3>
+  </div>
+  <div class="card-body">
+
+    <div class="row mb-3">
+      <div class="col-md-6">
+        <h5 class="mb-1">{{ conductor_actual.apellidos }}, {{ conductor_actual.nombres }}</h5>
+        <p class="text-muted mb-0">RUT: {{ conductor_actual.rut|default:"-" }}</p>
+      </div>
+      <div class="col-md-6 text-right">
+        <span class="badge badge-danger mr-1">Vencidos: {{ historial_vencidos }}</span>
+        <span class="badge badge-warning mr-1">Por vencer: {{ historial_por_vencer }}</span>
+        <span class="badge badge-success">Vigentes: {{ historial_vigentes }}</span>
+      </div>
+    </div>
+
+    <div class="timeline timeline-inverse">
+      {% for d in historial_conductor %}
+      <div>
+        {% if d.estado_doc == "vencido" %}
+          <i class="fas fa-times bg-danger"></i>
+        {% elif d.estado_doc == "por_vencer" %}
+          <i class="fas fa-exclamation bg-warning"></i>
+        {% else %}
+          <i class="fas fa-check bg-success"></i>
+        {% endif %}
+
+        <div class="timeline-item">
+          <span class="time">
+            <i class="far fa-calendar-alt"></i>
+            {{ d.fecha_vencimiento|date:"d/m/Y"|default:"Sin vencimiento" }}
+          </span>
+
+          <h3 class="timeline-header">
+            {{ d.get_tipo_display }}
+          </h3>
+
+          <div class="timeline-body">
+            <p class="mb-1"><strong>Descripción:</strong> {{ d.descripcion|default:"-" }}</p>
+            <p class="mb-1"><strong>Emisión:</strong> {{ d.fecha_emision|date:"d/m/Y"|default:"-" }}</p>
+            <p class="mb-1"><strong>Días restantes:</strong>
+              {% if d.dias_restantes is not None %}
+                {{ d.dias_restantes }}
+              {% else %}
+                -
+              {% endif %}
+            </p>
+          </div>
+
+          <div class="timeline-footer">
+            {% if d.archivo %}
+              <a class="btn btn-outline-primary btn-sm" href="{{ d.archivo.url }}" target="_blank">
+                <i class="fas fa-file"></i> Ver archivo
+              </a>
+            {% endif %}
+            <a class="btn btn-outline-secondary btn-sm" href="{% url 'taller_doc_conductor_editar' d.id %}">
+              <i class="fas fa-edit"></i> Editar
+            </a>
+          </div>
+        </div>
+      </div>
+      {% empty %}
+      <div>
+        <i class="fas fa-folder-open bg-secondary"></i>
+        <div class="timeline-item">
+          <div class="timeline-body text-muted">
+            Este conductor no tiene historial de documentos.
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+      <div>
+        <i class="far fa-clock bg-gray"></i>
+      </div>
+    </div>
+
+  </div>
+</div>
+{% endif %}
+
 {% endblock %}

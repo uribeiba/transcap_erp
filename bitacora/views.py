@@ -11,7 +11,10 @@ from centro_comercio.models import Cliente
 from taller.models import CoordinacionViaje
 
 from .forms import BitacoraForm
-from .models import Bitacora, EstadoBitacora
+from .models import Bitacora, EstadoBitacora, BitacoraDetalle
+from django.db.models.deletion import ProtectedError
+
+from facturacion.models import Factura
 
 
 def _parse_iso_date(value):
@@ -116,23 +119,16 @@ def _selected_cliente_from_initial_or_instance(form=None, instance=None):
     return None
 
 
+# bitacora/views.py
 @login_required
 def panel(request):
     q = (request.GET.get("q") or "").strip()
     estado = (request.GET.get("estado") or "").strip()
+    guia = (request.GET.get("guia") or "").strip()          # ← NUEVO
 
-    qs = (
-        Bitacora.objects.select_related(
-            "cliente",
-            "conductor",
-            "tracto",
-            "rampla",
-            "coordinacion",
-            "creado_por",
-        )
-        .all()
-        .order_by("-fecha", "-id")
-    )
+    qs = Bitacora.objects.select_related(
+        "cliente", "conductor", "tracto", "rampla", "coordinacion", "creado_por"
+    ).all().order_by("-fecha", "-id")
 
     if q:
         filtros = (
@@ -153,11 +149,15 @@ def panel(request):
     if estado:
         qs = qs.filter(estado=estado)
 
+    if guia:                                               # ← NUEVO
+        qs = qs.filter(guias_raw__icontains=guia)
+
     context = {
         "bitacoras": qs,
         "q": q,
         "estado": estado,
         "estados": EstadoBitacora.choices,
+        "guia": guia,                                      # ← NUEVO (opcional)
     }
     return render(request, "bitacora/panel.html", context)
 
@@ -251,14 +251,32 @@ def detalle(request, pk):
     return render(request, "bitacora/detalle.html", {"bitacora": bitacora})
 
 
+
+
 @login_required
 @require_POST
 def eliminar(request, pk):
     bitacora = get_object_or_404(Bitacora, pk=pk)
-    bitacora.delete()
-    messages.success(request, "Bitácora eliminada correctamente.")
-    return redirect("bitacora:panel")
 
+    try:
+        bitacora.delete()
+        messages.success(request, "Bitácora eliminada correctamente.")
+    except ProtectedError:
+        edp_items = bitacora.edp_items.select_related("edp").all()
+        codigos = ", ".join(sorted({item.edp.codigo for item in edp_items if item.edp}))
+
+        if codigos:
+            messages.error(
+                request,
+                f"No se puede eliminar esta bitácora porque está asociada a los EDP: {codigos}."
+            )
+        else:
+            messages.error(
+                request,
+                "No se puede eliminar esta bitácora porque está asociada a un Estado de Pago."
+            )
+
+    return redirect("bitacora:panel")
 
 @login_required
 def api_coordinacion_detalle(request, id):
@@ -309,3 +327,39 @@ def api_clientes(request):
         for c in qs
     ]
     return JsonResponse({"results": data})
+
+
+
+
+
+def reporte_guias(request):
+    fecha_desde = request.GET.get('fecha_desde')
+    fecha_hasta = request.GET.get('fecha_hasta')
+    qs = Bitacora.objects.all().order_by('-fecha')
+    if fecha_desde:
+        qs = qs.filter(fecha__gte=fecha_desde)
+    if fecha_hasta:
+        qs = qs.filter(fecha__lte=fecha_hasta)
+    
+    # Expandir guías individuales usando BitacoraDetalle
+    guias = []
+    for bitacora in qs:
+        for detalle in bitacora.detalles.all():
+            if detalle.nro_guia:
+                factura = bitacora.facturas.first()  # una bitácora puede tener varias facturas? No, debería ser una. Ajusta según tu relación.
+                guias.append({
+                    'nro_guia': detalle.nro_guia,
+                    'oc_edp': detalle.oc_edp,
+                    'fecha': bitacora.fecha,
+                    'cliente': bitacora.cliente.razon_social if bitacora.cliente else '-',
+                    'origen': bitacora.origen,
+                    'destino': bitacora.destino,
+                    'factura_folio': factura.folio if factura else None,
+                    'factura_id': factura.id if factura else None,
+                })
+    context = {
+        'guias': guias,
+        'fecha_desde': fecha_desde,
+        'fecha_hasta': fecha_hasta,
+    }
+    return render(request, 'bitacora/reporte_guias.html', context)

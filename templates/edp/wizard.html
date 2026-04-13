@@ -1,8 +1,12 @@
 {% extends "layout/base.html" %}
+{% load humanize %}
+{% load edp_filters %}
 {% block title %}Estado de Pago - {{ step|title }}{% endblock %}
 {% block page_title %}Estado de Pago{% endblock %}
 
 {% block extra_css %}
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+<link href="https://cdn.jsdelivr.net/npm/select2-bootstrap4-theme@1.0.0/dist/select2-bootstrap4.min.css" rel="stylesheet" />
 <style>
     .wizard-steps {
         display: flex;
@@ -40,10 +44,19 @@
         border-color: #28a745;
     }
 
+    .wizard-step.disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+        pointer-events: none;
+    }
+
     .wizard-card-title {
         font-size: 1.1rem;
         font-weight: 700;
         margin-bottom: 1rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 2px solid #007bff;
+        display: inline-block;
     }
 
     .resumen-box {
@@ -119,47 +132,103 @@
         font-size: 0.875rem;
         margin-top: 0.25rem;
     }
+    
+    .pagos-table {
+        background: #fff;
+    }
+    
+    .pagos-table input, .pagos-table select {
+        font-size: 0.85rem;
+    }
+    
+    .btn-generar-pdf {
+        background: #dc3545;
+        color: white;
+    }
+    .btn-generar-pdf:hover {
+        background: #c82333;
+        color: white;
+    }
+    
+    .card-header-edp {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+    }
+    
+    .info-cliente-box {
+        background: #e8f4f8;
+        border-left: 4px solid #007bff;
+    }
+    
+    select.select2 {
+        width: 100% !important;
+    }
+    
+    .badge-borrador { background-color: #ffc107; color: #333; }
+    .badge-proceso { background-color: #17a2b8; color: white; }
+    .badge-pagado { background-color: #28a745; color: white; }
+    .badge-anulado { background-color: #dc3545; color: white; }
+    
+    .alert-info {
+        background-color: #d1ecf1;
+        border-color: #bee5eb;
+        color: #0c5460;
+    }
+    
+    .alert-warning {
+        background-color: #fff3cd;
+        border-color: #ffeeba;
+        color: #856404;
+    }
+    
+    .alert-success {
+        background-color: #d4edda;
+        border-color: #c3e6cb;
+        color: #155724;
+    }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="card">
+<div class="card shadow-sm">
     <div class="card-body">
 
         <!-- Pasos del wizard -->
         <div class="wizard-steps">
             <a href="{% url 'edp:wizard' edp.id 'edp' %}"
                class="wizard-step {% if step == 'edp' %}active{% else %}completed{% endif %}">
-                1. Cabecera EDP
+                <i class="fas fa-file-alt mr-1"></i> 1. Cabecera EDP
             </a>
 
             <a href="{% url 'edp:wizard' edp.id 'servicios' %}"
                class="wizard-step {% if step == 'servicios' %}active{% elif step == 'pagos' or step == 'finalizar' %}completed{% else %}disabled{% endif %}">
-                2. Bitácoras
+                <i class="fas fa-truck mr-1"></i> 2. Bitácoras
             </a>
 
             <a href="{% url 'edp:wizard' edp.id 'pagos' %}"
                class="wizard-step {% if step == 'pagos' %}active{% elif step == 'finalizar' %}completed{% else %}disabled{% endif %}">
-                3. Pagos
+                <i class="fas fa-credit-card mr-1"></i> 3. Pagos
             </a>
 
             <a href="{% url 'edp:wizard' edp.id 'finalizar' %}"
                class="wizard-step {% if step == 'finalizar' %}active{% else %}disabled{% endif %}">
-                4. Resumen Final
+                <i class="fas fa-check-circle mr-1"></i> 4. Resumen Final
             </a>
         </div>
 
-        <!-- STEP 1 -->
+        <!-- STEP 1: CABECERA EDP -->
         {% if step == "edp" %}
-        <div class="wizard-card-title">Información general del EDP</div>
+        <div class="wizard-card-title">
+            <i class="fas fa-info-circle text-primary mr-2"></i>Información general del EDP
+        </div>
 
         <form method="post" id="edp-form" novalidate>
             {% csrf_token %}
 
             <div class="row">
-                <div class="col-md-3">
+                <div class="col-md-4">
                     <div class="form-group">
-                        <label>{{ form.codigo.label }}</label>
+                        <label class="font-weight-bold">{{ form.codigo.label }}</label>
                         {{ form.codigo }}
                         {% for error in form.codigo.errors %}
                             <div class="form-error">{{ error }}</div>
@@ -167,41 +236,24 @@
                     </div>
                 </div>
 
-                <div class="col-md-5">
+                <div class="col-md-8">
                     <div class="form-group">
-                        <label>{{ form.cliente.label }}</label>
+                        <label class="font-weight-bold">{{ form.cliente.label }}</label>
                         {{ form.cliente }}
                         {% for error in form.cliente.errors %}
                             <div class="form-error">{{ error }}</div>
                         {% endfor %}
-                    </div>
-                </div>
-
-                <div class="col-md-4">
-                    <div class="form-group">
-                        <label>{{ form.estado.label }}</label>
-                        {{ form.estado }}
-                        {% for error in form.estado.errors %}
-                            <div class="form-error">{{ error }}</div>
-                        {% endfor %}
+                        <small class="form-text text-muted">
+                            <i class="fas fa-info-circle"></i> Selecciona el cliente para filtrar sus bitácoras
+                        </small>
                     </div>
                 </div>
             </div>
 
             <div class="row">
-                <div class="col-md-4">
+                <div class="col-md-6">
                     <div class="form-group">
-                        <label>{{ form.fecha_pago.label }}</label>
-                        {{ form.fecha_pago }}
-                        {% for error in form.fecha_pago.errors %}
-                            <div class="form-error">{{ error }}</div>
-                        {% endfor %}
-                    </div>
-                </div>
-
-                <div class="col-md-4">
-                    <div class="form-group">
-                        <label>{{ form.fecha_inicio.label }}</label>
+                        <label class="font-weight-bold">{{ form.fecha_inicio.label }}</label>
                         {{ form.fecha_inicio }}
                         {% for error in form.fecha_inicio.errors %}
                             <div class="form-error">{{ error }}</div>
@@ -209,9 +261,9 @@
                     </div>
                 </div>
 
-                <div class="col-md-4">
+                <div class="col-md-6">
                     <div class="form-group">
-                        <label>{{ form.fecha_termino.label }}</label>
+                        <label class="font-weight-bold">{{ form.fecha_termino.label }}</label>
                         {{ form.fecha_termino }}
                         {% for error in form.fecha_termino.errors %}
                             <div class="form-error">{{ error }}</div>
@@ -223,7 +275,7 @@
             <div class="row">
                 <div class="col-md-6">
                     <div class="form-group">
-                        <label>{{ form.responsable.label }}</label>
+                        <label class="font-weight-bold">{{ form.responsable.label }}</label>
                         {{ form.responsable }}
                         {% for error in form.responsable.errors %}
                             <div class="form-error">{{ error }}</div>
@@ -232,110 +284,174 @@
                 </div>
 
                 <div class="col-md-6">
-                    <div class="resumen-box">
-                        <div><strong>Cliente actual:</strong> {{ edp.razon_social_pdf|default:"Sin cliente" }}</div>
-                        <div><strong>RUT:</strong> {{ edp.rut_pdf|default:"-" }}</div>
-                        <div><strong>Giro:</strong> {{ edp.giro_pdf|default:"-" }}</div>
-                        <div><strong>Período:</strong>
-                            {% if edp.fecha_inicio or edp.fecha_termino %}
-                                {{ edp.fecha_inicio|date:"d/m/Y"|default:"-" }} a {{ edp.fecha_termino|date:"d/m/Y"|default:"-" }}
-                            {% else %}
-                                -
-                            {% endif %}
-                        </div>
+                    <div class="form-group">
+                        <label class="font-weight-bold">{{ form.estado.label }}</label>
+                        {{ form.estado }}
+                        {% for error in form.estado.errors %}
+                            <div class="form-error">{{ error }}</div>
+                        {% endfor %}
                     </div>
                 </div>
             </div>
 
             <div class="form-group">
-                <label>{{ form.glosa.label }}</label>
+                <label class="font-weight-bold">{{ form.glosa.label }}</label>
                 {{ form.glosa }}
                 {% for error in form.glosa.errors %}
                     <div class="form-error">{{ error }}</div>
                 {% endfor %}
             </div>
 
+            <!-- Resumen del cliente seleccionado -->
+            <div class="resumen-box info-cliente-box mt-3">
+                <div class="row">
+                    <div class="col-md-6">
+                        <div><strong><i class="fas fa-building"></i> Cliente actual:</strong> {{ edp.razon_social_pdf|default:"Sin cliente" }}</div>
+                        <div><strong><i class="fas fa-id-card"></i> RUT:</strong> {{ edp.rut_pdf|default:"-" }}</div>
+                        <div><strong><i class="fas fa-briefcase"></i> Giro:</strong> {{ edp.giro_pdf|default:"-" }}</div>
+                    </div>
+                    <div class="col-md-6">
+                        <div><strong><i class="fas fa-calendar-alt"></i> Período:</strong>
+                            {% if edp.fecha_inicio or edp.fecha_termino %}
+                                {{ edp.fecha_inicio|date:"d/m/Y"|default:"-" }} → {{ edp.fecha_termino|date:"d/m/Y"|default:"-" }}
+                            {% else %}
+                                <span class="text-muted">No definido</span>
+                            {% endif %}
+                        </div>
+                        <div><strong><i class="fas fa-chart-line"></i> Estado EDP:</strong> 
+                            <span class="badge 
+                                {% if edp.estado == 'BORR' %}badge-borrador
+                                {% elif edp.estado == 'PROC' %}badge-proceso
+                                {% elif edp.estado == 'PAGA' %}badge-pagado
+                                {% else %}badge-anulado{% endif %}">
+                                {{ edp.get_estado_display }}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             {% if form.non_field_errors %}
-                <div class="alert alert-danger">
+                <div class="alert alert-danger mt-3">
                     {% for error in form.non_field_errors %}
                         <div>{{ error }}</div>
                     {% endfor %}
                 </div>
             {% endif %}
 
-            <div class="mt-3">
-                <button type="submit" class="btn btn-primary">
+            <div class="mt-4">
+                <button type="submit" class="btn btn-primary px-4">
                     <i class="fas fa-save"></i> Guardar y continuar
                 </button>
-                <a href="{% url 'edp:panel' %}" class="btn btn-secondary">
-                    Cancelar
+                <a href="{% url 'edp:panel' %}" class="btn btn-secondary px-4">
+                    <i class="fas fa-times"></i> Cancelar
                 </a>
             </div>
         </form>
         {% endif %}
 
-        <!-- STEP 2 -->
+        <!-- STEP 2: SERVICIOS / BITÁCORAS -->
         {% if step == "servicios" %}
-        <div class="wizard-card-title">Seleccionar bitácoras / servicios operativos</div>
+        <div class="wizard-card-title">
+            <i class="fas fa-truck text-success mr-2"></i>Seleccionar bitácoras / servicios operativos
+        </div>
+
+        <div class="alert alert-info mb-3">
+            <i class="fas fa-info-circle"></i> 
+            Mostrando bitácoras del cliente: <strong>{{ edp.razon_social_pdf|default:"Sin cliente seleccionado" }}</strong>
+            {% if not edp.cliente %}
+                <br><small class="text-danger">⚠️ No has seleccionado un cliente. Ve al paso 1 y selecciona un cliente.</small>
+            {% endif %}
+        </div>
 
         <div class="row">
             <div class="col-md-8">
                 <form method="post" id="servicios-form">
                     {% csrf_token %}
                     <div class="form-group">
-                        <label>{{ form_servicios.servicios.label }}</label>
+                        <label class="font-weight-bold">{{ form_servicios.servicios.label }}</label>
                         <div class="checkbox-list">
                             {{ form_servicios.servicios }}
                         </div>
                         <div class="help-text-small mt-2">
-                            Selecciona las bitácoras que formarán parte del EDP.
+                            <i class="fas fa-check-square"></i> Selecciona las bitácoras que formarán parte del EDP.
                         </div>
                         {% for error in form_servicios.servicios.errors %}
                             <div class="form-error">{{ error }}</div>
                         {% endfor %}
                     </div>
 
-                    <button type="submit" class="btn btn-primary">
-                        <i class="fas fa-save"></i> Guardar y continuar
-                    </button>
-                    <a href="{% url 'edp:wizard' edp.id 'edp' %}" class="btn btn-secondary">
-                        Volver
-                    </a>
+                    <div class="mt-3">
+                        <button type="submit" class="btn btn-primary px-4">
+                            <i class="fas fa-save"></i> Guardar y continuar
+                        </button>
+                        <a href="{% url 'edp:wizard' edp.id 'edp' %}" class="btn btn-secondary px-4">
+                            <i class="fas fa-arrow-left"></i> Volver
+                        </a>
+                    </div>
                 </form>
             </div>
 
             <div class="col-md-4">
                 <div class="resumen-box">
-                    <h6 class="mb-3">Resumen del EDP</h6>
+                    <h6 class="mb-3"><i class="fas fa-chart-simple"></i> Resumen del EDP</h6>
                     <div><strong>Código:</strong> {{ edp.codigo }}</div>
                     <div><strong>Cliente:</strong> {{ edp.razon_social_pdf|default:"Sin cliente" }}</div>
                     <div><strong>Responsable:</strong> {{ edp.responsable|default:"-" }}</div>
                     <div><strong>Período:</strong>
-                        {{ edp.fecha_inicio|date:"d/m/Y"|default:"-" }} a {{ edp.fecha_termino|date:"d/m/Y"|default:"-" }}
+                        {{ edp.fecha_inicio|date:"d/m/Y"|default:"-" }} → {{ edp.fecha_termino|date:"d/m/Y"|default:"-" }}
                     </div>
                     <hr>
                     <div><strong>Bitácoras ya agregadas:</strong> {{ items|length }}</div>
-                    <div><strong>Neto actual:</strong> $ {{ edp.neto }}</div>
-                    <div><strong>IVA actual:</strong> $ {{ edp.iva }}</div>
-                    <div><strong>Total actual:</strong> $ {{ edp.total }}</div>
+                    <div><strong>Neto actual:</strong> <span class="text-primary">$ {{ edp.neto|floatformat:0|intcomma }}</span></div>
+                    <div><strong>IVA actual:</strong> $ {{ edp.iva|floatformat:0|intcomma }}</div>
+                    <div><strong>Total actual:</strong> <strong class="text-success">$ {{ edp.total|floatformat:0|intcomma }}</strong></div>
                 </div>
             </div>
         </div>
         {% endif %}
 
-        <!-- STEP 3 -->
+        <!-- STEP 3: PAGOS (ACTUALIZADO CON CONTROL DE ESTADO) -->
         {% if step == "pagos" %}
-        <div class="wizard-card-title">Pagos del EDP</div>
+        <div class="wizard-card-title">
+            <i class="fas fa-credit-card text-warning mr-2"></i>Registrar pagos del EDP
+        </div>
+
+        <!-- Mostrar alerta según el estado del EDP -->
+        {% if edp.estado == 'BORR' %}
+        <div class="alert alert-warning mb-3">
+            <i class="fas fa-exclamation-triangle"></i>
+            <strong>⚠️ Estado actual: Borrador</strong><br>
+            Para registrar pagos, primero debes cambiar el estado del EDP a 
+            <strong>"En proceso"</strong> en la etapa de Cabecera EDP.
+            <br><br>
+            <a href="{% url 'edp:wizard' edp.id 'edp' %}" class="btn btn-sm btn-warning">
+                <i class="fas fa-arrow-left"></i> Ir a Cabecera EDP
+            </a>
+        </div>
+        {% elif edp.estado == 'PAGA' %}
+        <div class="alert alert-success mb-3">
+            <i class="fas fa-check-circle"></i>
+            <strong>✅ Estado: Pagado</strong><br>
+            Este EDP ya está pagado. No se pueden modificar los pagos.
+        </div>
+        {% else %}
+        <div class="alert alert-info mb-3">
+            <i class="fas fa-info-circle"></i>
+            <strong>Estado: En proceso</strong><br>
+            Puedes registrar y modificar los pagos de este EDP.
+        </div>
+        {% endif %}
 
         <div class="row">
-            <div class="col-md-8">
+            <div class="col-md-7">
                 <form method="post" id="pagos-form">
                     {% csrf_token %}
-                    {{ formset.management_form }}
-
+                    {{ formset_pagos.management_form }}
+                    
                     <div class="table-responsive">
-                        <table class="table table-bordered table-sm tabla-resumen">
-                            <thead>
+                        <table class="table table-bordered pagos-table">
+                            <thead class="thead-light">
                                 <tr>
                                     <th>Fecha</th>
                                     <th>Medio de pago</th>
@@ -344,37 +460,16 @@
                                     <th>Eliminar</th>
                                 </tr>
                             </thead>
-                            <tbody id="formset-container">
-                                {% for form_pago in formset %}
-                                <tr class="form-row-edp">
-                                    <td>
-                                        {{ form_pago.id }}
-                                        {{ form_pago.fecha }}
-                                        {% for error in form_pago.fecha.errors %}
-                                            <div class="form-error">{{ error }}</div>
-                                        {% endfor %}
-                                    </td>
-                                    <td>
-                                        {{ form_pago.medio_pago }}
-                                        {% for error in form_pago.medio_pago.errors %}
-                                            <div class="form-error">{{ error }}</div>
-                                        {% endfor %}
-                                    </td>
-                                    <td>
-                                        {{ form_pago.monto }}
-                                        {% for error in form_pago.monto.errors %}
-                                            <div class="form-error">{{ error }}</div>
-                                        {% endfor %}
-                                    </td>
-                                    <td>
-                                        {{ form_pago.referencia }}
-                                        {% for error in form_pago.referencia.errors %}
-                                            <div class="form-error">{{ error }}</div>
-                                        {% endfor %}
-                                    </td>
+                            <tbody>
+                                {% for form in formset_pagos %}
+                                <tr class="pago-row">
+                                    <td>{{ form.fecha }}</td>
+                                    <td>{{ form.medio_pago }}</td>
+                                    <td>{{ form.monto }}</td>
+                                    <td>{{ form.referencia }}</td>
                                     <td class="text-center">
-                                        {% if form_pago.DELETE %}
-                                            {{ form_pago.DELETE }}
+                                        {% if form.instance.pk and not pagos_disabled %}
+                                            {{ form.DELETE }}
                                         {% endif %}
                                     </td>
                                 </tr>
@@ -382,49 +477,87 @@
                             </tbody>
                         </table>
                     </div>
+                    
+                    <div class="help-text-small mt-2 mb-3">
+                        <i class="fas fa-info-circle"></i> 
+                        {% if edp.estado == 'BORR' %}
+                        ⚠️ Para registrar pagos, cambia el estado a "En proceso" en la cabecera.
+                        {% elif pagos_disabled %}
+                        ✅ EDP pagado. No se pueden modificar los pagos.
+                        {% else %}
+                        Puedes agregar múltiples pagos. Al guardar, el EDP cambiará a "En proceso".
+                        {% endif %}
+                    </div>
 
-                    <button type="button" class="btn btn-secondary" onclick="addFormPago()">
-                        <i class="fas fa-plus"></i> Agregar pago
+                    {% if edp.estado != 'PAGA' %}
+                    <button type="submit" class="btn btn-primary px-4" {% if edp.estado == 'BORR' %}disabled{% endif %}>
+                        <i class="fas fa-save"></i> Guardar pagos y continuar
                     </button>
-                    <button type="submit" class="btn btn-primary">
-                        <i class="fas fa-save"></i> Guardar y continuar
-                    </button>
-                    <a href="{% url 'edp:wizard' edp.id 'servicios' %}" class="btn btn-secondary">
-                        Volver
+                    {% endif %}
+                    <a href="{% url 'edp:wizard' edp.id 'servicios' %}" class="btn btn-secondary px-4">
+                        <i class="fas fa-arrow-left"></i> Volver
                     </a>
                 </form>
             </div>
 
-            <div class="col-md-4">
+            <div class="col-md-5">
                 <div class="resumen-box">
-                    <h6 class="mb-3">Totales del EDP</h6>
-                    <div><strong>Neto:</strong> $ {{ edp.neto }}</div>
-                    <div><strong>IVA:</strong> $ {{ edp.iva }}</div>
-                    <div><strong>Total:</strong> $ {{ edp.total }}</div>
+                    <h6 class="mb-3"><i class="fas fa-chart-line"></i> Resumen de pagos</h6>
+                    <div><strong>Código EDP:</strong> {{ edp.codigo }}</div>
+                    <div><strong>Estado:</strong> 
+                        <span class="badge 
+                            {% if edp.estado == 'BORR' %}badge-borrador
+                            {% elif edp.estado == 'PROC' %}badge-proceso
+                            {% elif edp.estado == 'PAGA' %}badge-pagado
+                            {% else %}badge-anulado{% endif %}">
+                            {{ edp.get_estado_display }}
+                        </span>
+                    </div>
+                    <div><strong>Total del documento:</strong> <strong class="text-success">$ {{ edp.total|floatformat:0|intcomma }}</strong></div>
                     <hr>
                     <div><strong>Pagos registrados:</strong> {{ pagos|length }}</div>
+                    <div><strong>Total pagado:</strong> $ {{ total_pagado|floatformat:0|intcomma }}</div>
+                    <div><strong>Saldo pendiente:</strong> 
+                        <strong class="text-danger">$ {{ saldo_pendiente|floatformat:0|intcomma }}</strong>
+                    </div>
+                    {% if saldo_pendiente == 0 and edp.estado != 'PAGA' %}
+                    <div class="mt-2">
+                        <small class="text-success">
+                            <i class="fas fa-check-circle"></i> El saldo está en cero. Puedes marcar como pagado en la cabecera.
+                        </small>
+                    </div>
+                    {% endif %}
                 </div>
             </div>
         </div>
         {% endif %}
 
-        <!-- STEP 4 -->
+        <!-- STEP 4: RESUMEN FINAL -->
         {% if step == "finalizar" %}
-        <div class="wizard-card-title">Resumen final del EDP</div>
+        <div class="wizard-card-title">
+            <i class="fas fa-check-circle text-success mr-2"></i>Resumen final del EDP
+        </div>
 
         <div class="row mb-4">
             <div class="col-md-6">
                 <div class="resumen-box">
-                    <h6 class="mb-3">Cabecera del documento</h6>
+                    <h6 class="mb-3"><i class="fas fa-file-alt"></i> Cabecera del documento</h6>
                     <div><strong>Código:</strong> {{ edp.codigo }}</div>
                     <div><strong>Cliente:</strong> {{ edp.razon_social_pdf|default:"Sin cliente" }}</div>
                     <div><strong>RUT:</strong> {{ edp.rut_pdf|default:"-" }}</div>
                     <div><strong>Giro:</strong> {{ edp.giro_pdf|default:"-" }}</div>
                     <div><strong>Responsable:</strong> {{ edp.responsable|default:"-" }}</div>
-                    <div><strong>Fecha documento:</strong> {{ edp.fecha_pago|date:"d/m/Y" }}</div>
                     <div><strong>Fecha inicio:</strong> {{ edp.fecha_inicio|date:"d/m/Y"|default:"-" }}</div>
                     <div><strong>Fecha término:</strong> {{ edp.fecha_termino|date:"d/m/Y"|default:"-" }}</div>
-                    <div><strong>Estado:</strong> {{ edp.get_estado_display }}</div>
+                    <div><strong>Estado:</strong> 
+                        <span class="badge 
+                            {% if edp.estado == 'BORR' %}badge-borrador
+                            {% elif edp.estado == 'PROC' %}badge-proceso
+                            {% elif edp.estado == 'PAGA' %}badge-pagado
+                            {% else %}badge-anulado{% endif %}">
+                            {{ edp.get_estado_display }}
+                        </span>
+                    </div>
                     <div><strong>Glosa:</strong> {{ edp.glosa|default:"-" }}</div>
                 </div>
             </div>
@@ -433,28 +566,38 @@
                 <div class="totales-box">
                     <div class="linea-total">
                         <span>Neto</span>
-                        <strong>$ {{ edp.neto }}</strong>
+                        <strong>$ {{ edp.neto|floatformat:0|intcomma }}</strong>
                     </div>
                     <div class="linea-total">
-                        <span>IVA</span>
-                        <strong>$ {{ edp.iva }}</strong>
+                        <span>IVA (19%)</span>
+                        <strong>$ {{ edp.iva|floatformat:0|intcomma }}</strong>
                     </div>
                     <div class="linea-total grand-total">
                         <span>Total</span>
-                        <strong>$ {{ edp.total }}</strong>
+                        <strong>$ {{ edp.total|floatformat:0|intcomma }}</strong>
+                    </div>
+                    <hr>
+                    <div class="linea-total">
+                        <span>Total pagado</span>
+                        <strong>$ {{ pagos|sum_attribute:"monto"|floatformat:0|intcomma }}</strong>
+                    </div>
+                    <div class="linea-total">
+                        <span>Saldo pendiente</span>
+                        <strong class="text-danger">$ {{ edp.total|add:pagos|sum_attribute:"monto"|negative|floatformat:0|intcomma }}</strong>
                     </div>
                 </div>
             </div>
         </div>
 
-        <h6 class="mb-3">Detalle de bitácoras incluidas</h6>
+        <h6 class="mb-3"><i class="fas fa-list-alt"></i> Detalle de bitácoras incluidas</h6>
         <div class="table-responsive mb-4">
             <table class="table table-bordered table-sm tabla-resumen">
-                <thead>
+                <thead class="bg-light">
                     <tr>
                         <th>Bitácora</th>
-                        <th>Cliente</th>
                         <th>Conductor</th>
+                        <th>RUT</th>
+                        <th>Tracto</th>
                         <th>Origen</th>
                         <th>Destino</th>
                         <th>N° Guía</th>
@@ -469,8 +612,9 @@
                     {% for item in items %}
                     <tr>
                         <td>BIT-{{ item.servicio.id }}</td>
-                        <td>{{ item.servicio.cliente|default:"-" }}</td>
                         <td>{{ item.conductor_pdf|default:"-" }}</td>
+                        <td>{{ item.rut_conductor_pdf|default:"-" }}</td>
+                        <td>{{ item.tracto_pdf|default:"-" }}</td>
                         <td>{{ item.origen_pdf|default:"-" }}</td>
                         <td>{{ item.destino_pdf|default:"-" }}</td>
                         <td>{{ item.numero_guia_pdf|default:"-" }}</td>
@@ -488,26 +632,28 @@
                                 -
                             {% endif %}
                         </td>
-                        <td class="text-right">$ {{ item.tarifa }}</td>
-                        <td class="text-right">$ {{ item.estadia }}</td>
-                        <td class="text-right">$ {{ item.total_linea }}</td>
+                        <td class="text-right">$ {{ item.tarifa|floatformat:0|intcomma }}</td>
+                        <td class="text-right">$ {{ item.estadia|floatformat:0|intcomma }}</td>
+                        <td class="text-right">$ {{ item.total_linea|floatformat:0|intcomma }}</td>
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="11" class="text-center">No hay bitácoras asociadas al EDP.</td>
+                        <td colspan="12" class="text-center">No hay bitácoras asociadas al EDP.</td>
                     </tr>
                     {% endfor %}
                 </tbody>
             </table>
         </div>
 
-        <h6 class="mb-3">Pagos registrados</h6>
+        <!-- Sección de pagos en resumen final -->
+        {% if pagos %}
+        <h6 class="mb-3"><i class="fas fa-credit-card"></i> Registro de pagos</h6>
         <div class="table-responsive mb-4">
-            <table class="table table-bordered table-sm tabla-resumen">
-                <thead>
+            <table class="table table-bordered table-sm">
+                <thead class="bg-light">
                     <tr>
                         <th>Fecha</th>
-                        <th>Medio</th>
+                        <th>Medio de pago</th>
                         <th class="text-right">Monto</th>
                         <th>Referencia</th>
                     </tr>
@@ -517,28 +663,29 @@
                     <tr>
                         <td>{{ pago.fecha|date:"d/m/Y" }}</td>
                         <td>{{ pago.get_medio_pago_display }}</td>
-                        <td class="text-right">$ {{ pago.monto }}</td>
+                        <td class="text-right">$ {{ pago.monto|floatformat:0|intcomma }}</td>
                         <td>{{ pago.referencia|default:"-" }}</td>
-                    </tr>
-                    {% empty %}
-                    <tr>
-                        <td colspan="4" class="text-center">No hay pagos registrados.</td>
                     </tr>
                     {% endfor %}
                 </tbody>
             </table>
         </div>
+        {% endif %}
 
-        <div class="mt-4">
-            <a href="{% url 'edp:detalle' edp.id %}" class="btn btn-primary">
-                <i class="fas fa-eye"></i> Ver detalle
-            </a>
-            <a href="{% url 'edp:wizard' edp.id 'pagos' %}" class="btn btn-secondary">
-                Volver a pagos
-            </a>
-            <a href="{% url 'edp:panel' %}" class="btn btn-success">
-                <i class="fas fa-check"></i> Finalizar y volver al panel
-            </a>
+        <div class="mt-4 d-flex justify-content-between">
+            <div>
+                <a href="{% url 'edp:wizard' edp.id 'pagos' %}" class="btn btn-secondary">
+                    <i class="fas fa-arrow-left"></i> Volver a pagos
+                </a>
+            </div>
+            <div>
+                <a href="{% url 'edp:pdf' edp.id %}" target="_blank" class="btn btn-danger btn-generar-pdf">
+                    <i class="fas fa-file-pdf"></i> Generar PDF
+                </a>
+                <a href="{% url 'edp:panel' %}" class="btn btn-success">
+                    <i class="fas fa-check"></i> Finalizar y volver al panel
+                </a>
+            </div>
         </div>
         {% endif %}
     </div>
@@ -546,57 +693,36 @@
 {% endblock %}
 
 {% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 <script>
-    function addFormPago() {
-        const totalForms = document.getElementById('id_pagos-TOTAL_FORMS') || document.getElementById('id_form-TOTAL_FORMS');
-        const tbody = document.getElementById('formset-container');
-
-        if (!totalForms || !tbody) return;
-
-        const formCount = parseInt(totalForms.value);
-        const firstRow = tbody.querySelector('.form-row-edp');
-
-        if (!firstRow) return;
-
-        const newRow = firstRow.cloneNode(true);
-
-        const inputs = newRow.querySelectorAll('input, select, textarea');
-        inputs.forEach(function(input) {
-            if (input.name) {
-                input.name = input.name.replace(/-(\d+)-/, '-' + formCount + '-');
-            }
-            if (input.id) {
-                input.id = input.id.replace(/-(\d+)-/, '-' + formCount + '-');
-            }
-
-            if (input.type === 'checkbox') {
-                input.checked = false;
-            } else if (input.type !== 'hidden') {
-                input.value = '';
-            }
+    $(document).ready(function() {
+        $('#id_cliente').select2({
+            theme: 'bootstrap4',
+            placeholder: 'Buscar cliente por RUT o razón social...',
+            allowClear: true,
+            width: '100%'
         });
-
-        const errorBlocks = newRow.querySelectorAll('.form-error');
-        errorBlocks.forEach(function(el) {
-            el.remove();
-        });
-
-        tbody.appendChild(newRow);
-        totalForms.value = formCount + 1;
-    }
-
+    });
+    
     document.addEventListener('DOMContentLoaded', function() {
         const forms = ['edp-form', 'servicios-form', 'pagos-form'];
-
+        
         forms.forEach(function(formId) {
             const form = document.getElementById(formId);
             if (!form) return;
-
+            
             form.addEventListener('submit', function(e) {
                 e.preventDefault();
-
+                
                 const formData = new FormData(form);
-
+                const submitBtn = form.querySelector('button[type="submit"]');
+                const originalText = submitBtn ? submitBtn.innerHTML : 'Guardar';
+                
+                if (submitBtn) {
+                    submitBtn.disabled = true;
+                    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Guardando...';
+                }
+                
                 fetch(window.location.href, {
                     method: 'POST',
                     headers: {
@@ -604,18 +730,69 @@
                     },
                     body: formData
                 })
-                .then(response => response.json())
+                .then(response => {
+                    // Verificar si la respuesta es JSON válida
+                    const contentType = response.headers.get('content-type');
+                    if (!contentType || !contentType.includes('application/json')) {
+                        // Si no es JSON, hay un error en el servidor
+                        return response.text().then(text => {
+                            throw new Error(`El servidor devolvió HTML en lugar de JSON. Revisa la terminal de Django para ver el error.`);
+                        });
+                    }
+                    return response.json();
+                })
                 .then(data => {
                     if (data.ok) {
-                        const nextUrl = "{% url 'edp:wizard' edp.id 'finalizar' %}".replace('finalizar', data.next);
-                        window.location.href = nextUrl;
+                        if (data.next) {
+                            const nextUrl = "{% url 'edp:wizard' edp.id 'finalizar' %}".replace('finalizar', data.next);
+                            window.location.href = nextUrl;
+                        } else {
+                            window.location.reload();
+                        }
                     } else {
-                        alert('Revisa los datos ingresados.');
+                        let errorMsg = 'Error al guardar:\n\n';
+                        
+                        if (data.errors) {
+                            if (typeof data.errors === 'object') {
+                                for (let field in data.errors) {
+                                    if (data.errors[field]) {
+                                        if (Array.isArray(data.errors[field])) {
+                                            errorMsg += `• ${field}: ${data.errors[field].join(', ')}\n`;
+                                        } else if (typeof data.errors[field] === 'object') {
+                                            for (let subField in data.errors[field]) {
+                                                errorMsg += `• ${field}.${subField}: ${data.errors[field][subField]}\n`;
+                                            }
+                                        } else {
+                                            errorMsg += `• ${field}: ${data.errors[field]}\n`;
+                                        }
+                                    }
+                                }
+                            } else if (typeof data.errors === 'string') {
+                                errorMsg += data.errors;
+                            } else {
+                                errorMsg += JSON.stringify(data.errors, null, 2);
+                            }
+                        } else if (data.error) {
+                            errorMsg += data.error;
+                        } else if (data.message) {
+                            errorMsg += data.message;
+                        } else {
+                            errorMsg += 'Error desconocido. Revise la consola para más detalles.';
+                        }
+                        
+                        alert(errorMsg);
+                        console.error('Error detallado:', data);
                     }
                 })
                 .catch(error => {
                     console.error('Error:', error);
-                    alert('Ocurrió un error al guardar.');
+                    alert('Error de conexión: ' + error.message + '\n\nRevisa la terminal de Django para ver el error real.');
+                })
+                .finally(() => {
+                    if (submitBtn) {
+                        submitBtn.disabled = false;
+                        submitBtn.innerHTML = originalText;
+                    }
                 });
             });
         });

@@ -1,0 +1,80 @@
+{% extends "layout/base.html" %}
+{% block title %}Facturas - Transcap ERP{% endblock %}
+{% block page_title %}📄 Listado de Facturas{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <h3 class="card-title">Facturas emitidas</h3>
+        <div class="card-tools">
+            <a href="{% url 'facturacion:crear' %}" class="btn btn-primary btn-sm">
+                <i class="fas fa-plus"></i> Nueva Factura
+            </a>
+        </div>
+    </div>
+    <div class="card-body">
+        <table class="table table-bordered table-hover">
+            <thead>
+                <tr>
+                    <th>Folio</th>
+                    <th>Cliente</th>
+                    <th>Fecha</th>
+                    <th>Total</th>
+                    <th>Estado</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for factura in facturas %}
+                <tr>
+                    <td>{{ factura.folio|default:"Sin folio" }}</td>
+                    <td>{{ factura.cliente.razon_social }}</td>
+                    <td>{{ factura.fecha_emision|date:"d/m/Y" }}</td>
+                    <td>${{ factura.monto_total|floatformat:0 }}</td>
+                    <td>
+                        {% if factura.estado == 'BOR' %}
+                            <span class="badge badge-secondary">Borrador</span>
+                        {% elif factura.estado == 'EMI' %}
+                            <span class="badge badge-primary">Emitida</span>
+                        {% elif factura.estado == 'ACE' %}
+                            <span class="badge badge-success">Aceptada SII</span>
+                        {% elif factura.estado == 'REC' %}
+                            <span class="badge badge-danger">Rechazada</span>
+                        {% else %}
+                            <span class="badge badge-warning">{{ factura.get_estado_display }}</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <div class="btn-group">
+                            <a href="{% url 'facturacion:detalle' factura.pk %}" class="btn btn-info btn-sm" title="Ver">
+                                <i class="fas fa-eye"></i>
+                            </a>
+                            {% if factura.estado == 'BOR' %}
+                                <a href="{% url 'facturacion:editar' factura.pk %}" class="btn btn-warning btn-sm" title="Editar">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                                <a href="{% url 'facturacion:emitir' factura.pk %}" class="btn btn-success btn-sm" title="Emitir">
+                                    <i class="fas fa-check-circle"></i>
+                                </a>
+                                <a href="{% url 'facturacion:eliminar' factura.pk %}" class="btn btn-danger btn-sm" title="Eliminar" onclick="return confirm('¿Eliminar esta factura?')">
+                                    <i class="fas fa-trash"></i>
+                                </a>
+                            {% endif %}
+                            {% if factura.estado == 'EMI' %}
+                                <a href="{% url 'facturacion:enviar_sii' factura.pk %}" class="btn btn-primary btn-sm" title="Enviar al SII">
+                                    <i class="fas fa-paper-plane"></i>
+                                </a>
+                            {% endif %}
+                            <a href="{% url 'facturacion:pdf' factura.pk %}" class="btn btn-secondary btn-sm" title="PDF" target="_blank">
+                                <i class="fas fa-file-pdf"></i>
+                            </a>
+                        </div>
+                    </div>
+                </tr>
+                {% empty %}
+                <tr><td colspan="6" class="text-center">No hay facturas registradas.{% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

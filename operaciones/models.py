@@ -2,7 +2,7 @@ from django.db import models
 from django.conf import settings
 from django.utils import timezone
 from taller.models import Conductor, Vehiculo
-
+from centro_comercio.models import Cliente  # si usas Cliente de centro_comercio
 
 # ============================================================
 # CLIENTES Y UBICACIÓN
@@ -238,3 +238,19 @@ class EstatusOperacionalViaje(models.Model):
 
     def __str__(self):
         return f"{self.fecha} {self.turno} - {self.conductor}"
+    
+    
+
+
+class Viaje(models.Model):
+    # Datos del viaje (planilla AM/PM)
+    cliente = models.ForeignKey(Cliente, on_delete=models.PROTECT, related_name='viajes')
+    origen = models.CharField(max_length=200)
+    destino = models.CharField(max_length=200)
+    fecha_viaje = models.DateField(default=timezone.now)
+    monto = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    facturado = models.BooleanField(default=False)   # ← campo necesario
+    # otros campos que ya tengas (chofer, patente, etc.)
+    
+    def __str__(self):
+        return f"{self.origen} → {self.destino} - {self.fecha_viaje}"

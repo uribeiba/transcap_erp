@@ -1,315 +1,536 @@
-// static/js/cotizaciones.js - Sistema unificado de cotizaciones (FIX CLP + submit safe + Item N)
-(function () {
-  "use strict";
+(function() {
+    "use strict";
 
-  console.log("✅ cotizaciones.js cargado");
+    const IVA_RATE = 0.19;
 
-  const IVA_RATE = 0.19;
-
-  // ============================================================
-  // Helpers CLP / números (más robustos para valores tipo 25000.00)
-  // ============================================================
-
-  function esInput(el) {
-    return el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.tagName === "SELECT");
-  }
-
-  // Detecta formato miles CL (12.345.678) sin decimales
-  function pareceMilesCL(s) {
-    return /^[0-9]{1,3}(\.[0-9]{3})+$/.test(s);
-  }
-
-  // Convierte:
-  // - "600.000" / "$ 600.000" -> 600000
-  // - "25000.00" -> 25000
-  // - "1.234,56" -> 1234.56
-  function parseCLNumber(value) {
-    if (value === null || value === undefined) return 0;
-    let s = String(value).trim();
-    if (!s) return 0;
-
-    // quitar moneda/espacios
-    s = s.replace(/\$/g, "").replace(/\s/g, "");
-
-    // si trae coma, asumimos CL clásico: miles '.' + decimal ','
-    if (s.includes(",")) {
-      s = s.replace(/\./g, "");
-      s = s.replace(/,/g, ".");
-      s = s.replace(/[^0-9.-]/g, "");
-      const n = parseFloat(s);
-      return Number.isFinite(n) ? n : 0;
+    // --- FUNCIONES DE UTILIDAD ---
+    function parseCLP(value) {
+        if (!value) return 0;
+        let s = String(value).replace(/\$/g, "").replace(/\./g, "").replace(/\s/g, "").trim();
+        let n = parseFloat(s);
+        return isNaN(n) ? 0 : n;
     }
 
-    // si parece miles CL puro (12.345.678), removemos puntos
-    if (pareceMilesCL(s)) {
-      s = s.replace(/\./g, "");
-      s = s.replace(/[^0-9.-]/g, "");
-      const n = parseFloat(s);
-      return Number.isFinite(n) ? n : 0;
+    function formatCLP(amount) {
+        return "$ " + Math.round(amount).toLocaleString("es-CL");
     }
 
-    // si no, dejamos el punto como decimal (ej: 25000.00)
-    s = s.replace(/[^0-9.-]/g, "");
-    const n = parseFloat(s);
-    return Number.isFinite(n) ? n : 0;
-  }
-
-  // Para enviar a Django DecimalField:
-  // - "600.000" -> "600000"
-  // - "1.234,56" -> "1234.56"
-  // - "25000.00" -> "25000.00"
-  function toDjangoDecimalString(value) {
-    if (value === null || value === undefined) return "0";
-    let s = String(value).trim();
-    if (!s) return "0";
-
-    s = s.replace(/\$/g, "").replace(/\s/g, "");
-
-    if (s.includes(",")) {
-      // CL: 1.234,56
-      s = s.replace(/\./g, "");
-      s = s.replace(/,/g, ".");
-    } else if (pareceMilesCL(s)) {
-      // CL: 12.345.678
-      s = s.replace(/\./g, "");
-    } // si no, puede ser decimal Django 25000.00 -> se deja
-
-    s = s.replace(/[^0-9.-]/g, "");
-    if (s === "-" || s === "" || s === ".") return "0";
-    return s;
-  }
-
-  function formatoCLP(num) {
-    const n = Number.isFinite(num) ? num : 0;
-    return "$ " + Math.round(n).toLocaleString("es-CL", { maximumFractionDigits: 0 });
-  }
-
-  function esExentoDesdeControl(ctrl) {
-    if (!ctrl) return false;
-
-    if (ctrl.tagName === "SELECT") {
-      const v = String(ctrl.value);
-      return v === "True" || v === "true" || v === "1" || v === "SI" || v === "Sí" || v === "SÍ";
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
     }
 
-    if (ctrl.type === "checkbox") return !!ctrl.checked;
-    return String(ctrl.value) === "True";
-  }
+    // ==========================================
+    // REMOVER FILA NUEVA (ÍTEMS)
+    // ==========================================
+    window.removerFilaNueva = function(btn) {
+        const fila = btn.closest('tr');
+        if (fila) {
+            fila.remove();
+            const totalForms = document.getElementById('id_items-TOTAL_FORMS');
+            if (totalForms) {
+                const currentCount = document.querySelectorAll('#items-tbody tr.item-row:not([style*="display: none"])').length;
+                totalForms.value = currentCount;
+            }
+            if (window.calcularTodo) window.calcularTodo();
+        }
+    };
 
-  // ============================================================
-  // Calculadora
-  // ============================================================
+    // ==========================================
+    // ELIMINAR FILA EXISTENTE (ÍTEMS con ID en BD)
+    // ==========================================
+    window.eliminarFilaExistente = function(btn) {
+        if (confirm("¿Eliminar este ítem definitivamente?")) {
+            const row = btn.closest('.item-row');
+            const deleteCheckbox = row.querySelector('input[name$="-DELETE"]');
+            if (deleteCheckbox) {
+                deleteCheckbox.checked = true;
+                row.style.display = 'none';
+                row.classList.remove('item-row');
+                if (window.calcularTodo) window.calcularTodo();
+            }
+        }
+    };
 
-  function CotizacionCalculadora(contenedor) {
-    this.contenedor = contenedor || document;
-    this.ivaRate = IVA_RATE;
-    this.inicializado = false;
-  }
+    // ==========================================
+    // REMOVER CUOTA NUEVA
+    // ==========================================
+    window.removerCuotaNueva = function(btn) {
+        const fila = btn.closest('.cuota-row');
+        if (fila) {
+            fila.remove();
+            const totalForms = document.getElementById('id_cuotas-TOTAL_FORMS');
+            if (totalForms) {
+                const currentCount = document.querySelectorAll('#cuotas-tbody tr.cuota-row:not([style*="display: none"])').length;
+                totalForms.value = currentCount;
+            }
+            window.actualizarIndicesCuotas();
+        }
+    };
 
-  CotizacionCalculadora.prototype.obtenerFilasItems = function () {
-    return this.contenedor.querySelectorAll("#items-table tbody tr.item-row");
-  };
+    // ==========================================
+    // ELIMINAR CUOTA EXISTENTE (con ID en BD)
+    // ==========================================
+    window.eliminarCuotaExistente = function(btn) {
+        if (confirm("¿Eliminar esta cuota definitivamente?")) {
+            const row = btn.closest('.cuota-row');
+            const deleteCheckbox = row.querySelector('input[name$="-DELETE"]');
+            if (deleteCheckbox) {
+                deleteCheckbox.checked = true;
+                row.style.display = 'none';
+                window.actualizarIndicesCuotas();
+            }
+        }
+    };
 
-  CotizacionCalculadora.prototype.calcularFila = function (fila) {
-    const cantidadInput = fila.querySelector('[name$="cantidad"]');
-    const valorInput = fila.querySelector('[name$="valor_unitario"]');
-    const exentoCtrl = fila.querySelector('[name$="exento"]');
+    // ==========================================
+    // ACTUALIZAR ÍNDICES DE CUOTAS
+    // ==========================================
+    window.actualizarIndicesCuotas = function() {
+        const cuotasTbody = document.getElementById('cuotas-tbody');
+        if (!cuotasTbody) return;
+        
+        const rows = cuotasTbody.querySelectorAll('.cuota-row');
+        rows.forEach((row, idx) => {
+            // Actualizar índice visual
+            const indexCell = row.querySelector('.cuota-index');
+            if (indexCell) indexCell.innerText = idx + 1;
+            
+            // Actualizar names de inputs
+            row.querySelectorAll('input, select').forEach(input => {
+                const name = input.getAttribute('name');
+                if (name) {
+                    input.setAttribute('name', name.replace(/cuotas-\d+-/, `cuotas-${idx}-`));
+                }
+                const id = input.getAttribute('id');
+                if (id) {
+                    input.setAttribute('id', id.replace(/cuotas-\d+-/, `cuotas-${idx}-`));
+                }
+            });
+        });
+        
+        const totalForms = document.getElementById('id_cuotas-TOTAL_FORMS');
+        if (totalForms) {
+            totalForms.value = rows.length;
+        }
+    };
 
-    const cantidad = parseCLNumber(cantidadInput ? cantidadInput.value : 0);
-    const valor = parseCLNumber(valorInput ? valorInput.value : 0);
-    const exento = esExentoDesdeControl(exentoCtrl);
+    // ==========================================
+    // AGREGAR NUEVA CUOTA
+    // ==========================================
+    window.agregarNuevaCuota = function() {
+        const tbody = document.getElementById('cuotas-tbody');
+        const template = document.getElementById('cuota-row-template');
+        const totalForms = document.getElementById('id_cuotas-TOTAL_FORMS');
+        
+        if (!tbody || !template) {
+            console.warn('No se encontraron los elementos necesarios para agregar cuota');
+            return;
+        }
+        
+        let count = totalForms ? parseInt(totalForms.value) : 0;
+        if (isNaN(count)) count = 0;
+        
+        // Reemplazar __prefix__ con el índice actual
+        let html = template.innerHTML.replace(/__prefix__/g, count);
+        
+        // Crear nueva fila
+        const newRow = document.createElement('tr');
+        newRow.className = 'cuota-row';
+        newRow.innerHTML = html;
+        
+        // Agregar al final del tbody
+        tbody.appendChild(newRow);
+        
+        // Incrementar TOTAL_FORMS
+        if (totalForms) {
+            totalForms.value = count + 1;
+        }
+        
+        // Actualizar índices
+        window.actualizarIndicesCuotas();
+        
+        // Si el total está calculado, sugerir distribución automática
+        const totalSpan = document.getElementById('t-total');
+        if (totalSpan) {
+            const totalText = totalSpan.textContent.replace(/[^0-9]/g, '');
+            const totalValue = parseInt(totalText) || 0;
+            const cuotaCount = tbody.querySelectorAll('.cuota-row:not([style*="display: none"])').length;
+            if (cuotaCount > 0 && totalValue > 0) {
+                const montoPorCuota = Math.round(totalValue / cuotaCount);
+                tbody.querySelectorAll('.cuota-row:not([style*="display: none"])').forEach((row, idx) => {
+                    const montoInput = row.querySelector('.cuota-monto');
+                    if (montoInput && !montoInput.value) {
+                        if (idx === cuotaCount - 1) {
+                            // Última cuota: resto
+                            const sumaAnteriores = montoPorCuota * (cuotaCount - 1);
+                            montoInput.value = totalValue - sumaAnteriores;
+                        } else {
+                            montoInput.value = montoPorCuota;
+                        }
+                    }
+                });
+            }
+        }
+    };
 
-    const total = cantidad * valor;
+    // ==========================================
+    // LÓGICA DE CÁLCULO MEJORADA
+    // ==========================================
+    window.calcularTodo = function() {
+        const form = document.querySelector('form[data-cot-form]');
+        if (!form) return;
 
-    const totalSpan = fila.querySelector(".item-total");
-    if (totalSpan) {
-      totalSpan.textContent = formatoCLP(total);
-      totalSpan.dataset.raw = String(total);
+        let baseAfecta = 0;
+        let baseExenta = 0;
+
+        const rows = form.querySelectorAll('#items-tbody tr.item-row');
+        
+        rows.forEach(row => {
+            const deleteCheck = row.querySelector('input[name$="-DELETE"]');
+            if (deleteCheck && deleteCheck.checked) return;
+            
+            const cantInput = row.querySelector('.item-cantidad');
+            const unitInput = row.querySelector('.item-valor');
+            const exentoSelect = row.querySelector('.exento-select');
+            
+            if (!cantInput || !unitInput) return;
+            
+            const cant = parseFloat(cantInput.value) || 0;
+            const unit = parseFloat(unitInput.value) || 0;
+            const exento = exentoSelect ? exentoSelect.value === 'True' : false;
+            
+            const totalFila = cant * unit;
+            
+            if (exento) { 
+                baseExenta += totalFila; 
+            } else { 
+                baseAfecta += totalFila; 
+            }
+
+            const spanTotal = row.querySelector('.item-total');
+            if (spanTotal) spanTotal.textContent = formatCLP(totalFila);
+        });
+
+        const netoTotal = baseAfecta + baseExenta;
+        const iva = Math.round(baseAfecta * IVA_RATE);
+        
+        let descuentoMonto = 0;
+        const descuentoMontoInput = form.querySelector('.descuento-monto');
+        const descuentoPorcentajeInput = form.querySelector('.descuento-porcentaje');
+        
+        if (descuentoMontoInput && descuentoMontoInput.value) {
+            descuentoMonto = parseFloat(descuentoMontoInput.value) || 0;
+        } else if (descuentoPorcentajeInput && descuentoPorcentajeInput.value) {
+            const descuentoPorcentaje = parseFloat(descuentoPorcentajeInput.value) || 0;
+            descuentoMonto = Math.round(netoTotal * (descuentoPorcentaje / 100));
+        }
+        
+        let recargoMonto = 0;
+        const recargoInput = form.querySelector('.recargo-porcentaje');
+        if (recargoInput && recargoInput.value) {
+            const recargoPorcentaje = parseFloat(recargoInput.value) || 0;
+            recargoMonto = Math.round(netoTotal * (recargoPorcentaje / 100));
+        }
+        
+        const totalFinal = netoTotal + iva - descuentoMonto + recargoMonto;
+
+        const updateText = (id, val) => {
+            const el = document.getElementById(id);
+            if (el) el.textContent = formatCLP(val);
+        };
+
+        updateText('t-neto', netoTotal);
+        updateText('t-iva', iva);
+        updateText('t-total', totalFinal);
+        
+        const afectoEl = document.getElementById('t-afecto');
+        if (afectoEl) afectoEl.textContent = formatCLP(baseAfecta);
+        
+        const exentoEl = document.getElementById('t-exento');
+        if (exentoEl) exentoEl.textContent = formatCLP(baseExenta);
+    };
+
+    // ==========================================
+    // AGREGAR NUEVA FILA (ÍTEMS)
+    // ==========================================
+    function agregarNuevaFila() {
+        const tbody = document.getElementById('items-tbody');
+        const template = document.getElementById('item-row-template');
+        const totalForms = document.getElementById('id_items-TOTAL_FORMS');
+        
+        if (!tbody || !template || !totalForms) {
+            console.warn('No se encontraron los elementos necesarios para agregar fila');
+            return;
+        }
+        
+        let count = parseInt(totalForms.value);
+        if (isNaN(count)) count = 0;
+        
+        let html = template.innerHTML.replace(/__prefix__/g, count);
+        
+        const newRow = document.createElement('tr');
+        newRow.className = 'item-row';
+        newRow.innerHTML = html;
+        
+        tbody.appendChild(newRow);
+        totalForms.value = count + 1;
+        
+        if (window.calcularTodo) window.calcularTodo();
     }
 
-    return { cantidad, valor, exento, total };
-  };
+    // ==========================================
+    // DISTRIBUIR CUOTAS AUTOMÁTICAMENTE
+    // ==========================================
+    window.distribuirCuotas = function() {
+        const totalSpan = document.getElementById('t-total');
+        if (!totalSpan) return;
+        
+        const totalText = totalSpan.textContent.replace(/[^0-9]/g, '');
+        const totalValue = parseInt(totalText) || 0;
+        
+        const cuotasTbody = document.getElementById('cuotas-tbody');
+        const cuotaRows = cuotasTbody.querySelectorAll('.cuota-row:not([style*="display: none"])');
+        const cuotaCount = cuotaRows.length;
+        
+        if (cuotaCount === 0 || totalValue === 0) return;
+        
+        const montoPorCuota = Math.floor(totalValue / cuotaCount);
+        const resto = totalValue - (montoPorCuota * cuotaCount);
+        
+        cuotaRows.forEach((row, idx) => {
+            const montoInput = row.querySelector('.cuota-monto');
+            if (montoInput) {
+                if (idx === cuotaCount - 1) {
+                    montoInput.value = montoPorCuota + resto;
+                } else {
+                    montoInput.value = montoPorCuota;
+                }
+            }
+        });
+    };
 
-  CotizacionCalculadora.prototype.actualizarTotalesUI = function (totales) {
-    const netoEl = this.contenedor.querySelector("#t-neto");
-    const ivaEl = this.contenedor.querySelector("#t-iva");
-    const descEl = this.contenedor.querySelector("#t-desc");
-    const totalEl = this.contenedor.querySelector("#t-total");
+    // ==========================================
+    // ENVÍO DEL FORMULARIO MEJORADO
+    // ==========================================
+    document.addEventListener('submit', async function(e) {
+        const form = e.target.closest('form[data-cot-form]');
+        if (!form || form.getAttribute('data-submitting') === '1') return;
 
-    if (netoEl) netoEl.textContent = formatoCLP(totales.neto);
-    if (ivaEl) ivaEl.textContent = formatoCLP(totales.iva);
-    if (descEl) descEl.textContent = formatoCLP(totales.descuento);
-    if (totalEl) totalEl.textContent = formatoCLP(totales.total);
-  };
+        e.preventDefault();
+        
+        const rows = form.querySelectorAll('#items-tbody tr.item-row');
+        let hasValidItems = false;
+        
+        for (let row of rows) {
+            const deleteCheck = row.querySelector('input[name$="-DELETE"]');
+            if (deleteCheck && deleteCheck.checked) continue;
+            
+            const tituloInput = row.querySelector('.item-titulo');
+            const titulo = tituloInput ? tituloInput.value?.trim() : '';
+            const cantidad = parseFloat(row.querySelector('.item-cantidad')?.value) || 0;
+            const valor = parseFloat(row.querySelector('.item-valor')?.value) || 0;
+            
+            if (titulo || cantidad > 0 || valor > 0) {
+                hasValidItems = true;
+                break;
+            }
+        }
+        
+        if (!hasValidItems) {
+            alert('Debe agregar al menos un ítem con descripción.');
+            return;
+        }
+        
+        const btn = form.querySelector('button[type="submit"]');
+        const originalText = btn.innerHTML;
+        
+        form.setAttribute('data-submitting', '1');
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Guardando...';
 
-  CotizacionCalculadora.prototype.calcularTotales = function () {
-    let neto = 0;
-    let afecto = 0;
-    let exento = 0;
+        const fd = new FormData(form);
 
-    const filas = this.obtenerFilasItems();
-    filas.forEach((fila) => {
-      const datos = this.calcularFila(fila);
-      neto += datos.total;
-      if (datos.exento) exento += datos.total;
-      else afecto += datos.total;
+        try {
+            const res = await fetch(form.action, {
+                method: "POST",
+                headers: {
+                    "X-Requested-With": "XMLHttpRequest",
+                    "X-CSRFToken": getCookie('csrftoken') 
+                },
+                body: fd
+            });
+
+            const data = await res.json();
+
+            if (res.ok && data.ok) {
+                const modal = document.getElementById('cotModal');
+                if (modal) {
+                    if (typeof $ !== 'undefined' && $.fn.modal) {
+                        $(modal).modal('hide');
+                    } else if (modal.modal) {
+                        modal.modal('hide');
+                    } else {
+                        modal.style.display = 'none';
+                        document.body.classList.remove('modal-open');
+                        const backdrop = document.querySelector('.modal-backdrop');
+                        if (backdrop) backdrop.remove();
+                    }
+                }
+                
+                if (typeof cargarTablaCotizaciones === 'function') {
+                    cargarTablaCotizaciones();
+                } else if (typeof window.cargarTabla === 'function') {
+                    window.cargarTabla();
+                } else {
+                    window.location.reload();
+                }
+            } else {
+                let errorMsg = "Error al guardar la cotización:\n\n";
+                
+                if (data.errors) {
+                    if (typeof data.errors === 'object') {
+                        if (data.errors.form) {
+                            errorMsg += "• Errores en cabecera:\n";
+                            for (let field in data.errors.form) {
+                                const fieldErrors = data.errors.form[field];
+                                if (Array.isArray(fieldErrors)) {
+                                    errorMsg += `  - ${field}: ${fieldErrors.join(', ')}\n`;
+                                } else {
+                                    errorMsg += `  - ${field}: ${fieldErrors}\n`;
+                                }
+                            }
+                        }
+                        if (data.errors.formset_items && data.errors.formset_items.length > 0) {
+                            errorMsg += "\n• Errores en ítems:\n";
+                            data.errors.formset_items.forEach((err, idx) => {
+                                if (err && err.titulo) {
+                                    errorMsg += `  - Ítem ${idx + 1}: ${Array.isArray(err.titulo) ? err.titulo.join(', ') : err.titulo}\n`;
+                                }
+                            });
+                        }
+                        if (data.errors.formset_cuotas && data.errors.formset_cuotas.length > 0) {
+                            errorMsg += "\n• Errores en cuotas:\n";
+                            data.errors.formset_cuotas.forEach((err, idx) => {
+                                if (err) {
+                                    const fields = Object.keys(err).join(', ');
+                                    errorMsg += `  - Cuota ${idx + 1}: ${fields}\n`;
+                                }
+                            });
+                        }
+                    } else {
+                        errorMsg += data.errors;
+                    }
+                } else if (data.error) {
+                    errorMsg += data.error;
+                } else if (data.message) {
+                    errorMsg += data.message;
+                } else {
+                    errorMsg += "Error desconocido. Revise la consola para más detalles.";
+                }
+                
+                alert(errorMsg);
+                console.error("Error detallado:", data);
+                
+                form.removeAttribute('data-submitting');
+                btn.disabled = false;
+                btn.innerHTML = originalText;
+            }
+
+        } catch (err) {
+            console.error("Excepción en envío:", err);
+            alert("Hubo un problema de conexión. Por favor, intente nuevamente.");
+            form.removeAttribute('data-submitting');
+            btn.disabled = false;
+            btn.innerHTML = originalText;
+        }
     });
 
-    const iva = afecto * this.ivaRate;
-
-    const descuentoInput = this.contenedor.querySelector('[name$="descuento"]');
-    const descuento = parseCLNumber(descuentoInput ? descuentoInput.value : 0);
-
-    const total = neto + iva - descuento;
-
-    this.actualizarTotalesUI({ neto, iva, descuento, total });
-    return { neto, afecto, exento, iva, descuento, total };
-  };
-
-  // ============================================================
-  // UX inputs: formatear en blur, limpiar en focus
-  // ============================================================
-
-  function attachMoneyUX(input) {
-    if (!input || input.dataset.moneyUx === "1") return;
-    input.dataset.moneyUx = "1";
-
-    input.addEventListener("focus", () => {
-      const raw = toDjangoDecimalString(input.value);
-      input.value = raw === "0" ? "" : raw;
+    // ==========================================
+    // EVENTOS DE INTERFAZ
+    // ==========================================
+    document.addEventListener('input', function(e) {
+        if (e.target.matches('.item-cantidad, .item-valor, .descuento-monto, .descuento-porcentaje, .recargo-porcentaje, .exento-select')) {
+            window.calcularTodo();
+        }
+        if (e.target.matches('.cuota-fecha, .cuota-monto')) {
+            // No hacer nada extra
+        }
     });
 
-    input.addEventListener("blur", () => {
-      const n = parseCLNumber(input.value);
-      input.value = n ? Math.round(n).toLocaleString("es-CL", { maximumFractionDigits: 0 }) : "0";
-    });
-  }
-
-  // ============================================================
-  // Auto título: "Item 1", "Item 2"... si viene vacío (autorizado ✅)
-  // ============================================================
-
-  function autoTitulosItems(formRoot) {
-    if (!formRoot) return;
-
-    const filas = formRoot.querySelectorAll("#items-table tbody tr.item-row");
-    let idx = 0;
-
-    filas.forEach((fila) => {
-      const del = fila.querySelector('[name$="DELETE"]');
-      const marcadoEliminar = del && del.type === "checkbox" ? del.checked : false;
-      if (marcadoEliminar) return;
-
-      const titulo = fila.querySelector('[name$="titulo"]');
-      const valor = fila.querySelector('[name$="valor_unitario"]');
-      const cantidad = fila.querySelector('[name$="cantidad"]');
-
-      const hayValor = parseCLNumber(valor ? valor.value : 0) > 0;
-      const hayCantidad = parseCLNumber(cantidad ? cantidad.value : 0) > 0;
-
-      if (!titulo) return;
-
-      if (!String(titulo.value || "").trim() && (hayValor || hayCantidad)) {
-        idx += 1;
-        titulo.value = `Item ${idx}`;
-      } else if (String(titulo.value || "").trim()) {
-        // si ya tiene título, igual cuenta como item para que el orden quede natural
-        idx += 1;
-      }
-    });
-  }
-
-  // ============================================================
-  // Sanitizar ANTES de enviar (CLAVE para que guarde)
-  // ============================================================
-
-  function sanitizeFormNumbers(formRoot) {
-    if (!formRoot) return;
-
-    // 1) Auto títulos (antes de sanitizar, para no perder intención)
-    autoTitulosItems(formRoot);
-
-    // 2) campos típicos que se rompen con miles
-    const selectors = ['[name$="descuento"]', '[name$="valor_unitario"]', '[name$="cantidad"]'];
-
-    selectors.forEach((sel) => {
-      formRoot.querySelectorAll(sel).forEach((el) => {
-        if (!esInput(el)) return;
-        if (el.type === "checkbox") return;
-        el.value = toDjangoDecimalString(el.value);
-      });
-    });
-  }
-
-  // ============================================================
-  // Init
-  // ============================================================
-
-  CotizacionCalculadora.prototype.inicializar = function () {
-    if (this.inicializado) return;
-
-    const recalcular = () => this.calcularTotales();
-
-    this.contenedor.querySelectorAll('[name$="cantidad"]').forEach((i) => {
-      i.addEventListener("input", recalcular);
-      i.addEventListener("change", recalcular);
+    document.addEventListener('change', function(e) {
+        if (e.target.matches('.exento-select, input[name$="-DELETE"]')) {
+            window.calcularTodo();
+        }
+        if (e.target.matches('.condicion-venta')) {
+            if (e.target.value === 'CONT') {
+                // Si es contado, limpiar cuotas
+                const cuotasTbody = document.getElementById('cuotas-tbody');
+                if (cuotasTbody) {
+                    cuotasTbody.innerHTML = '';
+                    const totalForms = document.getElementById('id_cuotas-TOTAL_FORMS');
+                    if (totalForms) totalForms.value = 0;
+                }
+            }
+        }
     });
 
-    this.contenedor.querySelectorAll('[name$="valor_unitario"]').forEach((i) => {
-      i.addEventListener("input", recalcular);
-      i.addEventListener("change", recalcular);
-      attachMoneyUX(i);
+    // Evento para agregar nueva fila de ítems
+    document.addEventListener('click', function(e) {
+        const addBtn = e.target.closest('#btn-add-item');
+        if (addBtn) {
+            e.preventDefault();
+            e.stopPropagation();
+            agregarNuevaFila();
+        }
+        
+        const addCuotaBtn = e.target.closest('#btn-add-cuota');
+        if (addCuotaBtn) {
+            e.preventDefault();
+            e.stopPropagation();
+            window.agregarNuevaCuota();
+        }
+        
+        const distribuirBtn = e.target.closest('#btn-distribuir-cuotas');
+        if (distribuirBtn) {
+            e.preventDefault();
+            window.distribuirCuotas();
+        }
     });
 
-    this.contenedor.querySelectorAll('[name$="exento"]').forEach((i) => {
-      i.addEventListener("change", recalcular);
-    });
-
-    const desc = this.contenedor.querySelector('[name$="descuento"]');
-    if (desc) {
-      desc.addEventListener("input", recalcular);
-      desc.addEventListener("change", recalcular);
-      attachMoneyUX(desc);
+    // ==========================================
+    // INICIALIZACIÓN
+    // ==========================================
+    function inicializarTodo() {
+        if (window.calcularTodo) window.calcularTodo();
+        if (window.actualizarIndicesCuotas) window.actualizarIndicesCuotas();
+        
+        // Si hay un botón de distribuir cuotas, agregar evento
+        setTimeout(() => {
+            const distribuirBtn = document.getElementById('btn-distribuir-cuotas');
+            if (distribuirBtn && !distribuirBtn._hasListener) {
+                distribuirBtn.addEventListener('click', window.distribuirCuotas);
+                distribuirBtn._hasListener = true;
+            }
+        }, 200);
     }
 
-    // formatear CLP inicial
-    this.contenedor.querySelectorAll('[name$="valor_unitario"], [name$="descuento"]').forEach((i) => {
-      const n = parseCLNumber(i.value);
-      i.value = n ? Math.round(n).toLocaleString("es-CL", { maximumFractionDigits: 0 }) : "0";
-    });
-
-    this.calcularTotales();
-    this.inicializado = true;
-    console.log("✅ CotizacionCalculadora inicializada");
-  };
-
-  // ============================================================
-  // API global
-  // ============================================================
-
-  window.CotizacionCalculadora = CotizacionCalculadora;
-
-  window.inicializarCotizacionForm = function (root) {
-    try {
-      const calc = new CotizacionCalculadora(root || document);
-      calc.inicializar();
-
-      // expone sanitizador para el panel (submit)
-      window.__sanitizeCotizacionForm = function (formEl) {
-        sanitizeFormNumbers(formEl);
-      };
-
-      return calc;
-    } catch (e) {
-      console.error("❌ Error inicializarCotizacionForm:", e);
-      return null;
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', function() {
+            setTimeout(inicializarTodo, 100);
+        });
+    } else {
+        setTimeout(inicializarTodo, 100);
     }
-  };
 
-  document.addEventListener("DOMContentLoaded", function () {
-    const cotForm = document.querySelector('form[data-cot-form]');
-    if (cotForm && !document.querySelector(".modal.show")) {
-      window.inicializarCotizacionForm(document);
-    }
-  });
 })();

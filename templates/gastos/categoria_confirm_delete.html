@@ -1,0 +1,22 @@
+{% extends "layout/base.html" %}
+{% block title %}Eliminar Categoría{% endblock %}
+{% block page_title %}⚠️ Confirmar Eliminación{% endblock %}
+
+{% block content %}
+<div class="card card-danger">
+    <div class="card-header">
+        <h3 class="card-title">¿Está seguro?</h3>
+    </div>
+    <div class="card-body">
+        <p>¿Eliminar la categoría <strong>"{{ object.nombre }}"</strong>?</p>
+        <p class="text-danger">Esta acción no se puede deshacer. Los gastos asociados quedarán sin categoría (si proteges la integridad referencial, el sistema evitará eliminar categorías que tengan gastos asociados).</p>
+    </div>
+    <div class="card-footer">
+        <form method="post">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-danger">Sí, eliminar</button>
+            <a href="{% url 'gastos:categorias' %}" class="btn btn-secondary">Cancelar</a>
+        </form>
+    </div>
+</div>
+{% endblock %}

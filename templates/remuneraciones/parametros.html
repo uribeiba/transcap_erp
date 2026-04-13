@@ -1,0 +1,725 @@
+<!-- templates/remuneraciones/parametros.html -->
+{% extends "remuneraciones/base_remuneraciones.html" %}
+
+{% block title %}Parámetros - Remuneraciones{% endblock %}
+{% block page_title %}Configuración del Sistema{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-12">
+        <!-- Tabs de configuración -->
+        <ul class="nav nav-tabs" id="parametrosTabs" role="tablist">
+            <li class="nav-item">
+                <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#afp" type="button" role="tab">
+                    <i class="fas fa-chart-line"></i> AFP
+                </button>
+            </li>
+            <li class="nav-item">
+                <button class="nav-link" data-bs-toggle="tab" data-bs-target="#salud" type="button" role="tab">
+                    <i class="fas fa-hospital-user"></i> Salud
+                </button>
+            </li>
+            <li class="nav-item">
+                <button class="nav-link" data-bs-toggle="tab" data-bs-target="#haberes" type="button" role="tab">
+                    <i class="fas fa-plus-circle"></i> Haberes
+                </button>
+            </li>
+            <li class="nav-item">
+                <button class="nav-link" data-bs-toggle="tab" data-bs-target="#descuentos" type="button" role="tab">
+                    <i class="fas fa-minus-circle"></i> Descuentos
+                </button>
+            </li>
+            <li class="nav-item">
+                <button class="nav-link" data-bs-toggle="tab" data-bs-target="#asignaciones" type="button" role="tab">
+                    <i class="fas fa-child"></i> Asignaciones
+                </button>
+            </li>
+            <li class="nav-item">
+                <button class="nav-link" data-bs-toggle="tab" data-bs-target="#parametros_generales" type="button" role="tab">
+                    <i class="fas fa-sliders-h"></i> Parámetros Legales
+                </button>
+            </li>
+        </ul>
+        
+        <div class="tab-content mt-3">
+            
+            <!-- TAB AFP -->
+            <div class="tab-pane fade show active" id="afp" role="tabpanel">
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between">
+                        <span><i class="fas fa-chart-line"></i> Administración de AFP</span>
+                        <button class="btn btn-sm btn-primary" onclick="mostrarModalAFP()">
+                            <i class="fas fa-plus"></i> Nueva AFP
+                        </button>
+                    </div>
+                    <div class="card-body">
+                        <table class="table table-striped" id="tablaAFP">
+                            <thead>
+                                <tr>
+                                    <th>Código</th>
+                                    <th>Nombre</th>
+                                    <th>Cotización</th>
+                                    <th>Comisión</th>
+                                    <th>Total</th>
+                                    <th>Estado</th>
+                                    <th>Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody id="afpBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- TAB SALUD -->
+            <div class="tab-pane fade" id="salud" role="tabpanel">
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between">
+                        <span><i class="fas fa-hospital-user"></i> Administración de Salud</span>
+                        <button class="btn btn-sm btn-primary" onclick="mostrarModalSalud()">
+                            <i class="fas fa-plus"></i> Nueva Institución
+                        </button>
+                    </div>
+                    <div class="card-body">
+                        <table class="table table-striped" id="tablaSalud">
+                            <thead>
+                                <tr>
+                                    <th>Nombre</th>
+                                    <th>Tipo</th>
+                                    <th>Plan</th>
+                                    <th>Tasa Base</th>
+                                    <th>Tasa Adicional</th>
+                                    <th>Total</th>
+                                    <th>Estado</th>
+                                    <th>Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody id="saludBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- TAB HABERES -->
+            <div class="tab-pane fade" id="haberes" role="tabpanel">
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between">
+                        <span><i class="fas fa-plus-circle"></i> Haberes Configurables</span>
+                        <button class="btn btn-sm btn-primary" onclick="mostrarModalConcepto('HABER')">
+                            <i class="fas fa-plus"></i> Nuevo Haber
+                        </button>
+                    </div>
+                    <div class="card-body">
+                        <table class="table table-striped" id="tablaHaberes">
+                            <thead>
+                                <tr>
+                                    <th>Código</th>
+                                    <th>Nombre</th>
+                                    <th>Categoría</th>
+                                    <th>Tipo</th>
+                                    <th>Fórmula/Monto</th>
+                                    <th>Imponible</th>
+                                    <th>Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody id="haberesBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- TAB DESCUENTOS -->
+            <div class="tab-pane fade" id="descuentos" role="tabpanel">
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between">
+                        <span><i class="fas fa-minus-circle"></i> Descuentos Configurables</span>
+                        <button class="btn btn-sm btn-primary" onclick="mostrarModalConcepto('DESCUENTO')">
+                            <i class="fas fa-plus"></i> Nuevo Descuento
+                        </button>
+                    </div>
+                    <div class="card-body">
+                        <table class="table table-striped" id="tablaDescuentos">
+                            <thead>
+                                <tr>
+                                    <th>Código</th>
+                                    <th>Nombre</th>
+                                    <th>Categoría</th>
+                                    <th>Tipo</th>
+                                    <th>Fórmula/Monto</th>
+                                    <th>Afecto</th>
+                                    <th>Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody id="descuentosBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- TAB ASIGNACIONES FAMILIARES -->
+            <div class="tab-pane fade" id="asignaciones" role="tabpanel">
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between">
+                        <span><i class="fas fa-child"></i> Asignaciones Familiares</span>
+                        <button class="btn btn-sm btn-primary" onclick="mostrarModalAsignacion()">
+                            <i class="fas fa-plus"></i> Nueva Asignación
+                        </button>
+                    </div>
+                    <div class="card-body">
+                        <table class="table table-striped" id="tablaAsignaciones">
+                            <thead>
+                                <tr>
+                                    <th>Tipo Carga</th>
+                                    <th>Desde Sueldo</th>
+                                    <th>Hasta Sueldo</th>
+                                    <th>Monto</th>
+                                    <th>Vigencia</th>
+                                    <th>Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody id="asignacionesBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- TAB PARÁMETROS LEGALES -->
+            <div class="tab-pane fade" id="parametros_generales" role="tabpanel">
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between">
+                        <span><i class="fas fa-sliders-h"></i> Parámetros Legales</span>
+                        <button class="btn btn-sm btn-primary" onclick="mostrarModalParametro()">
+                            <i class="fas fa-plus"></i> Nuevo Parámetro
+                        </button>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-striped" id="tablaParametros">
+                                <thead>
+                                    <tr>
+                                        <th>Parámetro</th>
+                                        <th>Valor</th>
+                                        <th>Vigencia</th>
+                                        <th>Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="parametrosBody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal AFP -->
+<div class="modal fade" id="afpModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">AFP</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="afpForm">
+                    <input type="hidden" id="afp_id">
+                    <div class="mb-3">
+                        <label>Código</label>
+                        <input type="text" id="afp_codigo" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label>Nombre</label>
+                        <input type="text" id="afp_nombre" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label>Tasa Cotización (%)</label>
+                        <input type="number" id="afp_tasa" step="0.01" class="form-control" required>
+                        <small class="text-muted">Ej: 10.44 = 10.44%</small>
+                    </div>
+                    <div class="mb-3">
+                        <label>Comisión (%)</label>
+                        <input type="number" id="afp_comision" step="0.01" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label>Seguro Invalidez (%)</label>
+                        <input type="number" id="afp_seguro" step="0.01" class="form-control" value="1.44">
+                    </div>
+                    <div class="form-check">
+                        <input type="checkbox" id="afp_activo" class="form-check-input" checked>
+                        <label class="form-check-label">Activo</label>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" onclick="guardarAFP()">Guardar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Salud -->
+<div class="modal fade" id="saludModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Institución de Salud</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="saludForm">
+                    <input type="hidden" id="salud_id">
+                    <div class="mb-3">
+                        <label>Nombre</label>
+                        <input type="text" id="salud_nombre" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label>Tipo</label>
+                        <select id="salud_tipo" class="form-select">
+                            <option value="FONASA">Fonasa</option>
+                            <option value="ISAPRE">Isapre</option>
+                            <option value="OTRO">Otro</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label>Plan</label>
+                        <select id="salud_plan" class="form-select">
+                            <option value="BASE">Base (7%)</option>
+                            <option value="COMPLEMENTARIO">Complementario</option>
+                            <option value="PREMIUM">Premium</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label>Tasa Base (%)</label>
+                        <input type="number" id="salud_tasa_base" step="0.1" class="form-control" value="7.0">
+                    </div>
+                    <div class="mb-3">
+                        <label>Tasa Adicional (%)</label>
+                        <input type="number" id="salud_tasa_adicional" step="0.1" class="form-control" value="0">
+                    </div>
+                    <div class="mb-3">
+                        <label>Monto Adicional ($)</label>
+                        <input type="number" id="salud_monto_adicional" class="form-control" value="0">
+                    </div>
+                    <div class="form-check">
+                        <input type="checkbox" id="salud_activo" class="form-check-input" checked>
+                        <label class="form-check-label">Activo</label>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" onclick="guardarSalud()">Guardar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Concepto (Haber/Descuento) -->
+<div class="modal fade" id="conceptoModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="conceptoModalTitle">Concepto</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="conceptoForm">
+                    <input type="hidden" id="concepto_id">
+                    <input type="hidden" id="concepto_tipo_general">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label>Código</label>
+                                <input type="text" id="concepto_codigo" class="form-control" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label>Nombre</label>
+                                <input type="text" id="concepto_nombre" class="form-control" required>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label>Categoría</label>
+                                <select id="concepto_categoria" class="form-select">
+                                    <option value="REMUNERACION">Remuneración Base</option>
+                                    <option value="HORAS_EXTRA">Horas Extra</option>
+                                    <option value="BONOS">Bonos</option>
+                                    <option value="MOVILIZACION">Movilización</option>
+                                    <option value="COLACION">Colación</option>
+                                    <option value="ASIGNACION">Asignación Familiar</option>
+                                    <option value="GRATIFICACION">Gratificación</option>
+                                    <option value="DESCUENTO">Descuentos Varios</option>
+                                    <option value="PRESTAMO">Préstamos</option>
+                                    <option value="CAJA_COMPENSACION">Caja de Compensación</option>
+                                    <option value="COOPERATIVA">Cooperativa</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label>Tipo</label>
+                                <select id="concepto_tipo" class="form-select" required>
+                                    <option value="HABER_IMPONIBLE">Haber Imponible</option>
+                                    <option value="HABER_NO_IMPONIBLE">Haber No Imponible</option>
+                                    <option value="DESCUENTO_LEGAL">Descuento Legal</option>
+                                    <option value="DESCUENTO_VOLUNTARIO">Descuento Voluntario</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label>Tipo de Cálculo</label>
+                                <select id="concepto_calculo" class="form-select" onchange="cambiarTipoCalculo()">
+                                    <option value="FIJO">Monto Fijo</option>
+                                    <option value="PORCENTAJE">Porcentaje del Sueldo</option>
+                                    <option value="FORMULA">Fórmula Personalizada</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6" id="div_monto_fijo" style="display:block;">
+                            <div class="mb-3">
+                                <label>Monto Fijo ($)</label>
+                                <input type="number" id="concepto_monto_fijo" class="form-control">
+                            </div>
+                        </div>
+                        <div class="col-md-6" id="div_porcentaje" style="display:none;">
+                            <div class="mb-3">
+                                <label>Porcentaje (%)</label>
+                                <input type="number" id="concepto_porcentaje" step="0.01" class="form-control">
+                            </div>
+                        </div>
+                        <div class="col-md-12" id="div_formula" style="display:none;">
+                            <div class="mb-3">
+                                <label>Fórmula</label>
+                                <textarea id="concepto_formula" rows="3" class="form-control" placeholder="Ej: sueldo_base * 0.25"></textarea>
+                                <small class="text-muted">Variables disponibles: sueldo_base, horas_extra, bonos, gratificacion</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="form-check">
+                                <input type="checkbox" id="concepto_imponible" class="form-check-input" checked>
+                                <label class="form-check-label">Es Imponible</label>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-check">
+                                <input type="checkbox" id="concepto_tributable" class="form-check-input" checked>
+                                <label class="form-check-label">Es Tributable</label>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-check">
+                                <input type="checkbox" id="concepto_activo" class="form-check-input" checked>
+                                <label class="form-check-label">Activo</label>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" onclick="guardarConcepto()">Guardar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Variables globales
+    let conceptoModo = 'HABER'; // HABER o DESCUENTO
+    
+    // Cargar todas las tablas
+    function cargarAFP() {
+        fetch('/remuneraciones/api/afp/')
+            .then(res => res.json())
+            .then(data => {
+                const tbody = document.getElementById('afpBody');
+                tbody.innerHTML = '';
+                data.forEach(afp => {
+                    const total = afp.tasa_cotizacion + afp.comision;
+                    tbody.innerHTML += `
+                        <tr>
+                            <td>${afp.codigo || '-'}</td>
+                            <td>${afp.nombre}</td>
+                            <td class="text-end">${(afp.tasa_cotizacion * 100).toFixed(2)}%</td>
+                            <td class="text-end">${(afp.comision * 100).toFixed(2)}%</td>
+                            <td class="text-end"><strong>${(total * 100).toFixed(2)}%</strong></td>
+                            <td>${afp.activo ? '<span class="badge bg-success">Activo</span>' : '<span class="badge bg-danger">Inactivo</span>'}</td>
+                            <td>
+                                <i class="fas fa-edit text-primary" onclick="editarAFP(${afp.id})"></i>
+                                <i class="fas fa-trash text-danger" onclick="eliminarAFP(${afp.id})"></i>
+                            </td>
+                        </tr>
+                    `;
+                });
+            });
+    }
+    
+    function cargarSalud() {
+        fetch('/remuneraciones/api/salud/')
+            .then(res => res.json())
+            .then(data => {
+                const tbody = document.getElementById('saludBody');
+                tbody.innerHTML = '';
+                data.forEach(s => {
+                    const total = s.tasa_cotizacion + (s.tasa_adicional || 0);
+                    tbody.innerHTML += `
+                        <tr>
+                            <td>${s.nombre}</td>
+                            <td>${s.tipo}</td>
+                            <td>${s.plan || 'BASE'}</td>
+                            <td class="text-end">${(s.tasa_cotizacion * 100).toFixed(1)}%</td>
+                            <td class="text-end">${((s.tasa_adicional || 0) * 100).toFixed(1)}%</td>
+                            <td class="text-end"><strong>${(total * 100).toFixed(1)}%</strong></td>
+                            <td>${s.activo ? '<span class="badge bg-success">Activo</span>' : '<span class="badge bg-danger">Inactivo</span>'}</td>
+                            <td>
+                                <i class="fas fa-edit text-primary" onclick="editarSalud(${s.id})"></i>
+                                <i class="fas fa-trash text-danger" onclick="eliminarSalud(${s.id})"></i>
+                            </td>
+                        </tr>
+                    `;
+                });
+            });
+    }
+    
+    function cargarConceptos(tipo, tablaId, bodyId) {
+        fetch(`/remuneraciones/api/conceptos/?tipo=${tipo}`)
+            .then(res => res.json())
+            .then(data => {
+                const tbody = document.getElementById(bodyId);
+                tbody.innerHTML = '';
+                data.forEach(c => {
+                    let valor = '';
+                    if (c.monto_fijo) valor = `$${c.monto_fijo.toLocaleString()}`;
+                    else if (c.porcentaje) valor = `${(c.porcentaje * 100).toFixed(2)}%`;
+                    else if (c.formula) valor = 'Fórmula';
+                    
+                    tbody.innerHTML += `
+                        <tr>
+                            <td>${c.codigo}</td>
+                            <td>${c.nombre}</td>
+                            <td>${c.categoria || '-'}</td>
+                            <td>${c.tipo.replace('_', ' ')}</td>
+                            <td>${valor}</td>
+                            <td class="text-center">${c.es_imponible ? '✓' : '✗'}</td>
+                            <td>
+                                <i class="fas fa-edit text-primary" onclick="editarConcepto(${c.id})"></i>
+                                <i class="fas fa-trash text-danger" onclick="eliminarConcepto(${c.id})"></i>
+                            </td>
+                        </tr>
+                    `;
+                });
+            });
+    }
+    
+    // Funciones CRUD AFP
+    function mostrarModalAFP() {
+        document.getElementById('afpForm').reset();
+        document.getElementById('afp_id').value = '';
+        $('#afpModal').modal('show');
+    }
+    
+    function guardarAFP() {
+        const data = {
+            id: document.getElementById('afp_id').value,
+            codigo: document.getElementById('afp_codigo').value,
+            nombre: document.getElementById('afp_nombre').value,
+            tasa_cotizacion: parseFloat(document.getElementById('afp_tasa').value) / 100,
+            comision: parseFloat(document.getElementById('afp_comision').value) / 100,
+            seguro_invalidez: parseFloat(document.getElementById('afp_seguro').value) / 100,
+            activo: document.getElementById('afp_activo').checked
+        };
+        
+        const method = data.id ? 'PUT' : 'POST';
+        fetch('/remuneraciones/api/afp/', {
+            method: method,
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(data)
+        }).then(() => {
+            $('#afpModal').modal('hide');
+            cargarAFP();
+        });
+    }
+    
+    function editarAFP(id) {
+        fetch(`/remuneraciones/api/afp/${id}/`)
+            .then(res => res.json())
+            .then(data => {
+                document.getElementById('afp_id').value = data.id;
+                document.getElementById('afp_codigo').value = data.codigo;
+                document.getElementById('afp_nombre').value = data.nombre;
+                document.getElementById('afp_tasa').value = data.tasa_cotizacion * 100;
+                document.getElementById('afp_comision').value = data.comision * 100;
+                document.getElementById('afp_seguro').value = (data.seguro_invalidez || 0.0144) * 100;
+                document.getElementById('afp_activo').checked = data.activo;
+                $('#afpModal').modal('show');
+            });
+    }
+    
+    function eliminarAFP(id) {
+        if(confirm('¿Eliminar esta AFP?')) {
+            fetch(`/remuneraciones/api/afp/${id}/`, {method: 'DELETE'})
+                .then(() => cargarAFP());
+        }
+    }
+    
+    // Funciones CRUD Salud
+    function mostrarModalSalud() {
+        document.getElementById('saludForm').reset();
+        document.getElementById('salud_id').value = '';
+        $('#saludModal').modal('show');
+    }
+    
+    function guardarSalud() {
+        const data = {
+            id: document.getElementById('salud_id').value,
+            nombre: document.getElementById('salud_nombre').value,
+            tipo: document.getElementById('salud_tipo').value,
+            plan: document.getElementById('salud_plan').value,
+            tasa_cotizacion: parseFloat(document.getElementById('salud_tasa_base').value) / 100,
+            tasa_adicional: parseFloat(document.getElementById('salud_tasa_adicional').value) / 100,
+            monto_adicional: parseInt(document.getElementById('salud_monto_adicional').value) || 0,
+            activo: document.getElementById('salud_activo').checked
+        };
+        
+        const method = data.id ? 'PUT' : 'POST';
+        fetch('/remuneraciones/api/salud/', {
+            method: method,
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(data)
+        }).then(() => {
+            $('#saludModal').modal('hide');
+            cargarSalud();
+        });
+    }
+    
+    function editarSalud(id) {
+        fetch(`/remuneraciones/api/salud/${id}/`)
+            .then(res => res.json())
+            .then(data => {
+                document.getElementById('salud_id').value = data.id;
+                document.getElementById('salud_nombre').value = data.nombre;
+                document.getElementById('salud_tipo').value = data.tipo;
+                document.getElementById('salud_plan').value = data.plan || 'BASE';
+                document.getElementById('salud_tasa_base').value = data.tasa_cotizacion * 100;
+                document.getElementById('salud_tasa_adicional').value = (data.tasa_adicional || 0) * 100;
+                document.getElementById('salud_monto_adicional').value = data.monto_adicional || 0;
+                document.getElementById('salud_activo').checked = data.activo;
+                $('#saludModal').modal('show');
+            });
+    }
+    
+    function eliminarSalud(id) {
+        if(confirm('¿Eliminar esta institución de salud?')) {
+            fetch(`/remuneraciones/api/salud/${id}/`, {method: 'DELETE'})
+                .then(() => cargarSalud());
+        }
+    }
+    
+    // Funciones CRUD Conceptos
+    function mostrarModalConcepto(tipo) {
+        conceptoModo = tipo;
+        document.getElementById('conceptoForm').reset();
+        document.getElementById('concepto_id').value = '';
+        document.getElementById('concepto_tipo_general').value = tipo;
+        document.getElementById('conceptoModalTitle').innerText = tipo === 'HABER' ? 'Nuevo Haber' : 'Nuevo Descuento';
+        document.getElementById('div_monto_fijo').style.display = 'block';
+        document.getElementById('div_porcentaje').style.display = 'none';
+        document.getElementById('div_formula').style.display = 'none';
+        $('#conceptoModal').modal('show');
+    }
+    
+    function cambiarTipoCalculo() {
+        const tipo = document.getElementById('concepto_calculo').value;
+        document.getElementById('div_monto_fijo').style.display = tipo === 'FIJO' ? 'block' : 'none';
+        document.getElementById('div_porcentaje').style.display = tipo === 'PORCENTAJE' ? 'block' : 'none';
+        document.getElementById('div_formula').style.display = tipo === 'FORMULA' ? 'block' : 'none';
+    }
+    
+    function guardarConcepto() {
+        const tipoCalculo = document.getElementById('concepto_calculo').value;
+        const data = {
+            id: document.getElementById('concepto_id').value,
+            codigo: document.getElementById('concepto_codigo').value,
+            nombre: document.getElementById('concepto_nombre').value,
+            categoria: document.getElementById('concepto_categoria').value,
+            tipo: document.getElementById('concepto_tipo').value,
+            es_imponible: document.getElementById('concepto_imponible').checked,
+            es_tributable: document.getElementById('concepto_tributable').checked,
+            activo: document.getElementById('concepto_activo').checked,
+            monto_fijo: tipoCalculo === 'FIJO' ? parseInt(document.getElementById('concepto_monto_fijo').value) : null,
+            porcentaje: tipoCalculo === 'PORCENTAJE' ? parseFloat(document.getElementById('concepto_porcentaje').value) / 100 : null,
+            formula: tipoCalculo === 'FORMULA' ? document.getElementById('concepto_formula').value : null
+        };
+        
+        const method = data.id ? 'PUT' : 'POST';
+        fetch('/remuneraciones/api/conceptos/', {
+            method: method,
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(data)
+        }).then(() => {
+            $('#conceptoModal').modal('hide');
+            if (conceptoModo === 'HABER') {
+                cargarConceptos('HABER_IMPONIBLE,HABER_NO_IMPONIBLE', 'tablaHaberes', 'haberesBody');
+            } else {
+                cargarConceptos('DESCUENTO_LEGAL,DESCUENTO_VOLUNTARIO', 'tablaDescuentos', 'descuentosBody');
+            }
+        });
+    }
+    
+    function editarConcepto(id) {
+        fetch(`/remuneraciones/api/conceptos/${id}/`)
+            .then(res => res.json())
+            .then(data => {
+                document.getElementById('concepto_id').value = data.id;
+                document.getElementById('concepto_codigo').value = data.codigo;
+                document.getElementById('concepto_nombre').value = data.nombre;
+                document.getElementById('concepto_categoria').value = data.categoria || 'REMUNERACION';
+                document.getElementById('concepto_tipo').value = data.tipo;
+                document.getElementById('concepto_imponible').checked = data.es_imponible;
+                document.getElementById('concepto_tributable').checked = data.es_tributable;
+                document.getElementById('concepto_activo').checked = data.activo;
+                
+                if (data.monto_fijo) {
+                    document.getElementById('concepto_calculo').value = 'FIJO';
+                    document.getElementById('concepto_monto_fijo').value = data.monto_fijo;
+                } else if (data.porcentaje) {
+                    document.getElementById('concepto_calculo').value = 'PORCENTAJE';
+                    document.getElementById('concepto_porcentaje').value = data.porcentaje * 100;
+                } else if (data.formula) {
+                    document.getElementById('concepto_calculo').value = 'FORMULA';
+                    document.getElementById('concepto_formula').value = data.formula;
+                }
+                
+                cambiarTipoCalculo();
+                $('#conceptoModal').modal('show');
+            });
+    }
+    
+    function eliminarConcepto(id) {
+        if(confirm('¿Eliminar este concepto?')) {
+            fetch(`/remuneraciones/api/conceptos/${id}/`, {method: 'DELETE'})
+                .then(() => {
+                    cargarConceptos('HABER_IMPONIBLE,HABER_NO_IMPONIBLE', 'tablaHaberes', 'haberesBody');
+                    cargarConceptos('DESCUENTO_LEGAL,DESCUENTO_VOLUNTARIO', 'tablaDescuentos', 'descuentosBody');
+                });
+        }
+    }
+    
+    // Inicializar
+    cargarAFP();
+    cargarSalud();
+    cargarConceptos('HABER_IMPONIBLE,HABER_NO_IMPONIBLE', 'tablaHaberes', 'haberesBody');
+    cargarConceptos('DESCUENTO_LEGAL,DESCUENTO_VOLUNTARIO', 'tablaDescuentos', 'descuentosBody');
+</script>
+{% endblock %}

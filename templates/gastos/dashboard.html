@@ -1,0 +1,179 @@
+{% extends "layout/base.html" %}
+{% load static %}
+
+{% block title %}Dashboard de Gastos{% endblock %}
+{% block page_title %}📊 Dashboard de Gastos{% endblock %}
+
+{% block extra_css %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-4">
+        <div class="info-box bg-info">
+            <span class="info-box-icon"><i class="fas fa-calendar-alt"></i></span>
+            <div class="info-box-content">
+                <span class="info-box-text">Gastos del mes ({{ fecha_inicio|date:"d/m/Y" }} - {{ fecha_fin|date:"d/m/Y" }})</span>
+                <span class="info-box-number">${{ total_mes|floatformat:0 }}</span>
+                <div class="progress">
+                    <div class="progress-bar" style="width: 100%"></div>
+                </div>
+                <span class="progress-description">
+                    {% if cambio > 0 %}
+                        <i class="fas fa-arrow-up"></i> {{ cambio|floatformat:1 }}% respecto al mes anterior
+                    {% elif cambio < 0 %}
+                        <i class="fas fa-arrow-down"></i> {{ cambio|floatformat:1 }}% respecto al mes anterior
+                    {% else %}
+                        Sin cambios respecto al mes anterior
+                    {% endif %}
+                </span>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="info-box bg-warning">
+            <span class="info-box-icon"><i class="fas fa-chart-line"></i></span>
+            <div class="info-box-content">
+                <span class="info-box-text">Promedio diario (mes actual)</span>
+                <span class="info-box-number">${{ total_mes|floatformat:0 }}</span>
+                <span class="progress-description">Calculado sobre {{ fecha_fin|date:"d" }} días</span>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="info-box bg-success">
+            <span class="info-box-icon"><i class="fas fa-chart-pie"></i></span>
+            <div class="info-box-content">
+                <span class="info-box-text">Categoría principal</span>
+                <span class="info-box-number">
+                    {% if categorias_labels %}
+                        {{ categorias_labels.0 }}
+                    {% else %}
+                        -
+                    {% endif %}
+                </span>
+                <span class="progress-description">
+                    {% if categorias_data %}
+                        ${{ categorias_data.0|floatformat:0 }}
+                    {% endif %}
+                </span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-6">
+        <div class="card card-primary">
+            <div class="card-header">
+                <h3 class="card-title">Gastos por categoría (mes actual)</h3>
+            </div>
+            <div class="card-body">
+                <canvas id="categoriasChart" style="height: 300px;"></canvas>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card card-info">
+            <div class="card-header">
+                <h3 class="card-title">Evolución mensual (últimos 6 meses)</h3>
+            </div>
+            <div class="card-body">
+                <canvas id="evolucionChart" style="height: 300px;"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">Últimos gastos registrados</h3>
+                <div class="card-tools">
+                    <a href="{% url 'gastos:lista' %}" class="btn btn-primary btn-sm">Ver todos</a>
+                </div>
+            </div>
+            <div class="card-body table-responsive p-0">
+                <table class="table table-bordered table-hover">
+                    <thead class="thead-light">
+                        <tr>
+                            <th>Fecha</th>
+                            <th>Categoría</th>
+                            <th>Descripción</th>
+                            <th>Proveedor</th>
+                            <th>Monto</th>
+                            <th>Pagado</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for gasto in ultimos_gastos %}
+                        <tr>
+                            <td>{{ gasto.fecha|date:"d/m/Y" }}</td>
+                            <td>{{ gasto.categoria.nombre }}</td>
+                            <td>{{ gasto.descripcion|truncatechars:50 }}</td>
+                            <td>{{ gasto.proveedor|default:"-" }}</td>
+                            <td><strong>${{ gasto.monto_total|floatformat:0 }}</strong></td>
+                            <td>{% if gasto.pagado %}<span class="badge badge-success">Pagado</span>{% else %}<span class="badge badge-danger">Pendiente</span>{% endif %}</td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="6">No hay gastos registrados.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Gráfico de categorías
+        const ctxCat = document.getElementById('categoriasChart').getContext('2d');
+        new Chart(ctxCat, {
+            type: 'bar',
+            data: {
+                labels: {{ categorias_labels|safe }},
+                datasets: [{
+                    label: 'Monto total ($)',
+                    data: {{ categorias_data|safe }},
+                    backgroundColor: 'rgba(54, 162, 235, 0.6)',
+                    borderColor: 'rgba(54, 162, 235, 1)',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                scales: { y: { beginAtZero: true, ticks: { callback: function(value) { return '$' + value.toLocaleString(); } } } }
+            }
+        });
+
+        // Gráfico de evolución mensual
+        const ctxEvo = document.getElementById('evolucionChart').getContext('2d');
+        new Chart(ctxEvo, {
+            type: 'line',
+            data: {
+                labels: {{ meses_labels|safe }},
+                datasets: [{
+                    label: 'Gastos mensuales ($)',
+                    data: {{ montos_mensuales|safe }},
+                    backgroundColor: 'rgba(255, 159, 64, 0.2)',
+                    borderColor: 'rgba(255, 159, 64, 1)',
+                    borderWidth: 2,
+                    fill: true,
+                    tension: 0.3
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                scales: { y: { beginAtZero: true, ticks: { callback: function(value) { return '$' + value.toLocaleString(); } } } }
+            }
+        });
+    });
+</script>
+{% endblock %}

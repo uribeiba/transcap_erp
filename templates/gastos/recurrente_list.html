@@ -1,0 +1,55 @@
+{% extends "layout/base.html" %}
+{% block title %}Servicios Mensuales - Transcap ERP{% endblock %}
+{% block page_title %}📅 Servicios Mensuales (Gastos Recurrentes){% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <h3 class="card-title">Servicios programados</h3>
+        <div class="card-tools">
+            <a href="{% url 'gastos:recurrente_crear' %}" class="btn btn-primary btn-sm">
+                <i class="fas fa-plus"></i> Nuevo Servicio Recurrente
+            </a>
+        </div>
+    </div>
+    <div class="card-body table-responsive p-0">
+        <table class="table table-bordered table-hover">
+            <thead class="thead-light">
+                <tr>
+                    <th>Descripción</th>
+                    <th>Categoría</th>
+                    <th>Proveedor</th>
+                    <th>Monto Neto</th>
+                    <th>IVA</th>
+                    <th>Total</th>
+                    <th>Periodicidad</th>
+                    <th>Día Pago</th>
+                    <th>Activo</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for r in recurrentes %}
+                <tr>
+                    <td>{{ r.descripcion }}</td>
+                    <td>{{ r.categoria.nombre }}</td>
+                    <td>{{ r.proveedor|default:"-" }}</td>
+                    <td>${{ r.monto_neto|floatformat:0 }}</td>
+                    <td>${{ r.iva|floatformat:0 }}</td>
+                    <td><strong>${{ r.monto_neto|add:r.iva|floatformat:0 }}</strong></td>
+                    <td>{{ r.get_periodicidad_display }}</td>
+                    <td>{% if r.dia_pago == -1 %}Último día{% else %}{{ r.dia_pago }}{% endif %}</td>
+                    <td>{% if r.activo %}<span class="badge badge-success">Activo</span>{% else %}<span class="badge badge-secondary">Inactivo</span>{% endif %}</td>
+                    <td>
+                        <a href="{% url 'gastos:recurrente_editar' r.pk %}" class="btn btn-warning btn-sm"><i class="fas fa-edit"></i></a>
+                        <a href="{% url 'gastos:recurrente_eliminar' r.pk %}" class="btn btn-danger btn-sm" onclick="return confirm('¿Eliminar este servicio recurrente?')"><i class="fas fa-trash"></i></a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="10" class="text-center">No hay servicios recurrentes configurados.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

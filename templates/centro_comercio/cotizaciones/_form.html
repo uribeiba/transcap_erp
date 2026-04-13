@@ -1,578 +1,433 @@
+{% load humanize %}
 {% load static %}
 <form method="post"
       data-cot-form
       data-ajax="1"
-      action="{% if obj %}{% url 'centro_comercio:cotizacion_form' obj.id %}{% else %}{% url 'centro_comercio:cotizacion_form' %}{% endif %}">
+      action="{% if obj %}{% url 'centro_comercio:cotizacion_form' obj.id %}{% else %}{% url 'centro_comercio:cotizacion_form' %}{% endif %}"
+      class="needs-validation" novalidate>
   {% csrf_token %}
 
-  <div class="card shadow-sm mb-0">
-    <div class="card-body">
-
-      <div class="d-flex align-items-center justify-content-between mb-3">
-        <div class="d-flex align-items-center">
-          <i class="fas fa-file-invoice text-danger mr-2"></i>
-          <h5 class="mb-0 font-weight-bold">
-            {% if obj %}Editar cotización{% else %}Nueva cotización{% endif %}
-          </h5>
-        </div>
+  <div class="card shadow-sm border-0">
+    <div class="card-header bg-white py-3">
+      <div class="d-flex align-items-center justify-content-between">
+        <h5 class="mb-0 font-weight-bold text-primary">
+          <i class="fas fa-file-invoice-dollar mr-2"></i>
+          {% if obj %}Editar cotización {{ obj.codigo }}{% else %}Nueva cotización{% endif %}
+        </h5>
+        {% if obj %}
+        <button type="button" class="btn btn-sm btn-outline-info" id="btnDuplicar" data-id="{{ obj.id }}">
+          <i class="fas fa-copy"></i> Duplicar
+        </button>
+        {% endif %}
       </div>
+    </div>
 
-      {% if form.non_field_errors %}
-        <div class="alert alert-danger py-2">
-          <i class="fas fa-exclamation-triangle mr-1"></i>
-          {{ form.non_field_errors }}
-        </div>
-      {% endif %}
-
-      <!-- Datos principales -->
-      <div class="form-row">
-        <div class="form-group col-md-6">
-          <label class="mb-1 font-weight-bold">Código Cotización</label>
-          <div class="input-group">
-            <div class="input-group-prepend">
-              <span class="input-group-text"><i class="fas fa-hashtag"></i></span>
-            </div>
-            {{ form.codigo }}
-          </div>
-          {% if form.codigo.errors %}<small class="text-danger">{{ form.codigo.errors }}</small>{% endif %}
-        </div>
-
-        <div class="form-group col-md-6">
-          <label class="mb-1 font-weight-bold">Seleccionar Cliente</label>
-          <div class="input-group">
-            <div class="input-group-prepend">
-              <span class="input-group-text"><i class="fas fa-user"></i></span>
-            </div>
+    <div class="card-body">
+      <!-- FILA 1: Datos principales -->
+      <div class="row">
+        <div class="col-md-6">
+          <div class="form-group">
+            <label class="small font-weight-bold text-muted">Cliente</label>
             {{ form.cliente }}
           </div>
-          {% if form.cliente.errors %}<small class="text-danger">{{ form.cliente.errors }}</small>{% endif %}
         </div>
-      </div>
-
-      <div class="form-row">
-        <div class="form-group col-md-6">
-          <label class="mb-1 font-weight-bold">Fecha cotización</label>
-          <div class="input-group">
-            <div class="input-group-prepend">
-              <span class="input-group-text"><i class="far fa-calendar"></i></span>
-            </div>
+        <div class="col-md-3">
+          <div class="form-group">
+            <label class="small font-weight-bold text-muted">Fecha</label>
             {{ form.fecha }}
           </div>
-          {% if form.fecha.errors %}<small class="text-danger">{{ form.fecha.errors }}</small>{% endif %}
         </div>
-
-        <div class="form-group col-md-6">
-          <label class="mb-1 font-weight-bold">Fecha Vigencia</label>
-          <div class="input-group">
-            <div class="input-group-prepend">
-              <span class="input-group-text"><i class="far fa-calendar-check"></i></span>
-            </div>
-            {{ form.vigencia }}
+        <div class="col-md-3">
+          <div class="form-group">
+            <label class="small font-weight-bold text-muted">Vigencia</label>
+            {{ form.vigencia_hasta }}
           </div>
-          {% if form.vigencia.errors %}<small class="text-danger">{{ form.vigencia.errors }}</small>{% endif %}
         </div>
       </div>
 
-      <div class="form-row">
-        <div class="form-group col-md-6">
-          <label class="mb-1 font-weight-bold">Descuento</label>
-          <div class="input-group">
-            <div class="input-group-prepend">
-              <span class="input-group-text"><i class="fas fa-tag"></i></span>
-            </div>
-            {{ form.descuento }}
+      <div class="row">
+        <div class="col-md-4">
+          <div class="form-group">
+            <label class="small font-weight-bold text-muted">Código</label>
+            <input type="text" name="codigo" id="id_codigo" class="form-control bg-light" readonly value="{{ obj.codigo|default:'' }}" placeholder="Se genera automático">
           </div>
-          <small class="text-muted">Se descuenta al total final (después de IVA).</small>
-          {% if form.descuento.errors %}<small class="text-danger">{{ form.descuento.errors }}</small>{% endif %}
         </div>
-
-        <div class="form-group col-md-6">
-          <label class="mb-1 font-weight-bold">Estado</label>
-          <div class="input-group">
-            <div class="input-group-prepend">
-              <span class="input-group-text"><i class="fas fa-flag"></i></span>
-            </div>
+        <div class="col-md-4">
+          <div class="form-group">
+            <label class="small font-weight-bold text-muted">Estado</label>
             {{ form.estado }}
           </div>
-          {% if form.estado.errors %}<small class="text-danger">{{ form.estado.errors }}</small>{% endif %}
+        </div>
+        <div class="col-md-4">
+          <div class="form-group">
+            <label class="small font-weight-bold text-muted">Condición de Venta</label>
+            {{ form.condicion_venta }}
+          </div>
         </div>
       </div>
 
-      <div class="form-group">
-        <label class="mb-1 font-weight-bold">Términos y condiciones</label>
-        {{ form.terminos }}
-        {% if form.terminos.errors %}<small class="text-danger">{{ form.terminos.errors }}</small>{% endif %}
+      <div class="row">
+        <div class="col-md-12">
+          <div class="form-group">
+            <label class="small font-weight-bold text-muted">Glosa / Descripción breve</label>
+            {{ form.glosa }}
+          </div>
+        </div>
       </div>
 
       <hr class="my-3">
 
-      <!-- ✅ FORMSET: management_form OBLIGATORIO -->
-      {{ formset.management_form }}
-
+      <!-- Tabla de Ítems -->
       <div class="d-flex align-items-center justify-content-between mb-2">
-        <div class="font-weight-bold">
-          <i class="fas fa-list-ul text-success mr-1"></i> Items cotización
-        </div>
-        <small class="text-muted">Se calcula automático (cuando el JS si vive 😄)</small>
+        <h6 class="mb-0 font-weight-bold text-success">Ítems de la Cotización</h6>
+        <button type="button" id="btn-add-item" class="btn btn-sm btn-success">
+          <i class="fas fa-plus mr-1"></i> Agregar fila
+        </button>
       </div>
 
-      {% if formset.non_form_errors %}
-        <div class="alert alert-danger py-2">
-          <i class="fas fa-exclamation-triangle mr-1"></i>
-          {{ formset.non_form_errors }}
-        </div>
-      {% endif %}
-
-      <div class="table-responsive">
-        <table class="table table-sm table-bordered mb-0" id="items-table">
+      <div class="table-responsive mb-4">
+        <table class="table table-sm table-bordered" id="items-table">
           <thead class="thead-light">
-            <tr>
-              <th style="width: 28%;">Título</th>
-              <th style="width: 10%;">¿Exento?</th>
-              <th style="width: 14%;">Unidad</th>
-              <th style="width: 12%;">Cantidad</th>
-              <th style="width: 16%;">Valor</th>
-              <th style="width: 14%;" class="text-right">Total</th>
-              <th style="width: 6%;" class="text-center">Eliminar</th>
+            <tr class="small">
+              <th style="width: 40%">Descripción</th>
+              <th style="width: 10%">Cant.</th>
+              <th style="width: 10%">Exento</th>
+              <th style="width: 15%">Precio Unit.</th>
+              <th style="width: 15%">Total</th>
+              <th style="width: 50px"></th>
             </tr>
           </thead>
-
-          <tbody>
-            {% for f in formset.forms %}
-              <tr class="item-row">
-                <!-- ✅ Hidden fields por fila (incluye el ID real del item) -->
-                {% for h in f.hidden_fields %}{{ h }}{% endfor %}
-
-                <td>
-                  {{ f.titulo }}
-                  {% if f.titulo.errors %}<small class="text-danger d-block">{{ f.titulo.errors }}</small>{% endif %}
-                </td>
-
-                <td>
-                  {{ f.exento }}
-                  {% if f.exento.errors %}<small class="text-danger d-block">{{ f.exento.errors }}</small>{% endif %}
-                </td>
-
-                <td>
-                  {{ f.unidad }}
-                  {% if f.unidad.errors %}<small class="text-danger d-block">{{ f.unidad.errors }}</small>{% endif %}
-                </td>
-
-                <td>
-                  {{ f.cantidad }}
-                  {% if f.cantidad.errors %}<small class="text-danger d-block">{{ f.cantidad.errors }}</small>{% endif %}
-                </td>
-
-                <td>
-                  {{ f.valor_unitario }}
-                  {% if f.valor_unitario.errors %}<small class="text-danger d-block">{{ f.valor_unitario.errors }}</small>{% endif %}
-                </td>
-
-                <td class="text-right font-weight-bold">
-                  <span class="item-total" data-raw="0">$ 0</span>
-                </td>
-
-                <td class="text-center">
-                  {{ f.DELETE }}
-                </td>
-              </tr>
+          <tbody id="items-tbody">
+            {{ formset.management_form }}
+            {% for f in formset %}
+            <tr class="item-row">
+              {% for hidden in f.hidden_fields %}{{ hidden }}{% endfor %}
+              <td>{{ f.titulo }}</td>
+              <td><input type="number" name="{{ f.cantidad.html_name }}" value="{{ f.cantidad.value|default:1 }}" class="form-control form-control-sm text-center item-cantidad" step="any"></td>
+              <td>
+                <select name="{{ f.exento.html_name }}" class="form-control form-control-sm exento-select">
+                  <option value="False" {% if not f.exento.value %}selected{% endif %}>No</option>
+                  <option value="True" {% if f.exento.value %}selected{% endif %}>Sí</option>
+                </select>
+              </td>
+              <td><input type="number" name="{{ f.valor_unitario.html_name }}" value="{{ f.valor_unitario.value|default:0 }}" class="form-control form-control-sm text-right item-valor" step="any"></td>
+              <td class="text-right font-weight-bold align-middle bg-light"><span class="item-total">$ 0</span></td>
+              <td class="text-center">
+                {% if f.instance.pk %}
+                  <div class="d-none">{{ f.DELETE }}</div>
+                  <button type="button" class="btn btn-sm btn-outline-danger" onclick="eliminarFilaExistente(this)"><i class="fas fa-trash"></i></button>
+                {% else %}
+                  <button type="button" class="btn btn-sm btn-outline-secondary" onclick="removerFilaNueva(this)"><i class="fas fa-times"></i></button>
+                {% endif %}
+              </td>
+            </tr>
             {% endfor %}
           </tbody>
         </table>
       </div>
 
-      <div class="row mt-3">
-        <div class="col-md-7"></div>
+      <!-- Condición de Venta + Cuotas -->
+      <div class="card bg-light mb-4">
+        <div class="card-header bg-white">
+          <h6 class="mb-0 font-weight-bold"><i class="fas fa-credit-card mr-2"></i>Condición de Venta / Cuotas</h6>
+        </div>
+        <div class="card-body">
+          {{ cuota_formset.management_form }}
+          <div class="table-responsive">
+            <table class="table table-sm table-borderless" id="cuotas-table">
+              <thead class="small">
+                <tr>
+                  <th style="width: 30px">#</th>
+                  <th>Fecha</th>
+                  <th>Monto</th>
+                  <th style="width: 50px"></th>
+                </tr>
+              </thead>
+              <tbody id="cuotas-tbody">
+                {% for cf in cuota_formset %}
+                <tr class="cuota-row">
+                  <td class="cuota-index">{{ forloop.counter }}</td>
+                  <td>{{ cf.fecha }}</td>
+                  <td>{{ cf.monto }}</td>
+                  <td class="text-center">
+                    {% if cf.instance.pk %}
+                      <div class="d-none">{{ cf.DELETE }}</div>
+                      <button type="button" class="btn btn-sm btn-outline-danger btn-remove-cuota" onclick="eliminarCuotaExistente(this)">
+                        <i class="fas fa-trash"></i>
+                      </button>
+                    {% else %}
+                      <button type="button" class="btn btn-sm btn-outline-danger btn-remove-cuota" onclick="removerCuotaNueva(this)">
+                        <i class="fas fa-times"></i>
+                      </button>
+                    {% endif %}
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+          <div class="mt-2">
+            <button type="button" class="btn btn-sm btn-outline-primary" id="btn-add-cuota">
+              <i class="fas fa-plus"></i> Agregar cuota
+            </button>
+            <button type="button" class="btn btn-sm btn-outline-success ml-2" id="btn-distribuir-cuotas">
+              <i class="fas fa-calculator"></i> Distribuir automático
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Totales y Descuentos (2 columnas) -->
+      <div class="row">
+        <div class="col-md-7">
+          <div class="form-group">
+            <label class="small font-weight-bold text-muted">Observaciones</label>
+            {{ form.observaciones }}
+          </div>
+          <div class="form-group">
+            <label class="small font-weight-bold text-muted">Términos</label>
+            {{ form.terminos }}
+          </div>
+        </div>
         <div class="col-md-5">
-          <div class="card border-0 shadow-sm">
-            <div class="card-body py-3">
-              <div class="d-flex justify-content-between">
-                <span class="text-muted">Neto</span>
-                <strong id="t-neto">$ 0</strong>
+          <div class="card border-secondary">
+            <div class="card-body p-3">
+              <div class="d-flex justify-content-between small mb-2">
+                <span>Subtotal Neto:</span>
+                <span id="t-neto" class="font-weight-bold">$ 0</span>
               </div>
-              <div class="d-flex justify-content-between">
-                <span class="text-muted">IVA 19% (solo afecto)</span>
-                <strong class="text-danger" id="t-iva">$ 0</strong>
+              <div class="d-flex justify-content-between text-danger small mb-2">
+                <span>IVA (19%):</span>
+                <span id="t-iva">$ 0</span>
               </div>
-              <div class="d-flex justify-content-between">
-                <span class="text-muted">Descuento</span>
-                <strong id="t-desc">$ 0</strong>
+              <div class="d-flex justify-content-between align-items-center mb-2">
+                <span class="small">Descuento ($):</span>
+                <div style="width: 140px">{{ form.descuento }}</div>
+              </div>
+              <div class="d-flex justify-content-between align-items-center mb-2">
+                <span class="small">Descuento (%):</span>
+                <div style="width: 140px">{{ form.descuento_porcentaje }}</div>
+              </div>
+              <div class="d-flex justify-content-between align-items-center mb-2">
+                <span class="small">Recargo (%):</span>
+                <div style="width: 140px">{{ form.recargo_porcentaje }}</div>
               </div>
               <hr class="my-2">
-              <div class="d-flex justify-content-between">
-                <span class="font-weight-bold">Total a pagar</span>
-                <strong class="text-primary" id="t-total">$ 0</strong>
+              <div class="d-flex justify-content-between font-weight-bold text-success h5 mb-0">
+                <span>TOTAL:</span>
+                <span id="t-total">$ 0</span>
               </div>
             </div>
           </div>
         </div>
       </div>
+    </div>
 
-      <div class="text-center mt-3">
-        <button type="submit" class="btn btn-success px-4">
-          <i class="fas fa-save mr-1"></i> {% if obj %}Actualizar{% else %}Crear{% endif %}
-        </button>
-        <button type="button" class="btn btn-secondary ml-2" data-action="volver">
-          <i class="fas fa-times mr-1"></i> Cancelar
-        </button>
-      </div>
-
+    <div class="card-footer bg-white text-right">
+      <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
+      <button type="submit" class="btn btn-primary px-4">
+        <i class="fas fa-save mr-1"></i> Guardar Cambios
+      </button>
     </div>
   </div>
 </form>
-<style>
-  /* Estilos para mejor visualización */
-  #items-table .item-row td {
-      vertical-align: middle !important;
-  }
-  .item-total {
-      font-weight: bold;
-      color: #28a745;
-  }
-  #t-total {
-      color: #dc3545;
-      font-size: 1.3rem;
-  }
-  .text-right {
-      text-align: right !important;
-  }
-</style>
+
+<!-- Templates para JS -->
+<template id="item-row-template">
+  <tr class="item-row">
+    <td><input type="text" name="items-__prefix__-titulo" class="form-control form-control-sm item-titulo" placeholder="Descripción"></td>
+    <td><input type="number" name="items-__prefix__-cantidad" value="1" class="form-control form-control-sm text-center item-cantidad" step="any"></td>
+    <td>
+      <select name="items-__prefix__-exento" class="form-control form-control-sm exento-select">
+        <option value="False" selected>No</option>
+        <option value="True">Sí</option>
+      </select>
+    </td>
+    <td><input type="number" name="items-__prefix__-valor_unitario" value="0" class="form-control form-control-sm text-right item-valor" step="any"></td>
+    <td class="text-right font-weight-bold align-middle bg-light"><span class="item-total">$ 0</span></td>
+    <td class="text-center"><button type="button" class="btn btn-sm btn-outline-secondary" onclick="removerFilaNueva(this)"><i class="fas fa-times"></i></button></td>
+  </tr>
+</template>
+
+<template id="cuota-row-template">
+  <tr class="cuota-row">
+    <td class="cuota-index"></td>
+    <td><input type="date" name="cuotas-__prefix__-fecha" class="form-control form-control-sm cuota-fecha"></td>
+    <td><input type="number" name="cuotas-__prefix__-monto" class="form-control form-control-sm text-right cuota-monto" step="any"></td>
+    <td class="text-center">
+      <button type="button" class="btn btn-sm btn-outline-danger" onclick="removerCuotaNueva(this)">
+        <i class="fas fa-times"></i>
+      </button>
+    </td>
+  </tr>
+</template>
 
 <script>
-// ============================================
-// SISTEMA UNIFICADO DE COTIZACIONES - COMPATIBLE
-// ============================================
-
-// Función para detectar si estamos en un modal (mantener compatibilidad)
-function estaEnModal() {
-    // Verificar si estamos dentro de un modal de Bootstrap
-    const modal = document.querySelector('.modal.show');
-    if (modal) {
-        // Verificar si nuestro formulario está dentro de este modal
-        const form = document.querySelector('form[data-cot-form]');
-        return form && modal.contains(form);
+// Función para eliminar filas existentes (con ID en BD)
+function eliminarFilaExistente(btn) {
+    if (confirm("¿Eliminar este ítem definitivamente?")) {
+        const row = btn.closest('.item-row');
+        const deleteCheckbox = row.querySelector('input[name$="-DELETE"]');
+        if (deleteCheckbox) {
+            deleteCheckbox.checked = true;
+            row.style.display = 'none';
+            row.classList.remove('item-row'); 
+            if (window.calcularTodo) window.calcularTodo();
+        }
     }
-    return false;
 }
 
-// Función para inicializar cálculos usando el sistema unificado
-function inicializarCalculosUnificados() {
-    console.log("🔧 _form.html: Inicializando con sistema unificado");
-    
-    // Verificar si estamos en un modal
-    if (estaEnModal()) {
-        console.log("✅ Estamos en un modal, la inicialización será manejada por panel.html");
-        return;
+function removerFilaNueva(btn) {
+    btn.closest('.item-row').remove();
+    const totalForms = document.getElementById('id_items-TOTAL_FORMS');
+    if (totalForms) {
+        const currentCount = document.querySelectorAll('#items-tbody tr.item-row:not([style*="display: none"])').length;
+        totalForms.value = currentCount;
     }
-    
-    // Intentar usar el sistema unificado primero
-    if (typeof window.inicializarCotizacionForm === 'function') {
-        console.log("✅ Usando sistema unificado de cotizaciones.js");
-        window.inicializarCotizacionForm(document);
-        return;
-    }
-    
-    // Fallback: si no existe, usar initCotizacionForm (compatibilidad)
-    if (typeof window.initCotizacionForm === 'function') {
-        console.log("⚠️ Usando initCotizacionForm (compatibilidad)");
-        window.initCotizacionForm(document);
-        return;
-    }
-    
-    // Último recurso: implementación local de respaldo
-    console.warn("⚠️ Sistema unificado no disponible, usando respaldo local");
-    inicializarRespaldoLocal();
+    if (window.calcularTodo) window.calcularTodo();
 }
 
-// ✅ ACTUALIZADO: Implementación local de respaldo con soporte para select "Exento"
-function inicializarRespaldoLocal() {
-    console.log("🆘 _form.html: Inicializando respaldo local");
-    
-    // Función para formatear números como moneda chilena
-    function formatoMoneda(num) {
-        if (isNaN(num) || num === null || num === undefined) num = 0;
-        return '$ ' + num.toLocaleString('es-CL', {
-            minimumFractionDigits: 0,
-            maximumFractionDigits: 0
-        });
-    }
-    
-    // Función para parsear números (quitar puntos de miles)
-    function parsearNumero(texto) {
-        if (!texto) return 0;
-        const limpio = String(texto)
-            .replace(/\./g, '')  // Eliminar puntos (separadores de miles)
-            .replace(',', '.');  // Convertir coma decimal a punto
-        return parseFloat(limpio) || 0;
-    }
-    
-    // ✅ ACTUALIZADO: Función para determinar si un elemento de exento está marcado como "Sí"
-    function esExento(elementoExento) {
-        if (!elementoExento) return false;
-        
-        // Si es un select
-        if (elementoExento.tagName === 'SELECT') {
-            return elementoExento.value === 'True';
+// Funciones para cuotas
+function removerCuotaNueva(btn) {
+    const fila = btn.closest('.cuota-row');
+    if (fila) {
+        fila.remove();
+        const totalForms = document.getElementById('id_cuotas-TOTAL_FORMS');
+        if (totalForms) {
+            const currentCount = document.querySelectorAll('#cuotas-tbody tr.cuota-row:not([style*="display: none"])').length;
+            totalForms.value = currentCount;
         }
-        
-        // Si es un checkbox (compatibilidad)
-        if (elementoExento.type === 'checkbox') {
-            return elementoExento.checked;
-        }
-        
-        // Si es un radio button u otro tipo
-        const valor = (elementoExento.value || "").toString().trim().toLowerCase();
-        return ["1", "true", "si", "sí", "yes", "on"].includes(valor);
+        actualizarIndicesCuotas();
     }
+}
+
+function eliminarCuotaExistente(btn) {
+    if (confirm("¿Eliminar esta cuota definitivamente?")) {
+        const row = btn.closest('.cuota-row');
+        const deleteCheckbox = row.querySelector('input[name$="-DELETE"]');
+        if (deleteCheckbox) {
+            deleteCheckbox.checked = true;
+            row.style.display = 'none';
+            actualizarIndicesCuotas();
+        }
+    }
+}
+
+function actualizarIndicesCuotas() {
+    const cuotasTbody = document.getElementById('cuotas-tbody');
+    if (!cuotasTbody) return;
     
-    // Calcular todos los totales
-    function calcularTodosTotales() {
-        let neto = 0;
-        let afecto = 0;
+    const rows = cuotasTbody.querySelectorAll('.cuota-row');
+    rows.forEach((row, idx) => {
+        const indexCell = row.querySelector('.cuota-index');
+        if (indexCell) indexCell.innerText = idx + 1;
         
-        // Calcular por cada fila de ítems
-        const filas = document.querySelectorAll('#items-table tbody tr.item-row');
-        filas.forEach(fila => {
-            const inputCantidad = fila.querySelector('[name$="cantidad"]');
-            const inputValor = fila.querySelector('[name$="valor_unitario"]');
-            const inputExento = fila.querySelector('[name$="exento"]');
-            
-            if (inputCantidad && inputValor) {
-                const cantidad = parsearNumero(inputCantidad.value);
-                const valor = parsearNumero(inputValor.value);
-                const total = cantidad * valor;
-                
-                // Actualizar total de la fila
-                const totalSpan = fila.querySelector('.item-total');
-                if (totalSpan) {
-                    totalSpan.textContent = formatoMoneda(total);
-                    totalSpan.dataset.raw = total;
-                }
-                
-                neto += total;
-                
-                // ✅ ACTUALIZADO: Verificar si es exento usando la nueva función
-                if (!esExento(inputExento)) {
-                    afecto += total;
-                }
+        row.querySelectorAll('input, select').forEach(input => {
+            const name = input.getAttribute('name');
+            if (name) {
+                input.setAttribute('name', name.replace(/cuotas-\d+-/, `cuotas-${idx}-`));
+            }
+            const id = input.getAttribute('id');
+            if (id) {
+                input.setAttribute('id', id.replace(/cuotas-\d+-/, `cuotas-${idx}-`));
             }
         });
-        
-        // Calcular IVA (19% sobre lo afecto)
-        const iva = afecto * 0.19;
-        
-        // Obtener descuento
-        const inputDescuento = document.querySelector('[name$="descuento"]');
-        const descuento = parsearNumero(inputDescuento?.value);
-        
-        // Calcular total final
-        const totalFinal = neto + iva - descuento;
-        
-        // Actualizar la interfaz
-        const elementoNeto = document.getElementById('t-neto');
-        const elementoIva = document.getElementById('t-iva');
-        const elementoDesc = document.getElementById('t-desc');
-        const elementoTotal = document.getElementById('t-total');
-        
-        if (elementoNeto) elementoNeto.textContent = formatoMoneda(neto);
-        if (elementoIva) elementoIva.textContent = formatoMoneda(iva);
-        if (elementoDesc) elementoDesc.textContent = formatoMoneda(descuento);
-        if (elementoTotal) elementoTotal.textContent = formatoMoneda(totalFinal);
-    }
+    });
     
-    // Inicializar eventos de entrada
-    function inicializarEventos() {
-        // Eventos para campos de ítems
-        document.querySelectorAll('#items-table [name$="cantidad"], #items-table [name$="valor_unitario"]').forEach(input => {
-            input.addEventListener('input', calcularTodosTotales);
-            input.addEventListener('change', calcularTodosTotales);
-            input.addEventListener('blur', function(e) {
-                // Formatear al salir del campo
-                const valor = parsearNumero(e.target.value);
-                if (!isNaN(valor) && valor !== 0) {
-                    e.target.value = valor.toLocaleString('es-CL', {
-                        minimumFractionDigits: 0,
-                        maximumFractionDigits: 0
-                    });
-                }
-            });
-        });
-        
-        // ✅ ACTUALIZADO: Evento para select de exento (y compatibilidad con checkbox)
-        document.querySelectorAll('#items-table [name$="exento"]').forEach(select => {
-            select.addEventListener('change', calcularTodosTotales);
-        });
-        
-        // Evento para descuento
-        const inputDescuento = document.querySelector('[name$="descuento"]');
-        if (inputDescuento) {
-            inputDescuento.addEventListener('input', calcularTodosTotales);
-            inputDescuento.addEventListener('change', calcularTodosTotales);
-            inputDescuento.addEventListener('blur', function(e) {
-                const valor = parsearNumero(e.target.value);
-                if (!isNaN(valor) && valor !== 0) {
-                    e.target.value = valor.toLocaleString('es-CL', {
-                        minimumFractionDigits: 0,
-                        maximumFractionDigits: 0
-                    });
-                }
-            });
-        }
-        
-        // Calcular inicialmente
-        calcularTodosTotales();
+    const totalForms = document.getElementById('id_cuotas-TOTAL_FORMS');
+    if (totalForms) {
+        totalForms.value = rows.length;
     }
-    
-    // Ejecutar inicialización
-    inicializarEventos();
 }
 
-// ✅ Compatibilidad: Definir initCotizacionForm si no existe
-if (typeof window.initCotizacionForm === 'undefined') {
-    window.initCotizacionForm = function(contenedor) {
-        console.log("🔧 _form.html: initCotizacionForm llamado (compatibilidad)");
-        
-        // Usar el sistema unificado si está disponible
-        if (typeof window.inicializarCotizacionForm === 'function') {
-            return window.inicializarCotizacionForm(contenedor);
-        }
-        
-        // Fallback: usar implementación local
-        const form = contenedor.querySelector('form[data-cot-form]');
-        if (form) {
-            // Copiar las funciones de respaldo y ejecutarlas en el contexto correcto
-            const inicializarRespaldoLocal = function() {
-                // Esta es una versión adaptada para funcionar en cualquier contenedor
-                function formatoMoneda(num) {
-                    if (isNaN(num) || num === null || num === undefined) num = 0;
-                    return '$ ' + num.toLocaleString('es-CL', {
-                        minimumFractionDigits: 0,
-                        maximumFractionDigits: 0
-                    });
-                }
-                
-                function parsearNumero(texto) {
-                    if (!texto) return 0;
-                    const limpio = String(texto)
-                        .replace(/\./g, '')
-                        .replace(',', '.');
-                    return parseFloat(limpio) || 0;
-                }
-                
-                // ✅ ACTUALIZADO: Función para determinar si es exento
-                function esExento(elementoExento) {
-                    if (!elementoExento) return false;
-                    
-                    if (elementoExento.tagName === 'SELECT') {
-                        return elementoExento.value === 'True';
-                    }
-                    
-                    if (elementoExento.type === 'checkbox') {
-                        return elementoExento.checked;
-                    }
-                    
-                    const valor = (elementoExento.value || "").toString().trim().toLowerCase();
-                    return ["1", "true", "si", "sí", "yes", "on"].includes(valor);
-                }
-                
-                function calcularTodosTotales() {
-                    let neto = 0;
-                    let afecto = 0;
-                    
-                    const filas = contenedor.querySelectorAll('#items-table tbody tr.item-row');
-                    filas.forEach(fila => {
-                        const inputCantidad = fila.querySelector('[name$="cantidad"]');
-                        const inputValor = fila.querySelector('[name$="valor_unitario"]');
-                        const inputExento = fila.querySelector('[name$="exento"]');
-                        
-                        if (inputCantidad && inputValor) {
-                            const cantidad = parsearNumero(inputCantidad.value);
-                            const valor = parsearNumero(inputValor.value);
-                            const total = cantidad * valor;
-                            
-                            const totalSpan = fila.querySelector('.item-total');
-                            if (totalSpan) {
-                                totalSpan.textContent = formatoMoneda(total);
-                            }
-                            
-                            neto += total;
-                            
-                            // ✅ ACTUALIZADO: Usar la función esExento
-                            if (!esExento(inputExento)) {
-                                afecto += total;
-                            }
-                        }
-                    });
-                    
-                    const iva = afecto * 0.19;
-                    const inputDescuento = contenedor.querySelector('[name$="descuento"]');
-                    const descuento = parsearNumero(inputDescuento?.value);
-                    const totalFinal = neto + iva - descuento;
-                    
-                    const elementoNeto = contenedor.querySelector('#t-neto');
-                    const elementoIva = contenedor.querySelector('#t-iva');
-                    const elementoDesc = contenedor.querySelector('#t-desc');
-                    const elementoTotal = contenedor.querySelector('#t-total');
-                    
-                    if (elementoNeto) elementoNeto.textContent = formatoMoneda(neto);
-                    if (elementoIva) elementoIva.textContent = formatoMoneda(iva);
-                    if (elementoDesc) elementoDesc.textContent = formatoMoneda(descuento);
-                    if (elementoTotal) elementoTotal.textContent = formatoMoneda(totalFinal);
-                }
-                
-                // Inicializar eventos
-                contenedor.querySelectorAll('#items-table [name$="cantidad"], #items-table [name$="valor_unitario"]').forEach(input => {
-                    input.addEventListener('input', calcularTodosTotales);
-                    input.addEventListener('change', calcularTodosTotales);
-                });
-                
-                // ✅ ACTUALIZADO: Para select de exento
-                contenedor.querySelectorAll('#items-table [name$="exento"]').forEach(select => {
-                    select.addEventListener('change', calcularTodosTotales);
-                });
-                
-                const inputDescuento = contenedor.querySelector('[name$="descuento"]');
-                if (inputDescuento) {
-                    inputDescuento.addEventListener('input', calcularTodosTotales);
-                    inputDescuento.addEventListener('change', calcularTodosTotales);
-                }
-                
-                calcularTodosTotales();
-            };
-            
-            inicializarRespaldoLocal();
-        }
-        
-        return {
-            calcularTotales: function() {
-                console.log("📊 Función calcularTotales disponible");
-            },
-            calcularFila: function(fila) {
-                console.log("📊 Función calcularFila disponible");
+function agregarNuevaCuota() {
+    const tbody = document.getElementById('cuotas-tbody');
+    const template = document.getElementById('cuota-row-template');
+    const totalForms = document.getElementById('id_cuotas-TOTAL_FORMS');
+    
+    if (!tbody || !template) return;
+    
+    let count = totalForms ? parseInt(totalForms.value) : 0;
+    if (isNaN(count)) count = 0;
+    
+    let html = template.innerHTML.replace(/__prefix__/g, count);
+    const newRow = document.createElement('tr');
+    newRow.className = 'cuota-row';
+    newRow.innerHTML = html;
+    
+    tbody.appendChild(newRow);
+    
+    if (totalForms) {
+        totalForms.value = count + 1;
+    }
+    
+    actualizarIndicesCuotas();
+}
+
+function distribuirCuotas() {
+    const totalSpan = document.getElementById('t-total');
+    if (!totalSpan) return;
+    
+    const totalText = totalSpan.textContent.replace(/[^0-9]/g, '');
+    const totalValue = parseInt(totalText) || 0;
+    
+    const cuotasTbody = document.getElementById('cuotas-tbody');
+    const cuotaRows = cuotasTbody.querySelectorAll('.cuota-row:not([style*="display: none"])');
+    const cuotaCount = cuotaRows.length;
+    
+    if (cuotaCount === 0) {
+        alert('Primero debe agregar cuotas');
+        return;
+    }
+    
+    if (totalValue === 0) {
+        alert('El total de la cotización es 0');
+        return;
+    }
+    
+    const montoPorCuota = Math.floor(totalValue / cuotaCount);
+    const resto = totalValue - (montoPorCuota * cuotaCount);
+    
+    cuotaRows.forEach((row, idx) => {
+        const montoInput = row.querySelector('.cuota-monto');
+        if (montoInput) {
+            if (idx === cuotaCount - 1) {
+                montoInput.value = montoPorCuota + resto;
+            } else {
+                montoInput.value = montoPorCuota;
             }
-        };
-    };
+        }
+    });
 }
 
-// ✅ Función principal de inicialización
-function inicializarFormulario() {
-    console.log("🔍 _form.html: Detectando contexto...");
-    console.log("📍 ¿Estamos en un modal?:", estaEnModal() ? "Sí" : "No");
-    console.log("📊 Sistema unificado disponible:", typeof window.inicializarCotizacionForm);
-    console.log("📊 initCotizacionForm disponible:", typeof window.initCotizacionForm);
+// Lógica para cuotas dinámicas
+(function() {
+    const addCuotaBtn = document.getElementById('btn-add-cuota');
+    const distribuirBtn = document.getElementById('btn-distribuir-cuotas');
     
-    // Esperar un momento para asegurar que el DOM esté completamente cargado
-    setTimeout(inicializarCalculosUnificados, 50);
-}
+    if (addCuotaBtn) {
+        addCuotaBtn.addEventListener('click', agregarNuevaCuota);
+    }
+    
+    if (distribuirBtn) {
+        distribuirBtn.addEventListener('click', distribuirCuotas);
+    }
+    
+    actualizarIndicesCuotas();
+})();
 
-// ✅ Ejecutar inicialización
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', inicializarFormulario);
-} else {
-    inicializarFormulario();
-}
-
-// ✅ Debug: verificar estado
-console.log("✅ _form.html cargado correctamente");
-console.log("📍 Contexto actual:", estaEnModal() ? "Modal" : "Página normal");
+// Forzar el cálculo al abrir el modal
+setTimeout(() => {
+    if (window.calcularTodo) {
+        window.calcularTodo();
+    }
+}, 400);
 </script>
+
+<style>
+    .btn-sm { padding: 0.2rem 0.4rem; font-size: 0.75rem; }
+    .dinero-input { font-weight: bold; }
+    input[name$="-DELETE"] { display: none; }
+    .item-row .invalid-feedback { font-size: 10px; }
+    .cuota-row input { font-size: 0.8rem; }
+</style>

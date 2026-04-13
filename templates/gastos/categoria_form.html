@@ -1,0 +1,51 @@
+{% extends "layout/base.html" %}
+{% block title %}{% if form.instance.pk %}Editar Categoría{% else %}Nueva Categoría{% endif %}{% endblock %}
+{% block page_title %}{% if form.instance.pk %}✏️ Editar Categoría{% else %}➕ Nueva Categoría{% endif %}{% endblock %}
+
+{% block content %}
+<div class="card card-primary card-outline">
+    <div class="card-header">
+        <h3 class="card-title">Datos de la Categoría</h3>
+    </div>
+    <form method="post">
+        {% csrf_token %}
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="form-group">
+                        <label>{{ form.codigo.label }}</label>
+                        {{ form.codigo }}
+                        <small class="form-text text-muted">Ej: COMB, MANT, LUZ, etc.</small>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="form-group">
+                        <label>{{ form.nombre.label }}</label>
+                        {{ form.nombre }}
+                    </div>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="form-group">
+                        <label>{{ form.tipo.label }}</label>
+                        {{ form.tipo }}
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="form-group">
+                        <div class="custom-control custom-switch">
+                            {{ form.activo }}
+                            <label class="custom-control-label" for="{{ form.activo.id_for_label }}">{{ form.activo.label }}</label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="card-footer">
+            <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Guardar</button>
+            <a href="{% url 'gastos:categorias' %}" class="btn btn-secondary">Cancelar</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

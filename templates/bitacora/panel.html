@@ -14,34 +14,26 @@
   <div class="card-body">
     <form method="get" class="mb-3">
       <div class="row">
-        <div class="col-md-5 mb-2">
-          <input
-            type="text"
-            name="q"
-            class="form-control"
-            placeholder="Buscar por cliente, guía, OC/EDP, origen, destino, coordinador..."
-            value="{{ q }}"
-          >
+        <div class="col-md-4 mb-2">
+          <input type="text" name="q" class="form-control"
+                 placeholder="Buscar por cliente, guía, OC/EDP, origen, destino, coordinador..."
+                 value="{{ q }}">
         </div>
-
+        <div class="col-md-2 mb-2">
+          <input type="text" name="guia" class="form-control"
+                 placeholder="Nº Guía específico" value="{{ request.GET.guia }}">
+        </div>
         <div class="col-md-3 mb-2">
           <select name="estado" class="form-control">
             <option value="">Todos los estados</option>
             {% for valor, texto in estados %}
-              <option value="{{ valor }}" {% if estado == valor %}selected{% endif %}>
-                {{ texto }}
-              </option>
+              <option value="{{ valor }}" {% if estado == valor %}selected{% endif %}>{{ texto }}</option>
             {% endfor %}
           </select>
         </div>
-
-        <div class="col-md-4 mb-2">
-          <button type="submit" class="btn btn-primary">
-            <i class="fas fa-search"></i> Filtrar
-          </button>
-          <a href="{% url 'bitacora:panel' %}" class="btn btn-secondary">
-            <i class="fas fa-eraser"></i> Limpiar
-          </a>
+        <div class="col-md-3 mb-2">
+          <button type="submit" class="btn btn-primary"><i class="fas fa-search"></i> Filtrar</button>
+          <a href="{% url 'bitacora:panel' %}" class="btn btn-secondary"><i class="fas fa-eraser"></i> Limpiar</a>
         </div>
       </div>
     </form>

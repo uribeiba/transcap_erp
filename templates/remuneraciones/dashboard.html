@@ -1,0 +1,229 @@
+<!-- templates/remuneraciones/dashboard.html -->
+{% extends "remuneraciones/base_remuneraciones.html" %}
+{% load static %}
+
+{% block title %}Dashboard - Remuneraciones{% endblock %}
+{% block page_title %}Dashboard de Remuneraciones{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Tarjetas de estadísticas -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card stat-card text-white">
+                <div class="card-body">
+                    <h6 class="card-title">Total Empleados</h6>
+                    <h3 id="totalEmpleados">0</h3>
+                    <small>Activos</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card stat-card text-white" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
+                <div class="card-body">
+                    <h6 class="card-title">Total Contratos</h6>
+                    <h3 id="totalContratos">0</h3>
+                    <small>Vigentes</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card stat-card text-white" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
+                <div class="card-body">
+                    <h6 class="card-title">Masa Salarial</h6>
+                    <h3 id="masaSalarial">$0</h3>
+                    <small>Mes Actual</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card stat-card text-white" style="background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);">
+                <div class="card-body">
+                    <h6 class="card-title">Líquido a Pagar</h6>
+                    <h3 id="liquidoPagar">$0</h3>
+                    <small>Mes Actual</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Gráficos -->
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <i class="fas fa-chart-line"></i> Evolución Mensual
+                </div>
+                <div class="card-body">
+                    <canvas id="evolucionChart" height="100"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header">
+                    <i class="fas fa-chart-pie"></i> Distribución por Concepto
+                </div>
+                <div class="card-body">
+                    <canvas id="conceptosChart" height="250"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Últimas Liquidaciones -->
+    <div class="card">
+        <div class="card-header">
+            <i class="fas fa-history"></i> Últimas Liquidaciones
+        </div>
+        <div class="card-body">
+            <table id="liquidacionesTable" class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>Período</th>
+                        <th>Empleado</th>
+                        <th>Total Haberes</th>
+                        <th>Total Descuentos</th>
+                        <th>Líquido a Pagar</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody id="tablaLiquidaciones">
+                    <!-- Se llena con JavaScript -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Cargar datos del dashboard
+    async function cargarDashboard() {
+        try {
+            // Obtener estadísticas
+            const response = await fetch('/remuneraciones/api/dashboard/stats/');
+            const stats = await response.json();
+            
+            document.getElementById('totalEmpleados').textContent = stats.total_empleados;
+            document.getElementById('totalContratos').textContent = stats.total_contratos;
+            document.getElementById('masaSalarial').textContent = formatCLP(stats.masa_salarial);
+            document.getElementById('liquidoPagar').textContent = formatCLP(stats.liquido_mes_actual);
+            
+            // Cargar evolución mensual
+            cargarEvolucion();
+            
+            // Cargar últimas liquidaciones
+            cargarUltimasLiquidaciones();
+            
+        } catch (error) {
+            console.error('Error cargando dashboard:', error);
+        }
+    }
+    
+    async function cargarEvolucion() {
+        const response = await fetch('/remuneraciones/api/dashboard/evolucion/');
+        const data = await response.json();
+        
+        const ctx = document.getElementById('evolucionChart').getContext('2d');
+        new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: data.periodos,
+                datasets: [{
+                    label: 'Líquido a Pagar',
+                    data: data.liquidos,
+                    borderColor: '#667eea',
+                    backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                    tension: 0.4,
+                    fill: true
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: {
+                        position: 'top',
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return formatCLP(context.raw);
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        ticks: {
+                            callback: function(value) {
+                                return formatCLP(value);
+                            }
+                        }
+                    }
+                }
+            }
+        });
+        
+        // Cargar distribución por conceptos
+        const conceptosResponse = await fetch('/remuneraciones/api/dashboard/conceptos/?periodo=' + data.periodos[data.periodos.length-1]);
+        const conceptos = await conceptosResponse.json();
+        
+        const ctx2 = document.getElementById('conceptosChart').getContext('2d');
+        new Chart(ctx2, {
+            type: 'pie',
+            data: {
+                labels: conceptos.labels,
+                datasets: [{
+                    data: conceptos.data,
+                    backgroundColor: ['#667eea', '#f093fb', '#4facfe', '#43e97b', '#fa709a', '#fee140']
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return `${context.label}: ${formatCLP(context.raw)}`;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+    
+    async function cargarUltimasLiquidaciones() {
+        const response = await fetch('/remuneraciones/api/dashboard/ultimas-liquidaciones/');
+        const liquidaciones = await response.json();
+        
+        const tbody = document.getElementById('tablaLiquidaciones');
+        tbody.innerHTML = '';
+        
+        liquidaciones.forEach(liq => {
+            const row = tbody.insertRow();
+            row.innerHTML = `
+                <td>${liq.periodo}</td>
+                <td>${liq.empleado}</td>
+                <td class="text-end">${formatCLP(liq.total_haberes)}</td>
+                <td class="text-end">${formatCLP(liq.total_descuentos)}</td>
+                <td class="text-end fw-bold">${formatCLP(liq.liquido_pagar)}</td>
+                <td>
+                    <button class="btn btn-sm btn-info" onclick="verDetalle(${liq.id})">
+                        <i class="fas fa-eye"></i>
+                    </button>
+                </td>
+            `;
+        });
+        
+        $('#liquidacionesTable').DataTable();
+    }
+    
+    function verDetalle(id) {
+        window.open(`/remuneraciones/liquidaciones/detalle/${id}/`, '_blank');
+    }
+    
+    // Inicializar
+    cargarDashboard();
+</script>
+{% endblock %}

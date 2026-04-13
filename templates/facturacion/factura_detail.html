@@ -1,0 +1,175 @@
+{% extends "layout/base.html" %}
+
+{% block title %}Factura {{ factura.folio|default:"Nueva" }} - Transcap ERP{% endblock %}
+
+{% block page_title %}
+    Factura {{ factura.get_tipo_dte_display }} N° {{ factura.folio|default:"(sin folio)" }}
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-12">
+        <div class="card card-primary card-outline">
+            <div class="card-header">
+                <h3 class="card-title">Información de la factura</h3>
+                <div class="card-tools">
+                    {% if factura.estado == 'BOR' %}
+                        <a href="{% url 'facturacion:editar' factura.pk %}" class="btn btn-warning btn-sm">
+                            <i class="fas fa-edit"></i> Editar
+                        </a>
+                        <a href="{% url 'facturacion:emitir' factura.pk %}" class="btn btn-success btn-sm">
+                            <i class="fas fa-check-circle"></i> Emitir
+                        </a>
+                        <a href="{% url 'facturacion:eliminar' factura.pk %}" class="btn btn-danger btn-sm" onclick="return confirm('¿Eliminar esta factura?');">
+                            <i class="fas fa-trash"></i> Eliminar
+                        </a>
+                    {% elif factura.estado == 'EMI' %}
+                        <a href="{% url 'facturacion:enviar_sii' factura.pk %}" class="btn btn-primary btn-sm">
+                            <i class="fas fa-paper-plane"></i> Enviar al SII
+                        </a>
+                    {% endif %}
+                    <a href="{% url 'facturacion:pdf' factura.pk %}" class="btn btn-secondary btn-sm" target="_blank">
+                        <i class="fas fa-file-pdf"></i> PDF
+                    </a>
+                    <a href="{% url 'facturacion:lista' %}" class="btn btn-default btn-sm">
+                        <i class="fas fa-arrow-left"></i> Volver
+                    </a>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="info-box bg-light">
+                            <div class="info-box-content">
+                                <span class="info-box-text text-center text-muted">EMISOR</span>
+                                <span class="info-box-number text-center">{{ factura.razon_social_emisor }}</span>
+                                <p class="text-center">RUT: {{ factura.rut_emisor }}<br>Giro: {{ factura.giro_emisor }}</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="info-box bg-light">
+                            <div class="info-box-content">
+                                <span class="info-box-text text-center text-muted">RECEPTOR</span>
+                                <span class="info-box-number text-center">{{ factura.razon_social_cliente }}</span>
+                                <p class="text-center">RUT: {{ factura.rut_cliente }}<br>Giro: {{ factura.giro_cliente }}<br>
+                                {{ factura.direccion_cliente }}, {{ factura.comuna_cliente }}, {{ factura.ciudad_cliente }}</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-3">
+                        <strong>Fecha Emisión:</strong> {{ factura.fecha_emision|date:"d/m/Y" }}
+                    </div>
+                    <div class="col-md-3">
+                        <strong>Fecha Vencimiento:</strong> {{ factura.fecha_vencimiento|date:"d/m/Y" }}
+                    </div>
+                    <div class="col-md-3">
+                        <strong>Tipo DTE:</strong> {{ factura.get_tipo_dte_display }}
+                    </div>
+                    <div class="col-md-3">
+                        <strong>Estado:</strong>
+                        {% if factura.estado == 'BOR' %}
+                            <span class="badge badge-secondary">Borrador</span>
+                        {% elif factura.estado == 'EMI' %}
+                            <span class="badge badge-primary">Emitida</span>
+                        {% elif factura.estado == 'ENV' %}
+                            <span class="badge badge-info">Enviada al SII</span>
+                        {% elif factura.estado == 'ACE' %}
+                            <span class="badge badge-success">Aceptada por SII</span>
+                        {% elif factura.estado == 'REC' %}
+                            <span class="badge badge-danger">Rechazada por SII</span>
+                        {% elif factura.estado == 'ANU' %}
+                            <span class="badge badge-dark">Anulada</span>
+                        {% else %}
+                            <span class="badge badge-warning">{{ factura.get_estado_display }}</span>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <hr>
+
+                <h5>Detalle de la factura</h5>
+                <div class="table-responsive">
+                    <table class="table table-bordered table-striped">
+                        <thead>
+                            <tr>
+                                <th>Descripción</th>
+                                <th>Cant.</th>
+                                <th>Unidad</th>
+                                <th>Precio Unit.</th>
+                                <th>Neto</th>
+                                <th>IVA</th>
+                                <th>Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for detalle in factura.detalles.all %}
+                            <tr>
+                                <td>{{ detalle.descripcion }}</td>
+                                <td>{{ detalle.cantidad }}</td>
+                                <td>{{ detalle.unidad }}</td>
+                                <td>${{ detalle.precio_unitario|floatformat:0 }}</td>
+                                <td>${{ detalle.monto_neto|floatformat:0 }}</td>
+                                <td>${{ detalle.monto_iva|floatformat:0 }}</td>
+                                <td>${{ detalle.monto_total|floatformat:0 }}</td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="7" class="text-center text-muted">No hay detalles. Agrega servicios a facturar.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                        <tfoot>
+                            <tr>
+                                <th colspan="4" class="text-right">Totales:</th>
+                                <th>${{ factura.monto_neto|floatformat:0 }}</th>
+                                <th>${{ factura.monto_iva|floatformat:0 }}</th>
+                                <th>${{ factura.monto_total|floatformat:0 }}</th>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+
+                {% if factura.viajes.all %}
+                <hr>
+                <h5>Servicios / Bitácoras asociados</h5>
+                <div class="table-responsive">
+                    <table class="table table-sm table-bordered">
+                        <thead>
+                            <tr><th>ID Bitácora</th><th>Cliente</th><th>Origen</th><th>Destino</th><th>Fecha</th><th>Monto</th></tr>
+                        </thead>
+                        <tbody>
+                            {% for bitacora in factura.viajes.all %}
+                            <tr>
+                                <td>{{ bitacora.id }}</td>
+                                <td>{{ bitacora.cliente.razon_social|default:"-" }}</td>
+                                <td>{{ bitacora.origen|default:"-" }}</td>
+                                <td>{{ bitacora.destino|default:"-" }}</td>
+                                <td>{{ bitacora.fecha|date:"d/m/Y" }}</td>
+                                <td>${{ bitacora.tarifa_flete|floatformat:0 }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% endif %}
+
+                {% if factura.observaciones %}
+                <hr>
+                <div class="alert alert-secondary">
+                    <strong>Observaciones:</strong> {{ factura.observaciones }}
+                </div>
+                {% endif %}
+
+                <div class="text-muted mt-3">
+                    <small>Creado: {{ factura.creado_en|date:"d/m/Y H:i" }} | 
+                    Última modificación: {{ factura.actualizado_en|date:"d/m/Y H:i" }}</small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

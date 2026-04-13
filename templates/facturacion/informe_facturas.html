@@ -1,0 +1,234 @@
+{% extends "layout/base.html" %}
+{% load static %}
+
+{% block title %}Informe de Facturas - Transcap ERP{% endblock %}
+
+{% block page_title %}📊 Informe de Facturación{% endblock %}
+
+{% block extra_css %}
+<!-- Chart.js CDN -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+{% endblock %}
+
+{% block content %}
+<div class="card card-primary card-outline">
+    <div class="card-header">
+        <h3 class="card-title"><i class="fas fa-filter"></i> Filtros de búsqueda</h3>
+    </div>
+    <div class="card-body">
+        <form method="get" class="row">
+            <div class="col-md-3">
+                <div class="form-group">
+                    <label>Fecha desde</label>
+                    <input type="date" name="fecha_desde" value="{{ filtros.fecha_desde }}" class="form-control">
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="form-group">
+                    <label>Fecha hasta</label>
+                    <input type="date" name="fecha_hasta" value="{{ filtros.fecha_hasta }}" class="form-control">
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="form-group">
+                    <label>Cliente</label>
+                    <select name="cliente" class="form-control select2">
+                        <option value="">Todos los clientes</option>
+                        {% for cliente in clientes %}
+                            <option value="{{ cliente.id }}" {% if filtros.cliente_id|stringformat:"s" == cliente.id|stringformat:"s" %}selected{% endif %}>
+                                {{ cliente.razon_social }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="form-group">
+                    <label>Estado</label>
+                    <select name="estado" class="form-control">
+                        <option value="">Todos</option>
+                        {% for cod, nombre in estados %}
+                            <option value="{{ cod }}" {% if filtros.estado == cod %}selected{% endif %}>{{ nombre }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="form-group">
+                    <label>Tipo DTE</label>
+                    <select name="tipo_dte" class="form-control">
+                        <option value="">Todos</option>
+                        {% for cod, nombre in tipos_dte %}
+                            <option value="{{ cod }}" {% if filtros.tipo_dte == cod %}selected{% endif %}>{{ nombre }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+            <div class="col-md-3 d-flex align-items-end">
+                <div class="form-group">
+                    <button type="submit" class="btn btn-primary"><i class="fas fa-search"></i> Filtrar</button>
+                    <a href="{% url 'facturacion:informe' %}" class="btn btn-secondary">Limpiar</a>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Resumen de totales -->
+<div class="row">
+    <div class="col-md-4">
+        <div class="info-box bg-info">
+            <span class="info-box-icon"><i class="fas fa-dollar-sign"></i></span>
+            <div class="info-box-content">
+                <span class="info-box-text">Total Neto</span>
+                <span class="info-box-number">${{ total_neto|floatformat:0 }}</span>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="info-box bg-warning">
+            <span class="info-box-icon"><i class="fas fa-percent"></i></span>
+            <div class="info-box-content">
+                <span class="info-box-text">Total IVA (19%)</span>
+                <span class="info-box-number">${{ total_iva|floatformat:0 }}</span>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="info-box bg-success">
+            <span class="info-box-icon"><i class="fas fa-chart-line"></i></span>
+            <div class="info-box-content">
+                <span class="info-box-text">Total Facturado</span>
+                <span class="info-box-number">${{ total_final|floatformat:0 }}</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Gráfico (opcional) -->
+<div class="card">
+    <div class="card-header">
+        <h3 class="card-title">Evolución de facturación (últimos 30 días)</h3>
+    </div>
+    <div class="card-body">
+        <canvas id="facturasChart" style="height: 250px;"></canvas>
+    </div>
+</div>
+
+<!-- Tabla de facturas -->
+<div class="card">
+    <div class="card-header">
+        <h3 class="card-title">Facturas encontradas</h3>
+        <div class="card-tools">
+            <a href="#" class="btn btn-sm btn-success" id="exportarExcel"><i class="fas fa-file-excel"></i> Exportar a Excel</a>
+            <a href="#" class="btn btn-sm btn-danger" id="exportarPDF"><i class="fas fa-file-pdf"></i> Exportar a PDF</a>
+        </div>
+    </div>
+    <div class="card-body table-responsive p-0">
+        <table class="table table-hover table-bordered" id="tablaFacturas">
+            <thead class="thead-light">
+                <tr>
+                    <th>Folio</th>
+                    <th>Tipo</th>
+                    <th>Cliente</th>
+                    <th>Fecha Emisión</th>
+                    <th>Neto</th>
+                    <th>IVA</th>
+                    <th>Total</th>
+                    <th>Estado</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for f in facturas %}
+                <tr>
+                    <td>{{ f.folio|default:"-" }}</td>
+                    <td>{{ f.get_tipo_dte_display }}</td>
+                    <td>{{ f.cliente.razon_social }}</td>
+                    <td>{{ f.fecha_emision|date:"d/m/Y" }}</td>
+                    <td>${{ f.monto_neto|floatformat:0 }}</td>
+                    <td>${{ f.monto_iva|floatformat:0 }}</td>
+                    <td>${{ f.monto_total|floatformat:0 }}</td>
+                    <td>
+                        {% if f.estado == 'BOR' %}
+                            <span class="badge badge-secondary">Borrador</span>
+                        {% elif f.estado == 'EMI' %}
+                            <span class="badge badge-primary">Emitida</span>
+                        {% elif f.estado == 'ACE' %}
+                            <span class="badge badge-success">Aceptada</span>
+                        {% else %}
+                            <span class="badge badge-warning">{{ f.get_estado_display }}</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="8" class="text-center">No hay facturas con los filtros seleccionados.</td></tr>
+                {% endfor %}
+            </tbody>
+            <tfoot>
+                <tr><th colspan="4" class="text-right">Totales:</th>
+                    <th>${{ total_neto|floatformat:0 }}</th>
+                    <th>${{ total_iva|floatformat:0 }}</th>
+                    <th>${{ total_final|floatformat:0 }}</th>
+                    <th></th>
+                </tr>
+            </tfoot>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    $(document).ready(function(){
+        // Inicializar Select2
+        $('.select2').select2({ theme: 'bootstrap4', placeholder: 'Seleccione...', allowClear: true });
+
+        // Gráfico (últimos 30 días - puedes hacerlo dinámico desde el backend)
+        const ctx = document.getElementById('facturasChart').getContext('2d');
+        new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: ['Semana 1', 'Semana 2', 'Semana 3', 'Semana 4'],
+                datasets: [{
+                    label: 'Total facturado ($)',
+                    data: [{{ total_final|floatformat:0 }}, 0, 0, 0],  // puedes calcular agrupación real
+                    backgroundColor: 'rgba(4, 139, 54, 0.6)',
+                    borderColor: '#048B36',
+                    borderWidth: 1
+                }]
+            },
+            options: { responsive: true, maintainAspectRatio: true, scales: { y: { beginAtZero: true } } }
+        });
+
+        // Exportar a Excel (simple: descarga CSV)
+        $('#exportarExcel').click(function(e){
+            e.preventDefault();
+            let csv = [];
+            let rows = document.querySelectorAll('#tablaFacturas tr');
+            for (let i = 0; i < rows.length; i++) {
+                let row = [], cols = rows[i].querySelectorAll('td, th');
+                for (let j = 0; j < cols.length; j++) {
+                    let text = cols[j].innerText.replace(/,/g, ';');
+                    row.push('"' + text + '"');
+                }
+                csv.push(row.join(','));
+            }
+            let blob = new Blob(["\uFEFF" + csv.join('\n')], { type: 'text/csv;charset=utf-8;' });
+            let link = document.createElement('a');
+            let url = URL.createObjectURL(blob);
+            link.href = url;
+            link.setAttribute('download', 'informe_facturas.csv');
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+        });
+
+        // Exportar a PDF usando la ventana de impresión del navegador (simple)
+        $('#exportarPDF').click(function(e){
+            e.preventDefault();
+            window.print();
+        });
+    });
+</script>
+{% endblock %}

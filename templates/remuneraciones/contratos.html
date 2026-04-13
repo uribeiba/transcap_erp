@@ -1,0 +1,263 @@
+<!-- templates/remuneraciones/contratos.html -->
+{% extends "remuneraciones/base_remuneraciones.html" %}
+
+{% block title %}Contratos - Remuneraciones{% endblock %}
+{% block page_title %}Gestión de Contratos{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <span><i class="fas fa-file-signature"></i> Listado de Contratos</span>
+        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#contratoModal" onclick="limpiarFormContrato()">
+            <i class="fas fa-plus"></i> Nuevo Contrato
+        </button>
+    </div>
+    <div class="card-body">
+        <table id="contratosTable" class="table table-striped">
+            <thead>
+                <tr>
+                    <th>Empleado</th>
+                    <th>RUT</th>
+                    <th>Sueldo Base</th>
+                    <th>Tipo Jornada</th>
+                    <th>AFP</th>
+                    <th>Salud</th>
+                    <th>Estado</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody id="tablaContratos">
+                <!-- Se llena con JavaScript -->
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Modal Contrato -->
+<div class="modal fade" id="contratoModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Contrato</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="contratoForm">
+                    <input type="hidden" id="contrato_id" name="id">
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label>Empleado</label>
+                                <select id="empleado_id" class="form-select" required>
+                                    <option value="">Seleccione empleado...</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label>Sueldo Base ($)</label>
+                                <input type="number" id="sueldo_base" class="form-control" required>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label>Fecha Inicio</label>
+                                <input type="date" id="fecha_inicio" class="form-control" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label>Fecha Fin</label>
+                                <input type="date" id="fecha_fin" class="form-control">
+                                <small class="text-muted">Dejar vacío si es indefinido</small>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label>Tipo Jornada</label>
+                                <select id="tipo_jornada" class="form-select">
+                                    <option value="COMPLETA">Jornada Completa (45 hrs)</option>
+                                    <option value="PARCIAL">Jornada Parcial</option>
+                                    <option value="ART_22">Artículo 22 (sin jornada máxima)</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label>Horas Semanales</label>
+                                <input type="number" id="horas_semanales" class="form-control" value="45">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label>AFP</label>
+                                <select id="afp_id" class="form-select">
+                                    <option value="">Seleccione AFP...</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label>Salud</label>
+                                <select id="salud_id" class="form-select">
+                                    <option value="">Seleccione Salud...</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3 form-check">
+                        <input type="checkbox" id="activo_contrato" class="form-check-input" checked>
+                        <label class="form-check-label">Activo</label>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" onclick="guardarContrato()">Guardar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    let empleadosList = [];
+    let afpsList = [];
+    let saludList = [];
+    
+    // Cargar datos iniciales
+    async function cargarDatosIniciales() {
+        // Cargar empleados
+        const empResponse = await fetch('/remuneraciones/api/empleados/');
+        empleadosList = await empResponse.json();
+        const empleadoSelect = document.getElementById('empleado_id');
+        empleadoSelect.innerHTML = '<option value="">Seleccione empleado...</option>';
+        empleadosList.forEach(emp => {
+            empleadoSelect.innerHTML += `<option value="${emp.id}">${emp.nombre_completo} (${emp.rut})</option>`;
+        });
+        
+        // Cargar AFP
+        const afpResponse = await fetch('/remuneraciones/api/afp/');
+        afpsList = await afpResponse.json();
+        const afpSelect = document.getElementById('afp_id');
+        afpSelect.innerHTML = '<option value="">Seleccione AFP...</option>';
+        afpsList.forEach(afp => {
+            afpSelect.innerHTML += `<option value="${afp.id}">${afp.nombre} (${(afp.tasa_total * 100).toFixed(2)}%)</option>`;
+        });
+        
+        // Cargar Salud
+        const saludResponse = await fetch('/remuneraciones/api/salud/');
+        saludList = await saludResponse.json();
+        const saludSelect = document.getElementById('salud_id');
+        saludSelect.innerHTML = '<option value="">Seleccione Salud...</option>';
+        saludList.forEach(salud => {
+            saludSelect.innerHTML += `<option value="${salud.id}">${salud.nombre} (${(salud.tasa_cotizacion * 100).toFixed(2)}%)</option>`;
+        });
+    }
+    
+    // Cargar contratos
+    async function cargarContratos() {
+        const response = await fetch('/remuneraciones/api/contratos/');
+        const data = await response.json();
+        
+        const tbody = document.getElementById('tablaContratos');
+        tbody.innerHTML = '';
+        
+        data.forEach(cont => {
+            const row = tbody.insertRow();
+            row.innerHTML = `
+                <td>${cont.empleado_nombre}</td>
+                <td>${cont.empleado_rut}</td>
+                <td class="text-end">${formatCLP(cont.sueldo_base)}</td>
+                <td>${cont.tipo_jornada}</td>
+                <td>${cont.afp_nombre || '-'}</td>
+                <td>${cont.salud_nombre || '-'}</td>
+                <td>${cont.activo ? '<span class="badge bg-success">Activo</span>' : '<span class="badge bg-danger">Inactivo</span>'}</td>
+                <td class="table-actions">
+                    <i class="fas fa-calculator text-success" onclick="calcularLiquidacion(${cont.id})" title="Calcular Liquidación"></i>
+                    <i class="fas fa-edit text-primary" onclick="editarContrato(${cont.id})" title="Editar"></i>
+                    <i class="fas fa-trash text-danger" onclick="eliminarContrato(${cont.id})" title="Eliminar"></i>
+                </td>
+            `;
+        });
+        
+        $('#contratosTable').DataTable();
+    }
+    
+    function guardarContrato() {
+        const data = {
+            id: document.getElementById('contrato_id').value,
+            empleado_id: document.getElementById('empleado_id').value,
+            sueldo_base: document.getElementById('sueldo_base').value,
+            fecha_inicio: document.getElementById('fecha_inicio').value,
+            fecha_fin: document.getElementById('fecha_fin').value || null,
+            tipo_jornada: document.getElementById('tipo_jornada').value,
+            horas_semanales: document.getElementById('horas_semanales').value,
+            afp_id: document.getElementById('afp_id').value || null,
+            salud_id: document.getElementById('salud_id').value || null,
+            activo: document.getElementById('activo_contrato').checked
+        };
+        
+        const method = data.id ? 'PUT' : 'POST';
+        fetch('/remuneraciones/api/contratos/', {
+            method: method,
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(data)
+        }).then(() => {
+            location.reload();
+        });
+    }
+    
+    function editarContrato(id) {
+        fetch(`/remuneraciones/api/contratos/${id}/`)
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('contrato_id').value = data.id;
+                document.getElementById('empleado_id').value = data.empleado_id;
+                document.getElementById('sueldo_base').value = data.sueldo_base;
+                document.getElementById('fecha_inicio').value = data.fecha_inicio;
+                document.getElementById('fecha_fin').value = data.fecha_fin || '';
+                document.getElementById('tipo_jornada').value = data.tipo_jornada;
+                document.getElementById('horas_semanales').value = data.horas_semanales;
+                document.getElementById('afp_id').value = data.afp_id || '';
+                document.getElementById('salud_id').value = data.salud_id || '';
+                document.getElementById('activo_contrato').checked = data.activo;
+                $('#contratoModal').modal('show');
+            });
+    }
+    
+    function eliminarContrato(id) {
+        if(confirm('¿Eliminar este contrato?')) {
+            fetch(`/remuneraciones/api/contratos/${id}/`, {
+                method: 'DELETE'
+            }).then(() => location.reload());
+        }
+    }
+    
+    function calcularLiquidacion(contratoId) {
+        // Abrir modal de cálculo
+        window.location.href = `/remuneraciones/liquidaciones/?contrato=${contratoId}`;
+    }
+    
+    function limpiarFormContrato() {
+        document.getElementById('contratoForm').reset();
+        document.getElementById('contrato_id').value = '';
+        document.getElementById('fecha_fin').value = '';
+        document.getElementById('activo_contrato').checked = true;
+    }
+    
+    // Inicializar
+    cargarDatosIniciales();
+    cargarContratos();
+</script>
+{% endblock %}

@@ -1,0 +1,376 @@
+{% load humanize %}
+{% load static %}
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Cotización {{ cotizacion.codigo }}</title>
+    <style>
+        @page {
+            size: letter;
+            margin: 1.5cm;
+        }
+        body {
+            font-family: 'DejaVu Sans', 'Arial', sans-serif;
+            font-size: 11px;
+            line-height: 1.4;
+            color: #333;
+            background: white;
+        }
+        
+        /* Encabezado con logo */
+        .header {
+            margin-bottom: 20px;
+            border-bottom: 3px solid #003366;
+            padding-bottom: 15px;
+        }
+        .logo-container {
+            float: left;
+            width: 30%;
+        }
+        .logo {
+            max-width: 180px;
+            max-height: 70px;
+        }
+        .empresa-info {
+            float: right;
+            width: 65%;
+            text-align: right;
+            font-size: 10px;
+            color: #555;
+        }
+        .empresa-nombre {
+            font-size: 18px;
+            font-weight: bold;
+            color: #003366;
+        }
+        .clearfix {
+            clear: both;
+        }
+        
+        /* Título Cotización */
+        .titulo-cotizacion {
+            text-align: center;
+            font-size: 22px;
+            font-weight: bold;
+            color: #003366;
+            margin: 20px 0;
+            letter-spacing: 2px;
+        }
+        
+        /* Tabla de información */
+        .info-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+            border: 1px solid #ddd;
+        }
+        .info-table td {
+            padding: 8px 10px;
+            border: 1px solid #ddd;
+            vertical-align: top;
+        }
+        .info-table td:first-child {
+            width: 25%;
+            background-color: #f5f5f5;
+            font-weight: bold;
+        }
+        
+        /* Tabla de Items */
+        .items-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+        }
+        .items-table th {
+            background-color: #003366;
+            color: white;
+            padding: 10px;
+            text-align: center;
+            font-size: 10px;
+        }
+        .items-table td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            vertical-align: top;
+        }
+        .items-table .text-right {
+            text-align: right;
+        }
+        .items-table .text-center {
+            text-align: center;
+        }
+        
+        /* Tabla de Cuotas */
+        .cuotas-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+        .cuotas-table th {
+            background-color: #28a745;
+            color: white;
+            padding: 8px;
+            text-align: center;
+            font-size: 10px;
+        }
+        .cuotas-table td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: center;
+        }
+        .cuotas-table .text-right {
+            text-align: right;
+        }
+        
+        /* Totales */
+        .totales-container {
+            margin-top: 20px;
+            border-top: 2px solid #003366;
+            padding-top: 15px;
+        }
+        .totales-table {
+            width: 350px;
+            float: right;
+            border-collapse: collapse;
+        }
+        .totales-table td {
+            padding: 6px 8px;
+        }
+        .totales-table tr:last-child td {
+            border-top: 2px solid #003366;
+            font-weight: bold;
+            font-size: 14px;
+            color: #003366;
+        }
+        
+        /* Observaciones y Términos */
+        .observaciones, .terminos {
+            margin-top: 20px;
+            padding: 10px;
+            background-color: #f9f9f9;
+            border-left: 4px solid #003366;
+        }
+        
+        /* Footer */
+        .footer {
+            margin-top: 40px;
+            text-align: center;
+            font-size: 9px;
+            color: #888;
+            border-top: 1px solid #ddd;
+            padding-top: 15px;
+        }
+        
+        .badge-estado {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 10px;
+            font-weight: bold;
+        }
+        .estado-pendiente { background-color: #ffc107; color: #333; }
+        .estado-aceptada { background-color: #28a745; color: white; }
+        .estado-anulada { background-color: #dc3545; color: white; }
+        
+        @media print {
+            .no-print { display: none; }
+            body { margin: 0; padding: 0; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- HEADER CON LOGO -->
+<div class="header">
+    <div class="logo-container">
+        <img src="{% static 'img/logo_transcap.png' %}" alt="TRANSCAP" class="logo" style="width: 180px;">
+    </div>
+    <div class="empresa-info">
+        <div class="empresa-nombre">TRANSCAP ERP</div>
+        <div>RUT: 76.123.456-7</div>
+        <div>Teléfono: +56 2 1234 5678</div>
+        <div>Email: ventas@transcap.cl</div>
+        <div>Dirección: Av. Principal 123, Santiago, Chile</div>
+    </div>
+    <div class="clearfix"></div>
+</div>
+
+<!-- TÍTULO -->
+<div class="titulo-cotizacion">
+    COTIZACIÓN
+</div>
+
+<!-- INFORMACIÓN DE LA COTIZACIÓN -->
+<table class="info-table">
+    <tr>
+        <td>Código / N°:</td>
+        <td><strong>{{ cotizacion.codigo }}</strong></td>
+        <td>Fecha Emisión:</td>
+        <td>{{ cotizacion.fecha|date:"d/m/Y" }}</td>
+    </tr>
+    <tr>
+        <td>Cliente:</td>
+        <td><strong>{{ cotizacion.cliente.razon_social }}</strong></td>
+        <td>Vigencia:</td>
+        <td>{{ cotizacion.vigencia_hasta|date:"d/m/Y" }}</td>
+    </tr>
+    <tr>
+        <td>RUT:</td>
+        <td>{{ cotizacion.cliente.rut }}</td>
+        <td>Estado:</td>
+        <td>
+            <span class="badge-estado 
+                {% if cotizacion.estado == 'PEND' %}estado-pendiente
+                {% elif cotizacion.estado == 'ACEP' %}estado-aceptada
+                {% else %}estado-anulada{% endif %}">
+                {{ cotizacion.get_estado_display }}
+            </span>
+         </td>
+    </tr>
+    {% if cotizacion.cliente.giro %}
+    <tr>
+        <td>Giro:</td>
+        <td colspan="3">{{ cotizacion.cliente.giro }}</td>
+    </tr>
+    {% endif %}
+    {% if cotizacion.vendedor %}
+    <tr>
+        <td>Vendedor:</td>
+        <td>{{ cotizacion.vendedor.nombre }}</td>
+        <td>Condición de Venta:</td>
+        <td>{{ cotizacion.get_condicion_venta_display }}</td>
+    </tr>
+    {% endif %}
+    {% if cotizacion.sucursal %}
+    <tr>
+        <td>Sucursal:</td>
+        <td colspan="3">{{ cotizacion.sucursal }}</td>
+    </tr>
+    {% endif %}
+    {% if cotizacion.glosa %}
+    <tr>
+        <td>Glosa:</td>
+        <td colspan="3">{{ cotizacion.glosa }}</td>
+    </tr>
+    {% endif %}
+</table>
+
+<!-- TABLA DE ÍTEMS -->
+<table class="items-table">
+    <thead>
+        <tr>
+            <th style="width: 5%">#</th>
+            <th style="width: 45%">Descripción</th>
+            <th style="width: 8%">Cant.</th>
+            <th style="width: 10%">Unidad</th>
+            <th style="width: 16%">Precio Unit.</th>
+            <th style="width: 16%">Total</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for item in cotizacion.items.all %}
+        <tr>
+            <td class="text-center">{{ forloop.counter }}</td>
+            <td>{{ item.titulo }}</td>
+            <td class="text-center">{{ item.cantidad }}</td>
+            <td class="text-center">{{ item.unidad|default:"Unidad" }}</td>
+            <td class="text-right">$ {{ item.valor_unitario|floatformat:0|intcomma }}</td>
+            <td class="text-right">$ {{ item.total|floatformat:0|intcomma }}</td>
+        </tr>
+        {% empty %}
+        <tr>
+            <td colspan="6" class="text-center">No hay ítems registrados</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<!-- TABLA DE CUOTAS (si existen) -->
+{% if cotizacion.cuotas.all %}
+<div style="margin-top: 25px;">
+    <table class="cuotas-table">
+        <thead>
+            <tr>
+                <th style="width: 10%">#</th>
+                <th style="width: 45%">Fecha de Cuota</th>
+                <th style="width: 45%">Monto</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for cuota in cotizacion.cuotas.all %}
+            <tr>
+                <td class="text-center">{{ forloop.counter }}</td>
+                <td class="text-center">{{ cuota.fecha|date:"d/m/Y" }}</td>
+                <td class="text-right">$ {{ cuota.monto|floatformat:0|intcomma }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endif %}
+
+<!-- TOTALES -->
+<div class="totales-container">
+    <table class="totales-table">
+        <tr>
+            <td width="65%">Subtotal Neto:</td>
+            <td width="35%" class="text-right">$ {{ cotizacion.subtotal|floatformat:0|intcomma }}</td>
+        </tr>
+        <tr>
+            <td>IVA (19%):</td>
+            <td class="text-right">$ {{ cotizacion.iva|floatformat:0|intcomma }}</td>
+        </tr>
+        {% if cotizacion.descuento_aplicado > 0 %}
+        <tr>
+            <td>Descuento:</td>
+            <td class="text-right">- $ {{ cotizacion.descuento_aplicado|floatformat:0|intcomma }}</td>
+        </tr>
+        {% endif %}
+        {% if cotizacion.recargo_aplicado > 0 %}
+        <tr>
+            <td>Recargo:</td>
+            <td class="text-right">+ $ {{ cotizacion.recargo_aplicado|floatformat:0|intcomma }}</td>
+        </tr>
+        {% endif %}
+        <tr style="border-top: 2px solid #003366;">
+            <td><strong>TOTAL NETO:</strong></td>
+            <td class="text-right"><strong>$ {{ cotizacion.total_neto|floatformat:0|intcomma }}</strong></td>
+        </tr>
+    </table>
+</div>
+
+<div class="clearfix"></div>
+
+<!-- OBSERVACIONES -->
+{% if cotizacion.observaciones %}
+<div class="observaciones">
+    <strong>Observaciones:</strong>
+    <p>{{ cotizacion.observaciones|linebreaks }}</p>
+</div>
+{% endif %}
+
+<!-- TÉRMINOS Y CONDICIONES -->
+{% if cotizacion.terminos %}
+<div class="terminos">
+    <strong>Términos y Condiciones:</strong>
+    <p>{{ cotizacion.terminos|linebreaks }}</p>
+</div>
+{% endif %}
+
+<!-- FOOTER -->
+<div class="footer">
+    <p>Este documento es una cotización válida hasta el {{ cotizacion.vigencia_hasta|date:"d/m/Y" }}</p>
+    <p>Cotización generada el {{ cotizacion.creado_en|date:"d/m/Y H:i" }}</p>
+    <p>Los precios incluyen IVA según ley vigente. Esta cotización es válida sólo por el período indicado.</p>
+</div>
+
+<!-- BOTÓN PARA IMPRIMIR (solo visible en pantalla, no en PDF) -->
+<div class="no-print" style="text-align: center; margin-top: 30px; padding: 15px; border-top: 1px solid #ddd;">
+    <button onclick="window.print();" style="padding: 10px 20px; background: #003366; color: white; border: none; border-radius: 5px; cursor: pointer;">
+        <i class="fas fa-print"></i> Imprimir / Guardar PDF
+    </button>
+</div>
+
+</body>
+</html>

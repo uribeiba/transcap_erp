@@ -1,0 +1,102 @@
+{% extends "layout/base.html" %}
+
+{% block title %}{% if form.instance.pk %}Editar Orden{% else %}Nueva Orden{% endif %}{% endblock %}
+{% block page_title %}{% if form.instance.pk %}✏️ Editar Orden de Compra{% else %}➕ Nueva Orden de Compra{% endif %}{% endblock %}
+
+{% block content %}
+<div class="card card-primary card-outline">
+    <div class="card-header">
+        <h3 class="card-title">Datos de la orden</h3>
+    </div>
+    <form method="post">
+        {% csrf_token %}
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-4">
+                    <div class="form-group">
+                        <label>{{ form.fecha.label }}</label>
+                        {{ form.fecha }}
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="form-group">
+                        <label>{{ form.proveedor.label }}</label>
+                        {{ form.proveedor }}
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="form-group">
+                        <label>{{ form.estado.label }}</label>
+                        {{ form.estado }}
+                    </div>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-md-12">
+                    <div class="form-group">
+                        <label>{{ form.observaciones.label }}</label>
+                        {{ form.observaciones }}
+                    </div>
+                </div>
+            </div>
+
+            <hr>
+            <h4>Detalles de productos/servicios</h4>
+            <div id="detalles-container">
+                {{ detalle_formset.management_form }}
+                {% for detalle_form in detalle_formset %}
+                <div class="detalle-item card card-secondary mb-2">
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-4">{{ detalle_form.producto.label_tag }}{{ detalle_form.producto }}</div>
+                            <div class="col-md-3">{{ detalle_form.descripcion.label_tag }}{{ detalle_form.descripcion }}</div>
+                            <div class="col-md-2">{{ detalle_form.cantidad.label_tag }}{{ detalle_form.cantidad }}</div>
+                            <div class="col-md-2">{{ detalle_form.precio_unitario.label_tag }}{{ detalle_form.precio_unitario }}</div>
+                            <div class="col-md-1 text-right">{% if detalle_form.instance.pk %}<label>Eliminar</label>{{ detalle_form.DELETE }}{% endif %}</div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            <button type="button" class="btn btn-sm btn-secondary" id="add-detalle"><i class="fas fa-plus"></i> Agregar ítem</button>
+        </div>
+        <div class="card-footer">
+            <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Guardar</button>
+            <a href="{% url 'compras:ordenes' %}" class="btn btn-secondary">Cancelar</a>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    $(document).ready(function(){
+        $('.select2').select2({ theme: 'bootstrap4', placeholder: 'Seleccione...' });
+        $('.select2-producto').select2({ theme: 'bootstrap4', placeholder: 'Buscar producto...' });
+
+        // Agregar dinámicamente más detalles (formset)
+        let formIdx = {{ detalle_formset.total_form_count }};
+        $('#add-detalle').click(function(){
+            let newForm = $('#detalles-container .detalle-item:first').clone();
+            newForm.find('input, select').each(function(){
+                let name = $(this).attr('name');
+                if(name){
+                    $(this).attr('name', name.replace(/-\d+-/, `-${formIdx}-`));
+                    $(this).attr('id', name.replace(/-\d+-/, `-${formIdx}-`));
+                }
+                if($(this).attr('type') != 'checkbox') $(this).val('');
+                else $(this).prop('checked', false);
+            });
+            newForm.find('label').each(function(){
+                let forAttr = $(this).attr('for');
+                if(forAttr){
+                    $(this).attr('for', forAttr.replace(/-\d+-/, `-${formIdx}-`));
+                }
+            });
+            $('#detalles-container').append(newForm);
+            formIdx++;
+            $('#id_detalles-TOTAL_FORMS').val(formIdx);
+        });
+    });
+</script>
+{% endblock %}

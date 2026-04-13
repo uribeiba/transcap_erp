@@ -1,0 +1,212 @@
+<!-- templates/remuneraciones/honorarios.html -->
+{% extends "remuneraciones/base_remuneraciones.html" %}
+
+{% block title %}Honorarios - Remuneraciones{% endblock %}
+{% block page_title %}Gestión de Honorarios{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <span><i class="fas fa-receipt"></i> Listado de Honorarios</span>
+        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#honorarioModal" onclick="limpiarFormHonorario()">
+            <i class="fas fa-plus"></i> Nuevo Honorario
+        </button>
+    </div>
+    <div class="card-body">
+        <table id="honorariosTable" class="table table-striped">
+            <thead>
+                <tr>
+                    <th>Período</th>
+                    <th>RUT Beneficiario</th>
+                    <th>Nombre</th>
+                    <th>Monto Bruto</th>
+                    <th>Retención (12.25%)</th>
+                    <th>Monto Líquido</th>
+                    <th>Estado</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody id="tablaHonorarios">
+                <!-- Se llena con JavaScript -->
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Modal Honorario -->
+<div class="modal fade" id="honorarioModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Honorario</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="honorarioForm">
+                    <input type="hidden" id="honorario_id" name="id">
+                    
+                    <div class="mb-3">
+                        <label>Período</label>
+                        <input type="month" id="periodo" class="form-control" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label>RUT Beneficiario</label>
+                        <input type="text" id="rut_beneficiario" class="form-control" required placeholder="11.111.111-1">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label>Nombre Completo</label>
+                        <input type="text" id="nombre_beneficiario" class="form-control" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label>Monto Bruto ($)</label>
+                        <input type="number" id="monto_bruto" class="form-control" required onchange="calcularRetencion()">
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label>Retención (12.25%)</label>
+                                <input type="text" id="monto_retencion" class="form-control" readonly style="background:#e9ecef">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label>Monto Líquido</label>
+                                <input type="text" id="monto_liquido" class="form-control" readonly style="background:#e9ecef">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label>Estado</label>
+                        <select id="estado" class="form-select">
+                            <option value="BORRADOR">Borrador</option>
+                            <option value="PAGADO">Pagado</option>
+                            <option value="ANULADO">Anulado</option>
+                        </select>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" onclick="guardarHonorario()">Guardar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function calcularRetencion() {
+        const montoBruto = parseFloat(document.getElementById('monto_bruto').value) || 0;
+        const retencion = montoBruto * 0.1225;
+        const liquido = montoBruto - retencion;
+        
+        document.getElementById('monto_retencion').value = formatCLP(retencion);
+        document.getElementById('monto_liquido').value = formatCLP(liquido);
+    }
+    
+    async function cargarHonorarios() {
+        const response = await fetch('/remuneraciones/api/honorarios/');
+        const data = await response.json();
+        
+        const tbody = document.getElementById('tablaHonorarios');
+        tbody.innerHTML = '';
+        
+        data.forEach(hon => {
+            const row = tbody.insertRow();
+            let estadoClass = '';
+            if (hon.estado === 'PAGADO') estadoClass = 'bg-success';
+            else if (hon.estado === 'ANULADO') estadoClass = 'bg-danger';
+            else estadoClass = 'bg-warning';
+            
+            row.innerHTML = `
+                <td>${hon.periodo}</td>
+                <td>${hon.rut_beneficiario}</td>
+                <td>${hon.nombre_beneficiario}</td>
+                <td class="text-end">${formatCLP(hon.monto_bruto)}</td>
+                <td class="text-end">${formatCLP(hon.monto_retencion)}</td>
+                <td class="text-end fw-bold">${formatCLP(hon.monto_liquido)}</td>
+                <td><span class="badge ${estadoClass}">${hon.estado}</span></td>
+                <td class="table-actions">
+                    <i class="fas fa-edit text-primary" onclick="editarHonorario(${hon.id})"></i>
+                    <i class="fas fa-trash text-danger" onclick="eliminarHonorario(${hon.id})"></i>
+                    <i class="fas fa-file-pdf text-danger" onclick="exportarPDF(${hon.id})"></i>
+                </td>
+            `;
+        });
+        
+        $('#honorariosTable').DataTable();
+    }
+    
+    function guardarHonorario() {
+        const montoBruto = parseFloat(document.getElementById('monto_bruto').value) || 0;
+        const retencion = montoBruto * 0.1225;
+        const liquido = montoBruto - retencion;
+        
+        const data = {
+            id: document.getElementById('honorario_id').value,
+            periodo: document.getElementById('periodo').value,
+            rut_beneficiario: document.getElementById('rut_beneficiario').value,
+            nombre_beneficiario: document.getElementById('nombre_beneficiario').value,
+            monto_bruto: montoBruto,
+            monto_retencion: retencion,
+            monto_liquido: liquido,
+            estado: document.getElementById('estado').value
+        };
+        
+        const method = data.id ? 'PUT' : 'POST';
+        fetch('/remuneraciones/api/honorarios/', {
+            method: method,
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(data)
+        }).then(() => {
+            location.reload();
+        });
+    }
+    
+    function editarHonorario(id) {
+        fetch(`/remuneraciones/api/honorarios/${id}/`)
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('honorario_id').value = data.id;
+                document.getElementById('periodo').value = data.periodo;
+                document.getElementById('rut_beneficiario').value = data.rut_beneficiario;
+                document.getElementById('nombre_beneficiario').value = data.nombre_beneficiario;
+                document.getElementById('monto_bruto').value = data.monto_bruto;
+                document.getElementById('estado').value = data.estado;
+                calcularRetencion();
+                $('#honorarioModal').modal('show');
+            });
+    }
+    
+    function eliminarHonorario(id) {
+        if(confirm('¿Eliminar este honorario?')) {
+            fetch(`/remuneraciones/api/honorarios/${id}/`, {
+                method: 'DELETE'
+            }).then(() => location.reload());
+        }
+    }
+    
+    function exportarPDF(id) {
+        window.open(`/remuneraciones/honorarios/pdf/${id}/`, '_blank');
+    }
+    
+    function limpiarFormHonorario() {
+        document.getElementById('honorarioForm').reset();
+        document.getElementById('honorario_id').value = '';
+        document.getElementById('monto_retencion').value = '';
+        document.getElementById('monto_liquido').value = '';
+        
+        // Establecer período actual
+        const hoy = new Date();
+        const periodo = `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, '0')}`;
+        document.getElementById('periodo').value = periodo;
+    }
+    
+    // Inicializar
+    cargarHonorarios();
+</script>
+{% endblock %}

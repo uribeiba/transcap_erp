@@ -1,0 +1,202 @@
+{% extends "layout/base.html" %}
+
+{% block title %}{% if form.instance.pk %}Editar Factura{% else %}Nueva Factura{% endif %}{% endblock %}
+
+{% block page_title %}{% if form.instance.pk %}✏️ Editar Factura{% else %}➕ Nueva Factura{% endif %}{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-12">
+        <form method="post" id="facturaForm">
+            {% csrf_token %}
+            
+            <!-- CABECERA: Tipo DTE y fechas -->
+            <div class="card card-primary card-outline">
+                <div class="card-header">
+                    <h3 class="card-title"><i class="fas fa-file-invoice"></i> Datos de la factura</h3>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="form-group">
+                                <label>{{ form.tipo_dte.label_tag }}</label>
+                                {{ form.tipo_dte }}
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-group">
+                                <label>{{ form.fecha_emision.label_tag }}</label>
+                                {{ form.fecha_emision }}
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-group">
+                                <label>{{ form.fecha_vencimiento.label_tag }}</label>
+                                {{ form.fecha_vencimiento }}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- CLIENTE Y DATOS -->
+            <div class="card card-info">
+                <div class="card-header">
+                    <h3 class="card-title"><i class="fas fa-user"></i> Cliente</h3>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-12">
+                            <div class="form-group">
+                                <label>{{ form.cliente.label_tag }}</label>
+                                {{ form.cliente }}
+                                <small class="form-text text-muted">Busca por razón social o RUT.</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label>{{ form.razon_social_cliente.label_tag }}</label>
+                                {{ form.razon_social_cliente }}
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="form-group">
+                                <label>{{ form.rut_cliente.label_tag }}</label>
+                                {{ form.rut_cliente }}
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="form-group">
+                                <label>{{ form.giro_cliente.label_tag }}</label>
+                                {{ form.giro_cliente }}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="form-group">
+                                <label>{{ form.direccion_cliente.label_tag }}</label>
+                                {{ form.direccion_cliente }}
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-group">
+                                <label>{{ form.comuna_cliente.label_tag }}</label>
+                                {{ form.comuna_cliente }}
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-group">
+                                <label>{{ form.ciudad_cliente.label_tag }}</label>
+                                {{ form.ciudad_cliente }}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SERVICIOS A FACTURAR (Checkboxes estilo lista) -->
+            <div class="card card-success">
+                <div class="card-header">
+                    <h3 class="card-title"><i class="fas fa-truck"></i> Servicios a facturar</h3>
+                </div>
+                <div class="card-body">
+                    {% if form.viajes.field.queryset %}
+                        <div class="row">
+                            {% for bitacora in form.viajes.field.queryset %}
+                                <div class="col-md-6">
+                                    <div class="custom-control custom-checkbox mb-2">
+                                        <input type="checkbox" name="viajes" value="{{ bitacora.id }}" id="viaje_{{ bitacora.id }}" class="custom-control-input" {% if bitacora.id in form.viajes.value %}checked{% endif %}>
+                                        <label class="custom-control-label" for="viaje_{{ bitacora.id }}">
+                                            <strong>Bitácora #{{ bitacora.id }}</strong> - {{ bitacora.cliente.razon_social|default:"Sin cliente" }}
+                                            <br><small class="text-muted">
+                                                {{ bitacora.origen|default:"?" }} → {{ bitacora.destino|default:"?" }}
+                                                | Fecha: {{ bitacora.fecha|date:"d/m/Y" }}
+                                                | Monto: ${{ bitacora.tarifa_flete|floatformat:0 }}
+                                            </small>
+                                        </label>
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        </div>
+                        <small class="form-text text-muted">Selecciona uno o más servicios no facturados.</small>
+                    {% else %}
+                        <div class="alert alert-warning">
+                            <i class="fas fa-exclamation-triangle"></i> No hay servicios pendientes de facturación.
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- OBSERVACIONES -->
+            <div class="card card-secondary">
+                <div class="card-header">
+                    <h3 class="card-title"><i class="fas fa-comment"></i> Observaciones</h3>
+                </div>
+                <div class="card-body">
+                    {{ form.observaciones }}
+                </div>
+            </div>
+
+            <!-- BOTONES -->
+            <div class="card">
+                <div class="card-body text-right">
+                    <button type="submit" class="btn btn-primary btn-lg">
+                        <i class="fas fa-save"></i> Guardar Factura
+                    </button>
+                    <a href="{% url 'facturacion:lista' %}" class="btn btn-secondary btn-lg">
+                        <i class="fas fa-times"></i> Cancelar
+                    </a>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    $(document).ready(function() {
+        // Inicializar Select2 en cliente (sin AJAX remoto, carga local)
+        $('#id_cliente').select2({
+            theme: 'bootstrap4',
+            placeholder: 'Seleccione un cliente',
+            allowClear: true
+        });
+
+        // Autocompletar datos del cliente (usando la API que ya tienes)
+        $('#id_cliente').on('change', function() {
+            var clienteId = $(this).val();
+            if (clienteId) {
+                $.ajax({
+                    url: "{% url 'facturacion:api_cliente' 0 %}".replace('0', clienteId),
+                    type: 'GET',
+                    dataType: 'json',
+                    success: function(data) {
+                        $('#id_razon_social_cliente').val(data.razon_social);
+                        $('#id_rut_cliente').val(data.rut);
+                        $('#id_giro_cliente').val(data.giro);
+                        $('#id_direccion_cliente').val(data.direccion);
+                        $('#id_comuna_cliente').val(data.comuna);
+                        $('#id_ciudad_cliente').val(data.ciudad);
+                    },
+                    error: function() {
+                        console.error('Error al cargar datos del cliente');
+                    }
+                });
+            } else {
+                // Limpiar campos si no hay cliente
+                $('#id_razon_social_cliente, #id_rut_cliente, #id_giro_cliente, #id_direccion_cliente, #id_comuna_cliente, #id_ciudad_cliente').val('');
+            }
+        });
+
+        // Si ya hay un cliente seleccionado (edición), cargar sus datos al inicio
+        var clienteInicial = $('#id_cliente').val();
+        if (clienteInicial) {
+            $('#id_cliente').trigger('change');
+        }
+    });
+</script>
+{% endblock %}

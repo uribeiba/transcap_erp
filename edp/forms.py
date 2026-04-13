@@ -1,5 +1,6 @@
 from django import forms
 from django.forms import inlineformset_factory
+from django.utils import timezone  # 🔥 NUEVO: Importar timezone
 
 from bitacora.models import Bitacora
 from centro_comercio.models import Cliente
@@ -12,7 +13,6 @@ class EDPForm(forms.ModelForm):
         fields = [
             "codigo",
             "cliente",
-            "fecha_pago",
             "fecha_inicio",
             "fecha_termino",
             "responsable",
@@ -29,13 +29,7 @@ class EDPForm(forms.ModelForm):
             ),
             "cliente": forms.Select(
                 attrs={
-                    "class": "form-control",
-                }
-            ),
-            "fecha_pago": forms.DateInput(
-                attrs={
-                    "class": "form-control",
-                    "type": "date",
+                    "class": "form-control select2-cliente",
                 }
             ),
             "fecha_inicio": forms.DateInput(
@@ -72,7 +66,6 @@ class EDPForm(forms.ModelForm):
         labels = {
             "codigo": "Código EDP",
             "cliente": "Cliente",
-            "fecha_pago": "Fecha documento",
             "fecha_inicio": "Fecha inicio",
             "fecha_termino": "Fecha término",
             "responsable": "Responsable",
@@ -83,7 +76,7 @@ class EDPForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        self.fields["cliente"].queryset = Cliente.objects.all().order_by("razon_social")
+        self.fields["cliente"].queryset = Cliente.objects.filter(activo=True).order_by("razon_social")
         self.fields["cliente"].required = False
         self.fields["codigo"].required = False
 
@@ -154,19 +147,41 @@ class EDPServicioForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
 
         self.fields["servicio"].queryset = (
-            Bitacora.objects.select_related("cliente")
+            Bitacora.objects.select_related("cliente", "conductor")
             .order_by("-fecha", "-id")
         )
         self.fields["servicio"].label_from_instance = self.label_bitacora
 
     def label_bitacora(self, obj):
+        """
+        Etiqueta mejorada para mostrar en el select de bitácoras
+        """
+        # Datos del cliente
         cliente = obj.cliente.razon_social if obj.cliente else "Sin cliente"
+        
+        # Fechas
         fecha = obj.fecha.strftime("%d/%m/%Y") if obj.fecha else "--/--/----"
+        
+        # Origen y destino
         origen = obj.origen or "-"
         destino = obj.destino or "-"
-        return f"BIT-{obj.id} | {cliente} | {origen} → {destino} | {fecha}"
+        
+        # Conductor (si existe)
+        conductor = ""
+        if hasattr(obj, 'conductor') and obj.conductor:
+            conductor_nombre = getattr(obj.conductor, 'nombre_completo', None) or str(obj.conductor)
+            conductor = f" | Conductor: {conductor_nombre}"
+        
+        # Guías
+        guias = ""
+        if hasattr(obj, 'guias_raw') and obj.guias_raw:
+            guias = f" | Guías: {obj.guias_raw}"
+        
+        # Retornar etiqueta formateada
+        return f"BIT-{obj.id} | {fecha} | {cliente} | {origen} → {destino}{conductor}{guias}"
 
 
+# 🔥 CLASE EDPagoForm ACTUALIZADA - Opción 3
 class EDPagoForm(forms.ModelForm):
     class Meta:
         model = EDPago
@@ -203,6 +218,40 @@ class EDPagoForm(forms.ModelForm):
             "monto": "Monto",
             "referencia": "Referencia",
         }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # 🔥 Hacer todos los campos NO obligatorios
+        self.fields['fecha'].required = False
+        self.fields['monto'].required = False
+        self.fields['medio_pago'].required = False
+        self.fields['referencia'].required = False
+        
+        # 🔥 Establecer fecha actual por defecto si no hay valor
+        if not self.instance.pk and not self.initial.get('fecha'):
+            self.initial['fecha'] = timezone.now().date()
+    
+    def clean(self):
+        """
+        Validación personalizada:
+        - Si hay monto pero no fecha, asignar fecha actual
+        - Si no hay monto, ignorar el registro (no guardar)
+        """
+        cleaned_data = super().clean()
+        
+        monto = cleaned_data.get('monto')
+        fecha = cleaned_data.get('fecha')
+        
+        # Si hay monto pero no fecha, asignar fecha actual
+        if monto and not fecha:
+            cleaned_data['fecha'] = timezone.now().date()
+        
+        # Si no hay monto, marcar para eliminar (no guardar registro vacío)
+        if not monto or monto == 0:
+            # No agregar errores, simplemente se ignorará este registro
+            pass
+        
+        return cleaned_data
 
 
 EDPServicioFormSet = inlineformset_factory(

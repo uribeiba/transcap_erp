@@ -1,0 +1,75 @@
+{% extends "layout/base.html" %}
+
+{% block title %}Órdenes de Compra{% endblock %}
+{% block page_title %}📦 Órdenes de Compra{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <h3 class="card-title">Listado de órdenes de compra</h3>
+        <div class="card-tools">
+            <a href="{% url 'compras:exportar_excel' %}" class="btn btn-success btn-sm">
+                <i class="fas fa-file-excel"></i> Exportar Excel
+            </a>
+            <a href="{% url 'compras:exportar_pdf' %}" class="btn btn-danger btn-sm">
+                <i class="fas fa-file-pdf"></i> Exportar PDF
+            </a>
+            <a href="{% url 'compras:orden_crear' %}" class="btn btn-primary btn-sm">
+                <i class="fas fa-plus"></i> Nueva Orden
+            </a>
+        </div>
+    </div>
+    <div class="card-body table-responsive p-0">
+        <table class="table table-hover table-bordered">
+            <thead class="thead-light">
+                <tr>
+                    <th>Nº Orden</th>
+                    <th>Fecha</th>
+                    <th>Proveedor</th>
+                    <th>Total</th>
+                    <th>Estado</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for orden in ordenes %}
+                <tr>
+                    <td><strong>{{ orden.numero }}</strong></td>
+                    <td>{{ orden.fecha|date:"d/m/Y" }}</td>
+                    <td>{{ orden.proveedor.razon_social }}</td>
+                    <td>${{ orden.total|floatformat:0 }}</td>
+                    <td>
+                        {% if orden.estado == 'BOR' %}
+                            <span class="badge badge-secondary">Borrador</span>
+                        {% elif orden.estado == 'ENV' %}
+                            <span class="badge badge-primary">Enviada</span>
+                        {% elif orden.estado == 'PAR' %}
+                            <span class="badge badge-warning">Recibida parcial</span>
+                        {% elif orden.estado == 'TOT' %}
+                            <span class="badge badge-success">Recibida total</span>
+                        {% elif orden.estado == 'ANU' %}
+                            <span class="badge badge-danger">Anulada</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <div class="btn-group">
+                            <a href="{% url 'compras:orden_detalle' orden.pk %}" class="btn btn-info btn-sm" title="Ver">
+                                <i class="fas fa-eye"></i>
+                            </a>
+                            <a href="{% url 'compras:orden_editar' orden.pk %}" class="btn btn-warning btn-sm" title="Editar">
+                                <i class="fas fa-edit"></i>
+                            </a>
+                            <a href="{% url 'compras:orden_eliminar' orden.pk %}" class="btn btn-danger btn-sm" title="Eliminar" onclick="return confirm('¿Eliminar esta orden?')">
+                                <i class="fas fa-trash"></i>
+                            </a>
+                        </div>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="6" class="text-center">No hay órdenes de compra registradas.{% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

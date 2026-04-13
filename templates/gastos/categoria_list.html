@@ -1,0 +1,57 @@
+{% extends "layout/base.html" %}
+{% block title %}Categorías de Gastos{% endblock %}
+{% block page_title %}🏷️ Categorías de Gastos{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <h3 class="card-title">Listado de Categorías</h3>
+        <div class="card-tools">
+            <a href="{% url 'gastos:categoria_crear' %}" class="btn btn-primary btn-sm">
+                <i class="fas fa-plus"></i> Nueva Categoría
+            </a>
+        </div>
+    </div>
+    <div class="card-body table-responsive p-0">
+        <table class="table table-hover table-bordered">
+            <thead class="thead-light">
+                <tr>
+                    <th>Código</th>
+                    <th>Nombre</th>
+                    <th>Tipo</th>
+                    <th>Activo</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for cat in categorias %}
+                <tr>
+                    <td>{{ cat.codigo }}</td>
+                    <td>{{ cat.nombre }}</td>
+                    <td>{{ cat.get_tipo_display }}</td>
+                    <td>
+                        {% if cat.activo %}
+                            <span class="badge badge-success">Activo</span>
+                        {% else %}
+                            <span class="badge badge-secondary">Inactivo</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <div class="btn-group">
+                            <a href="{% url 'gastos:categoria_editar' cat.pk %}" class="btn btn-warning btn-sm" title="Editar">
+                                <i class="fas fa-edit"></i>
+                            </a>
+                            <a href="{% url 'gastos:categoria_eliminar' cat.pk %}" class="btn btn-danger btn-sm" title="Eliminar" onclick="return confirm('¿Eliminar esta categoría?')">
+                                <i class="fas fa-trash"></i>
+                            </a>
+                        </div>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="5" class="text-center">No hay categorías registradas. Cree una nueva.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

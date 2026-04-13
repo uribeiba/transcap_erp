@@ -1,0 +1,65 @@
+{% extends "layout/base.html" %}
+{% block title %}Detalle Gasto #{{ gasto.id }}{% endblock %}
+{% block page_title %}💰 Detalle del Gasto{% endblock %}
+
+{% block content %}
+<div class="card card-primary card-outline">
+    <div class="card-header">
+        <h3 class="card-title">Información del Gasto</h3>
+        <div class="card-tools">
+            <a href="{% url 'gastos:editar' gasto.pk %}" class="btn btn-warning btn-sm">
+                <i class="fas fa-edit"></i> Editar
+            </a>
+            <a href="{% url 'gastos:lista' %}" class="btn btn-secondary btn-sm">
+                <i class="fas fa-arrow-left"></i> Volver
+            </a>
+        </div>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-6">
+                <table class="table table-sm table-bordered">
+                    <tr><th style="width: 40%">Fecha</th><td>{{ gasto.fecha|date:"d/m/Y" }}</td></tr>
+                    <tr><th>Categoría</th><td>{{ gasto.categoria.nombre }}</td></tr>
+                    <tr><th>Proveedor</th><td>{{ gasto.proveedor|default:"-" }}</td></tr>
+                    <tr><th>Descripción</th><td>{{ gasto.descripcion }}</td></tr>
+                    <tr><th>Documento</th><td>{{ gasto.documento|default:"-" }} {{ gasto.nro_documento }}</td></tr>
+                </table>
+            </div>
+            <div class="col-md-6">
+                <table class="table table-sm table-bordered">
+                    <tr><th>Monto Neto</th><td>${{ gasto.monto_neto|floatformat:0 }}</td></tr>
+                    <tr><th>IVA</th><td>${{ gasto.iva|floatformat:0 }}</td></tr>
+                    <tr><th>Monto Total</th><td><strong>${{ gasto.monto_total|floatformat:0 }}</strong></td></tr>
+                    <tr><th>Pagado</th>
+                        <td>{% if gasto.pagado %}<span class="badge badge-success">Sí</span>{% else %}<span class="badge badge-danger">No</span>{% endif %}</td>
+                    </tr>
+                    {% if gasto.pagado %}
+                    <tr><th>Fecha Pago</th><td>{{ gasto.fecha_pago|date:"d/m/Y"|default:"-" }}</td></tr>
+                    <tr><th>Forma de Pago</th><td>{{ gasto.get_forma_pago_display|default:"-" }}</td></tr>
+                    {% endif %}
+                </table>
+            </div>
+        </div>
+        {% if gasto.observaciones %}
+        <div class="row">
+            <div class="col-md-12">
+                <strong>Observaciones:</strong>
+                <p class="alert alert-secondary">{{ gasto.observaciones }}</p>
+            </div>
+        </div>
+        {% endif %}
+        {% if gasto.vehiculo or gasto.bitacora %}
+        <div class="row">
+            <div class="col-md-12">
+                <strong>Asociado a:</strong>
+                <ul>
+                    {% if gasto.vehiculo %}<li>Vehículo: {{ gasto.vehiculo }}</li>{% endif %}
+                    {% if gasto.bitacora %}<li>Bitácora: #{{ gasto.bitacora.id }} - {{ gasto.bitacora.cliente.razon_social|default:"-" }}</li>{% endif %}
+                </ul>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

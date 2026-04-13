@@ -1,0 +1,149 @@
+{% extends "layout/base.html" %}
+{% load static %}
+
+{% block title %}Dashboard de Compras{% endblock %}
+{% block page_title %}📊 Dashboard de Compras{% endblock %}
+
+{% block extra_css %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+{% endblock %}
+
+{% block content %}
+<!-- Tarjetas resumen -->
+<div class="row">
+  <div class="col-md-3">
+    <div class="small-box bg-info">
+      <div class="inner">
+        <h3>{{ total_ordenes }}</h3>
+        <p>Órdenes de Compra</p>
+      </div>
+      <div class="icon"><i class="fas fa-shopping-cart"></i></div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="small-box bg-success">
+      <div class="inner">
+        <h3>${{ total_gastado|floatformat:0 }}</h3>
+        <p>Total Gastado</p>
+      </div>
+      <div class="icon"><i class="fas fa-dollar-sign"></i></div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="small-box bg-warning">
+      <div class="inner">
+        <h3>{{ pendientes }}</h3>
+        <p>Órdenes Pendientes</p>
+      </div>
+      <div class="icon"><i class="fas fa-clock"></i></div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="small-box bg-primary">
+      <div class="inner">
+        <h3>{{ cantidad_mes }}</h3>
+        <p>Órdenes este mes</p>
+        <small>${{ total_mes|floatformat:0 }}</small>
+      </div>
+      <div class="icon"><i class="fas fa-calendar-alt"></i></div>
+    </div>
+  </div>
+</div>
+
+<div class="row">
+  <div class="col-md-6">
+    <div class="card">
+      <div class="card-header">
+        <h3 class="card-title">Evolución mensual de compras</h3>
+      </div>
+      <div class="card-body">
+        <canvas id="comprasChart" style="height: 300px;"></canvas>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-6">
+    <div class="card">
+      <div class="card-header">
+        <h3 class="card-title">Top 5 Proveedores</h3>
+      </div>
+      <div class="card-body">
+        <table class="table table-bordered">
+          <thead class="thead-light">
+            <tr><th>Proveedor</th><th>Total Gastado</th></tr>
+          </thead>
+          <tbody>
+            {% for p in top_proveedores %}
+            <tr>
+              <td>{{ p.proveedor__razon_social }}</td>
+              <td>${{ p.total|floatformat:0 }}</td>
+            </tr>
+            {% empty %}
+            <td><td colspan="2">No hay datos.{% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="row">
+  <div class="col-md-12">
+    <div class="card">
+      <div class="card-header">
+        <h3 class="card-title">Últimas órdenes de compra</h3>
+      </div>
+      <div class="card-body table-responsive">
+        <table class="table table-hover">
+          <thead>
+            <tr><th>Nº Orden</th><th>Fecha</th><th>Proveedor</th><th>Total</th><th>Estado</th></tr>
+          </thead>
+          <tbody>
+            {% for orden in ultimas_ordenes %}
+            <tr>
+              <td><a href="{% url 'compras:orden_detalle' orden.pk %}">{{ orden.numero }}</a></td>
+              <td>{{ orden.fecha|date:"d/m/Y" }}</td>
+              <td>{{ orden.proveedor.razon_social }}</td>
+              <td>${{ orden.total|floatformat:0 }}</td>
+              <td>
+                {% if orden.estado == 'BOR' %}<span class="badge badge-secondary">Borrador</span>
+                {% elif orden.estado == 'ENV' %}<span class="badge badge-primary">Enviada</span>
+                {% elif orden.estado == 'PAR' %}<span class="badge badge-warning">Recibida parcial</span>
+                {% elif orden.estado == 'TOT' %}<span class="badge badge-success">Recibida total</span>
+                {% else %}<span class="badge badge-danger">Anulada</span>{% endif %}
+              </td>
+            </tr>
+            {% empty %}
+            <td><td colspan="5">No hay órdenes registradas.</td>{% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    const ctx = document.getElementById('comprasChart').getContext('2d');
+    new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: {{ meses_labels|safe }},
+        datasets: [{
+          label: 'Monto gastado ($)',
+          data: {{ montos_mensuales|safe }},
+          backgroundColor: 'rgba(54, 162, 235, 0.6)',
+          borderColor: 'rgba(54, 162, 235, 1)',
+          borderWidth: 1
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: true,
+        scales: { y: { beginAtZero: true, ticks: { callback: value => '$' + value.toLocaleString() } } }
+      }
+    });
+  });
+</script>
+{% endblock %}

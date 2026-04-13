@@ -1,54 +1,133 @@
+{% load humanize %}
 <div class="card">
-    <div class="card-body">
-      <h4 class="text-primary text-center mb-3">Cotización N°: {{ c.codigo }}</h4>
-  
-      <div class="row">
-        <div class="col-md-4"><strong>Razón Social:</strong> {{ c.cliente.razon_social }}</div>
-        <div class="col-md-4"><strong>Rut:</strong> {{ c.cliente.rut }}</div>
-        <div class="col-md-4"><strong>Giro:</strong> {{ c.cliente.giro }}</div>
-      </div>
-  
-      <div class="row mt-2">
-        <div class="col-md-4"><strong>Fecha:</strong> {{ c.fecha|date:"d-m-Y" }}</div>
-        <div class="col-md-4"><strong>Válido hasta:</strong> {{ c.vigencia_hasta|date:"d-m-Y" }}</div>
-        <div class="col-md-4"><strong>Estado:</strong> {{ c.get_estado_display }}</div>
-      </div>
-  
-      <hr>
-  
-      <table class="table table-sm">
-        <thead>
-          <tr>
-            <th>N°</th><th>Título</th><th>Unidad</th><th class="text-right">Valor</th><th class="text-right">Total</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for it in c.items.all %}
-            <tr>
-              <td>{{ forloop.counter }}</td>
-              <td>{{ it.titulo }}</td>
-              <td>{{ it.unidad }}</td>
-              <td class="text-right">$ {{ it.valor_unitario }}</td>
-              <td class="text-right">$ {{ it.total }}</td>
-            </tr>
-          {% empty %}
-            <tr><td colspan="5" class="text-center"><em>Sin ítems</em></td></tr>
-          {% endfor %}
-        </tbody>
-      </table>
-  
-      <div class="text-right">
-        <div><strong>Neto:</strong> $ {{ c.total_items }}</div>
-        <div class="text-danger"><strong>Descuento:</strong> $ {{ c.descuento }}</div>
-        <div class="text-primary"><strong>Total a pagar:</strong> $ {{ c.total_neto }}</div>
-      </div>
-  
-      <hr>
-  
-      <div>
-        <strong>Términos y Condiciones:</strong>
-        <div class="border rounded p-2 mt-1">{{ c.terminos|default:"-" }}</div>
-      </div>
+  <div class="card-body">
+    <h4 class="text-primary text-center mb-3">Cotización N°: {{ c.codigo }}</h4>
+
+    <div class="row">
+      <div class="col-md-4"><strong>Razón Social:</strong> {{ c.cliente.razon_social }}</div>
+      <div class="col-md-4"><strong>Rut:</strong> {{ c.cliente.rut }}</div>
+      <div class="col-md-4"><strong>Giro:</strong> {{ c.cliente.giro }}</div>
+    </div>
+
+    <div class="row mt-2">
+      <div class="col-md-4"><strong>Fecha:</strong> {{ c.fecha|date:"d-m-Y" }}</div>
+      <div class="col-md-4"><strong>Válido hasta:</strong> {{ c.vigencia_hasta|date:"d-m-Y" }}</div>
+      <div class="col-md-4"><strong>Estado:</strong> {{ c.get_estado_display }}</div>
+    </div>
+
+    <div class="row mt-2">
+      <div class="col-md-6"><strong>Condición de Venta:</strong> {{ c.get_condicion_venta_display }}</div>
+      <div class="col-md-6"><strong>Sucursal:</strong> {{ c.sucursal|default:"MATRIZ" }}</div>
+    </div>
+
+    {% if c.vendedor %}
+    <div class="row mt-2">
+      <div class="col-md-6"><strong>Vendedor:</strong> {{ c.vendedor.nombre }}</div>
+      <div class="col-md-6"><strong>Comisión:</strong> {{ c.comision_porcentaje }}%</div>
+    </div>
+    {% endif %}
+
+    <hr>
+
+    <table class="table table-sm">
+      <thead>
+        <tr>
+          <th>N°</th>
+          <th>Título</th>
+          <th>Unidad</th>
+          <th>Cant.</th>
+          <th class="text-right">Valor Unit.</th>
+          <th class="text-right">Total</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for it in c.items.all %}
+        <tr>
+          <td>{{ forloop.counter }}</td>
+          <td>{{ it.titulo }}</td>
+          <td>{{ it.unidad }}</td>
+          <td>{{ it.cantidad }}</td>
+          <td class="text-right">$ {{ it.valor_unitario|floatformat:0|intcomma }}</td>
+          <td class="text-right">$ {{ it.total|floatformat:0|intcomma }}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="6" class="text-center"><em>Sin ítems</em></td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    <!-- SECCIÓN DE CUOTAS (NUEVO) -->
+    {% if c.cuotas.all %}
+    <hr>
+    <h6 class="font-weight-bold text-info">Condición de Pago / Cuotas</h6>
+    <table class="table table-sm table-bordered">
+      <thead class="thead-light">
+        <tr>
+          <th style="width: 10%">#</th>
+          <th style="width: 45%">Fecha</th>
+          <th style="width: 45%" class="text-right">Monto</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for cuota in c.cuotas.all %}
+        <tr>
+          <td>{{ forloop.counter }}</td>
+          <td>{{ cuota.fecha|date:"d-m-Y" }}</td>
+          <td class="text-right">$ {{ cuota.monto|floatformat:0|intcomma }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% endif %}
+
+    <hr>
+
+    <div class="text-right">
+      <div><strong>Subtotal Neto:</strong> $ {{ c.subtotal|floatformat:0|intcomma }}</div>
+      <div><strong>IVA (19%):</strong> $ {{ c.iva|floatformat:0|intcomma }}</div>
+      {% if c.descuento_aplicado > 0 %}
+      <div class="text-danger"><strong>Descuento:</strong> - $ {{ c.descuento_aplicado|floatformat:0|intcomma }}</div>
+      {% endif %}
+      {% if c.recargo_aplicado > 0 %}
+      <div class="text-warning"><strong>Recargo:</strong> + $ {{ c.recargo_aplicado|floatformat:0|intcomma }}</div>
+      {% endif %}
+      <div class="text-primary h5 mt-2"><strong>Total a pagar:</strong> $ {{ c.total_neto|floatformat:0|intcomma }}</div>
+    </div>
+
+    <hr>
+
+    <div>
+      <strong>Términos y Condiciones:</strong>
+      <div class="border rounded p-2 mt-1">{{ c.terminos|default:"-" }}</div>
+    </div>
+    
+    {% if c.observaciones %}
+    <div class="mt-3">
+      <strong>Observaciones:</strong>
+      <div class="border rounded p-2 mt-1">{{ c.observaciones|default:"-" }}</div>
+    </div>
+    {% endif %}
+
+    <div class="mt-3 text-center">
+      <button 
+  type="button"
+  class="btn btn-primary btn-pdf"
+  data-id="{{ c.id }}">
+  <i class="fas fa-print"></i> PDF
+</button>
     </div>
   </div>
-  
+</div>
+
+<script>
+  // Función para generar PDF - Usando URL de Django
+  document.getElementById('btnImprimirPDF')?.addEventListener('click', function(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      const cotizacionId = this.getAttribute('data-id');
+      // Usar la URL nombrada de Django
+      const url = "{% url 'centro_comercio:cotizacion_pdf' 0 %}".replace('/0/', '/' + cotizacionId + '/');
+      console.log('Abriendo PDF:', url);
+      window.open(url, '_blank');
+  });
+  </script>

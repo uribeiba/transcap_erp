@@ -1,103 +1,359 @@
+<!-- centro_comercio/templates/centro_comercio/cotizaciones/_tabla.html -->
 {% load humanize %}
 
 <div class="table-responsive">
-  <table class="table table-hover table-sm mb-0">
+  <table class="table table-hover table-sm mb-0" id="tablaCotizaciones">
     <thead class="thead-light">
-      <tr>
-        <th style="width:70px;">N°</th>
-        <th style="width:140px;">Código</th>
-        <th style="width:110px;">Fecha</th>
-        <th style="width:110px;">Vigencia</th>
-        <th>Cliente</th>
-        <th style="width:140px;">Estado</th>
-        <th style="width:140px;" class="text-right">Total</th>
-        <th style="width:110px;" class="text-center">Acciones</th>
-      </tr>
+       <tr>
+        <th style="width: 50px;">N°</th>
+        <th style="width: 120px;">Código</th>
+        <th style="width: 100px;">Fecha</th>
+        <th style="width: 100px;">Vigencia</th>
+        <th style="min-width: 200px;">Cliente</th>
+        <th style="width: 100px;">Sucursal</th>
+        <th style="width: 120px;">Vendedor</th>
+        <th style="width: 110px;">Estado</th>
+        <th style="width: 120px;" class="text-right">Total Neto</th>
+        <th style="width: 100px;" class="text-center">Acciones</th>
+       </tr>
     </thead>
 
     <tbody>
       {% for c in cotizaciones %}
-        <tr data-id="{{ c.id }}">
+        <tr data-id="{{ c.id }}" data-estado="{{ c.estado }}" class="cotizacion-row">
+          <!-- Número correlativo -->
           <td class="text-muted">{{ forloop.counter }}</td>
 
+          <!-- Código + ID -->
           <td>
             <div class="font-weight-bold">{{ c.codigo }}</div>
             <small class="text-muted d-block">ID: {{ c.id }}</small>
           </td>
 
+          <!-- Fecha -->
           <td>
             {% if c.fecha %}
               <div>{{ c.fecha|date:"d-m-Y" }}</div>
+              <small class="text-muted">{{ c.fecha|date:"l"|slice:":3" }}</small>
             {% else %}
               <span class="text-muted">-</span>
             {% endif %}
           </td>
 
+          <!-- Vigencia -->
           <td>
             {% if c.vigencia_hasta %}
               <div>{{ c.vigencia_hasta|date:"d-m-Y" }}</div>
-            {% else %}
-              <span class="text-muted">-</span>
-            {% endif %}
-          </td>
-
-          <td>
-            {% if c.cliente %}
-              <div class="font-weight-semibold">{{ c.cliente.razon_social|default:c.cliente }}</div>
-              {% if c.cliente.rut %}
-                <small class="text-muted d-block">{{ c.cliente.rut }}</small>
+              {% if c.vigencia_hasta < today %}
+                <small class="text-danger">Vencida</small>
               {% endif %}
             {% else %}
               <span class="text-muted">-</span>
             {% endif %}
           </td>
 
+          <!-- Cliente (con más información) -->
           <td>
-            {% if c.estado %}
-              {% if c.estado == "APROBADA" %}
-                <span class="badge badge-success px-2 py-1">Aprobada</span>
-              {% elif c.estado == "PENDIENTE" %}
-                <span class="badge badge-warning px-2 py-1">Pendiente</span>
-              {% elif c.estado == "RECHAZADA" %}
-                <span class="badge badge-danger px-2 py-1">Rechazada</span>
-              {% else %}
-                <span class="badge badge-secondary px-2 py-1">{{ c.get_estado_display|default:c.estado }}</span>
-              {% endif %}
-            {% else %}
-              <span class="badge badge-secondary px-2 py-1">-</span>
+            <div class="font-weight-semibold">{{ c.cliente.razon_social|default:c.cliente }}</div>
+            {% if c.cliente.rut %}
+              <small class="text-muted d-block"><i class="fas fa-id-card fa-xs"></i> {{ c.cliente.rut }}</small>
+            {% endif %}
+            {% if c.cliente.telefono %}
+              <small class="text-muted d-block"><i class="fas fa-phone fa-xs"></i> {{ c.cliente.telefono }}</small>
             {% endif %}
           </td>
 
+          <!-- Sucursal (NUEVO) -->
+          <td>
+            {% if c.sucursal %}
+              <span class="badge badge-light">{{ c.sucursal }}</span>
+            {% else %}
+              <span class="text-muted">-</span>
+            {% endif %}
+          </td>
+
+          <!-- Vendedor (NUEVO) -->
+          <td>
+            {% if c.vendedor %}
+              <div>{{ c.vendedor.nombre }}</div>
+              {% if c.comision_porcentaje %}
+                <small class="text-muted">Comisión: {{ c.comision_porcentaje }}%</small>
+              {% endif %}
+            {% else %}
+              <span class="text-muted">-</span>
+            {% endif %}
+          </td>
+
+          <!-- Estado (con dropdown para cambiar) -->
+          <td>
+            <select class="form-control form-control-sm estado-select" data-id="{{ c.id }}" style="width: 110px;">
+              <option value="PEND" {% if c.estado == "PEND" %}selected{% endif %}>Pendiente</option>
+              <option value="ACEP" {% if c.estado == "ACEP" %}selected{% endif %}>Aceptada</option>
+              <option value="ANUL" {% if c.estado == "ANUL" %}selected{% endif %}>Anulada</option>
+            </select>
+          </td>
+
+          <!-- Totales (con desglose en tooltip) -->
           <td class="text-right">
-            {% if c.total_neto %}
-              <span class="font-weight-bold">$ {{ c.total_neto|intcomma }}</span>
-            {% else %}
-              <span class="font-weight-bold">$ 0</span>
-            {% endif %}
+            <div class="font-weight-bold text-primary">
+              $ {{ c.total_neto|floatformat:0|intcomma }}
+            </div>
+            <div class="d-none total-data" 
+                 data-subtotal="{{ c.subtotal|floatformat:0 }}"
+                 data-afecto="{{ c.total_afecto|floatformat:0 }}"
+                 data-exento="{{ c.total_exento|floatformat:0 }}"
+                 data-iva="{{ c.iva|floatformat:0 }}"
+                 data-descuento="{{ c.descuento_aplicado|floatformat:0 }}">
+            </div>
+            <small class="text-muted total-hover" style="cursor: help;" title="Ver desglose">
+              <i class="fas fa-info-circle"></i> Detalle
+            </small>
           </td>
 
+          <!-- Acciones (mejoradas) -->
           <td class="text-center">
-            <!-- Mantengo .btn-ver para tu JS -->
-            <button type="button" class="btn btn-light btn-sm btn-ver" title="Ver">
-              <i class="far fa-eye text-primary"></i>
-            </button>
-
-            <button type="button" class="btn btn-light btn-sm btn-editar" title="Editar">
-              <i class="far fa-edit text-success"></i>
-            </button>
-
-            <button type="button" class="btn btn-light btn-sm btn-eliminar" title="Eliminar">
-              <i class="far fa-trash-alt text-danger"></i>
-            </button>
+            <div class="btn-group btn-group-sm" role="group">
+              <button type="button" class="btn btn-outline-primary btn-ver" title="Ver detalle">
+                <i class="far fa-eye"></i>
+              </button>
+              <button type="button" class="btn btn-outline-success btn-editar" title="Editar">
+                <i class="far fa-edit"></i>
+              </button>
+              <button type="button" class="btn btn-outline-info btn-duplicar" title="Duplicar">
+                <i class="fas fa-copy"></i>
+              </button>
+              <button type="button" class="btn btn-outline-danger btn-eliminar" title="Eliminar">
+                <i class="far fa-trash-alt"></i>
+              </button>
+            </div>
           </td>
         </tr>
       {% empty %}
         <tr>
-          <td colspan="8" class="text-center py-4">
-            <em>No hay cotizaciones.</em>
+          <td colspan="10" class="text-center py-5">
+            <i class="fas fa-file-invoice fa-3x text-muted mb-3 d-block"></i>
+            <em class="text-muted">No hay cotizaciones registradas.</em>
+            <div class="mt-2">
+              <button class="btn btn-sm btn-success" id="empty-state-nuevo">
+                <i class="fas fa-plus"></i> Crear primera cotización
+              </button>
+            </div>
           </td>
         </tr>
       {% endfor %}
     </tbody>
   </table>
 </div>
+
+<!-- Tooltip para detalles de totales (requiere Bootstrap Tooltip) -->
+<script>
+(function() {
+  // Inicializar tooltips para los íconos de detalle
+  const tooltipTriggerList = [].slice.call(document.querySelectorAll('.total-hover'));
+  if (typeof bootstrap !== 'undefined' && bootstrap.Tooltip) {
+    tooltipTriggerList.map(function(tooltipTriggerEl) {
+      return new bootstrap.Tooltip(tooltipTriggerEl, {
+        placement: 'left',
+        html: true,
+        title: function() {
+          const row = this.closest('tr');
+          const totalData = row.querySelector('.total-data');
+          if (totalData) {
+            const subtotal = totalData.dataset.subtotal || '0';
+            const afecto = totalData.dataset.afecto || '0';
+            const exento = totalData.dataset.exento || '0';
+            const iva = totalData.dataset.iva || '0';
+            const descuento = totalData.dataset.descuento || '0';
+            
+            return `
+              <div style="font-size: 0.8rem;">
+                <div><strong>Subtotal:</strong> $${parseInt(subtotal).toLocaleString('es-CL')}</div>
+                <div><strong>Afecto:</strong> $${parseInt(afecto).toLocaleString('es-CL')}</div>
+                <div><strong>Exento:</strong> $${parseInt(exento).toLocaleString('es-CL')}</div>
+                <div><strong>IVA 19%:</strong> $${parseInt(iva).toLocaleString('es-CL')}</div>
+                <div><strong>Descuento:</strong> -$${parseInt(descuento).toLocaleString('es-CL')}</div>
+                <hr class="my-1">
+                <div class="text-primary"><strong>Total:</strong> $${parseInt(this.closest('td').querySelector('.font-weight-bold').textContent.replace(/[^0-9]/g, '')).toLocaleString('es-CL')}</div>
+              </div>
+            `;
+          }
+          return 'Total de la cotización';
+        }
+      });
+    });
+  }
+  
+  // Manejar botón "Crear primera cotización" en estado vacío
+  const emptyStateBtn = document.getElementById('empty-state-nuevo');
+  if (emptyStateBtn) {
+    emptyStateBtn.addEventListener('click', function() {
+      const btnNuevo = document.getElementById('btnNuevo');
+      if (btnNuevo) btnNuevo.click();
+    });
+  }
+  
+  // Resaltar filas con vigencia vencida
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  
+  document.querySelectorAll('#tablaCotizaciones tbody tr').forEach(row => {
+    const vigenciaCell = row.cells[3];
+    if (vigenciaCell && vigenciaCell.querySelector('.text-danger')) {
+      row.classList.add('table-warning');
+    }
+  });
+  
+  // Agregar evento para cambiar estado
+  document.querySelectorAll('.estado-select').forEach(select => {
+    const originalValue = select.value;
+    
+    select.addEventListener('change', async function(e) {
+      e.stopPropagation();
+      const newValue = this.value;
+      const cotizacionId = this.getAttribute('data-id');
+      
+      if (newValue === originalValue) return;
+      
+      // Confirmar cambio de estado
+      const estadoText = this.options[this.selectedIndex].text;
+      const confirmado = confirm(`¿Cambiar estado de la cotización a "${estadoText}"?`);
+      
+      if (!confirmado) {
+        this.value = originalValue;
+        return;
+      }
+      
+      // Mostrar indicador de carga
+      const originalHTML = this.outerHTML;
+      this.disabled = true;
+      this.style.opacity = '0.6';
+      
+      try {
+        const csrfToken = document.querySelector('input[name="csrfmiddlewaretoken"]')?.value || '';
+        
+        const response = await fetch(`/centro_comercio/cotizaciones/${cotizacionId}/cambiar-estado/`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'X-CSRFToken': csrfToken,
+            'X-Requested-With': 'XMLHttpRequest'
+          },
+          body: `estado=${newValue}`
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok && data.ok) {
+          // Actualizar estilo visual de la fila si es necesario
+          const row = this.closest('tr');
+          if (newValue === 'ACEP') {
+            row.classList.add('table-success');
+            row.classList.remove('table-warning');
+          } else if (newValue === 'ANUL') {
+            row.classList.add('table-danger');
+          } else {
+            row.classList.remove('table-success', 'table-danger');
+          }
+          
+          // Mostrar mensaje de éxito
+          const toast = document.createElement('div');
+          toast.className = 'alert alert-success alert-dismissible fade show position-fixed';
+          toast.style.top = '20px';
+          toast.style.right = '20px';
+          toast.style.zIndex = '9999';
+          toast.style.minWidth = '250px';
+          toast.innerHTML = `
+            <i class="fas fa-check-circle mr-2"></i>
+            Estado actualizado a "${estadoText}"
+            <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+              <span aria-hidden="true">&times;</span>
+            </button>
+          `;
+          document.body.appendChild(toast);
+          setTimeout(() => toast.remove(), 3000);
+        } else {
+          // Revertir cambio
+          this.value = originalValue;
+          alert('Error al cambiar el estado. Por favor, intente nuevamente.');
+        }
+      } catch (error) {
+        console.error('Error cambiando estado:', error);
+        this.value = originalValue;
+        alert('Error de conexión. No se pudo cambiar el estado.');
+      } finally {
+        this.disabled = false;
+        this.style.opacity = '1';
+      }
+    });
+  });
+  
+  // Estilo para filas según estado
+  document.querySelectorAll('#tablaCotizaciones tbody tr').forEach(row => {
+    const estadoSelect = row.querySelector('.estado-select');
+    if (estadoSelect) {
+      const estado = estadoSelect.value;
+      if (estado === 'ACEP') {
+        row.classList.add('table-success');
+      } else if (estado === 'ANUL') {
+        row.classList.add('table-danger');
+      }
+    }
+  });
+})();
+</script>
+
+<style>
+  /* Estilos adicionales para la tabla */
+  #tablaCotizaciones tbody tr {
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+  }
+  
+  #tablaCotizaciones tbody tr:hover {
+    background-color: rgba(0, 123, 255, 0.05) !important;
+  }
+  
+  #tablaCotizaciones tbody tr.table-success:hover {
+    background-color: rgba(40, 167, 69, 0.1) !important;
+  }
+  
+  #tablaCotizaciones tbody tr.table-danger:hover {
+    background-color: rgba(220, 53, 69, 0.1) !important;
+  }
+  
+  #tablaCotizaciones tbody tr.table-warning:hover {
+    background-color: rgba(255, 193, 7, 0.1) !important;
+  }
+  
+  .estado-select {
+    font-size: 0.8rem;
+    padding: 0.2rem 0.5rem;
+    cursor: pointer;
+  }
+  
+  .estado-select:focus {
+    box-shadow: none;
+    border-color: #80bdff;
+  }
+  
+  .btn-group .btn {
+    padding: 0.2rem 0.4rem;
+  }
+  
+  .total-hover {
+    cursor: help;
+    font-size: 0.7rem;
+  }
+  
+  /* Tooltip personalizado */
+  .tooltip-inner {
+    max-width: 250px;
+    text-align: left;
+    background-color: #2c3e50;
+  }
+  
+  .tooltip.bs-tooltip-auto .tooltip-arrow::before,
+  .tooltip.bs-tooltip-left .tooltip-arrow::before {
+    border-left-color: #2c3e50;
+  }
+</style>

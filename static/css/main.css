@@ -332,3 +332,14 @@ a:hover{ color: var(--brand-primary-dark); }
   background: #fff;
   border-top: 1px solid rgba(0,0,0,.06);
 }
+
+
+/* Para los checkboxes de viajes */
+#id_viajes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 15px;
+}
+#id_viajes div {
+  width: calc(33% - 10px);
+}
