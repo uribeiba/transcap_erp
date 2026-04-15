@@ -162,6 +162,7 @@
                     </li>
 
                     <!-- FINANZAS (menú desplegable) -->
+                    {% if perms.roles.puede_ver_finanzas or user.is_superuser %}
                     <li class="nav-item has-treeview {% if '/gastos/' in request.path %}menu-open{% endif %}">
                         <a href="#" class="nav-link {% if '/gastos/' in request.path %}active{% endif %}">
                             <i class="nav-icon fas fa-coins"></i>
@@ -174,6 +175,7 @@
                             <li class="nav-item"><a href="{% url 'gastos:categorias' %}" class="nav-link"><i class="far fa-circle nav-icon"></i><p>Categorías de Gastos</p></a></li>
                         </ul>
                     </li>
+                    {% endif %}
 
                     <!-- Compras -->
                     <li class="nav-item has-treeview {% if '/compras/' in request.path %}menu-open{% endif %}">
@@ -220,6 +222,8 @@
                         </ul>
                     </li>
 
+
+                    {% if perms.roles.puede_ver_finanzas or user.is_superuser %}
                     <!-- RRHH / Remuneraciones -->
                     <li class="nav-item has-treeview {% if '/remuneraciones/' in request.path %}menu-open{% endif %}">
                         <a href="#" class="nav-link {% if '/remuneraciones/' in request.path %}active{% endif %}">
@@ -239,7 +243,21 @@
                             {% endif %}
                         </ul>
                     </li>
+                    {% endif %}
 
+                    <!-- Solo visible para superadmin o usuarios con permiso -->
+{% if user.is_superuser or perms.roles.puede_ver_roles %}
+<li class="nav-item">
+    <a href="{% url 'roles:panel' %}" class="nav-link">
+        <i class="nav-icon fas fa-user-shield"></i>
+        <p>Gestión de Roles</p>
+    </a>
+</li>
+{% endif %}
+
+
+
+                    {% if perms.core.puede_ver_finanzas or request.user.is_superuser %}
                     <!-- Parámetros -->
                     <li class="nav-item">
                         <a href="{% url 'parametros:panel' %}" class="nav-link {% if request.path|slice:':12' == '/parametros/' %}active{% endif %}">
@@ -247,6 +265,7 @@
                             <p>Parámetros</p>
                         </a>
                     </li>
+                    {% endif %}
                 </ul>
             </nav>
         </div>

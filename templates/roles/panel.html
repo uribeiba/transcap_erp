@@ -1,0 +1,258 @@
+{% extends "layout/base.html" %}
+{% block title %}Gestión de Roles{% endblock %}
+{% block page_title %}👥 Gestión de Roles y Usuarios{% endblock %}
+
+{% block content %}
+
+<!-- ============================================================ -->
+<!-- SECCIÓN: CREAR NUEVO USUARIO Y ROL -->
+<!-- ============================================================ -->
+<div class="row">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">Acciones rápidas</h3>
+                <div class="float-right">
+                    <a href="{% url 'roles:crear_usuario' %}" class="btn btn-success btn-sm mr-2">
+                        <i class="fas fa-user-plus"></i> Nuevo Usuario
+                    </a>
+                    <a href="{% url 'roles:crear_rol' %}" class="btn btn-primary btn-sm">
+                        <i class="fas fa-tag"></i> Nuevo Rol
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- SECCIÓN: ROLES EXISTENTES -->
+<!-- ============================================================ -->
+<div class="row">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">Roles existentes</h3>
+            </div>
+            <div class="card-body table-responsive">
+                <table class="table table-bordered">
+                    <thead>
+                        <tr>
+                            <th>Rol</th>
+                            <th>Permisos</th>
+                            <th>Usuarios</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for rol in roles %}
+                        <tr>
+                            <td>{{ rol.nombre }}</td>
+                            <td>{{ rol.permisos.count }} permisos</td>
+                            <td>{{ rol.usuariorol_set.count }} usuarios</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- SECCIÓN: ASIGNAR ROL A USUARIO (SIN ROL) -->
+    <!-- ============================================================ -->
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">Asignar rol a usuario</h3>
+            </div>
+            <div class="card-body">
+                <form method="post" action="{% url 'roles:asignar_rol' %}">
+                    {% csrf_token %}
+                    <div class="form-group">
+                        <label>Usuario sin rol</label>
+                        <select name="usuario_id" class="form-control" required>
+                            <option value="">Seleccione...</option>
+                            {% for u in usuarios_sin_rol %}
+                            <option value="{{ u.id }}">{{ u.username }} - {{ u.email|default:"sin email" }}</option>
+                            {% empty %}
+                            <option disabled>Todos los usuarios ya tienen rol asignado</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Rol</label>
+                        <select name="rol_id" class="form-control" required>
+                            <option value="">Seleccione...</option>
+                            {% for rol in roles %}
+                            <option value="{{ rol.id }}">{{ rol.nombre }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <button type="submit" class="btn btn-success">Asignar Rol</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- SECCIÓN: LISTA DE USUARIOS CON ROLES ASIGNADOS -->
+<!-- ============================================================ -->
+<div class="row mt-4">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">Usuarios del sistema</h3>
+            </div>
+            <div class="card-body table-responsive">
+                <table class="table table-bordered table-hover">
+                    <thead class="thead-light">
+                        <tr>
+                            <th>Usuario</th>
+                            <th>Nombre completo</th>
+                            <th>Email</th>
+                            <th>Rol</th>
+                            <th>Estado</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for ur in usuarios_con_rol %}
+                        <tr>
+                            <td>{{ ur.usuario.username }}</td>
+                            <td>{{ ur.usuario.first_name }} {{ ur.usuario.last_name }}</td>
+                            <td>{{ ur.usuario.email|default:"-" }}</td>
+                            <td>
+                                <span class="badge 
+                                    {% if ur.rol.nombre == 'Administrador' %}badge-danger
+                                    {% elif ur.rol.nombre == 'Auditor' %}badge-info
+                                    {% elif ur.rol.nombre == 'Secretaria' %}badge-warning
+                                    {% elif ur.rol.nombre == 'Chofer' %}badge-secondary
+                                    {% else %}badge-primary{% endif %}">
+                                    {{ ur.rol.nombre }}
+                                </span>
+                            </td>
+                            <td>
+                                {% if ur.usuario.is_active %}
+                                    <span class="badge badge-success">Activo</span>
+                                {% else %}
+                                    <span class="badge badge-secondary">Inactivo</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div class="btn-group">
+                                    <a href="#" class="btn btn-warning btn-sm" title="Editar">
+                                        <i class="fas fa-edit"></i>
+                                    </a>
+                                    <a href="#" class="btn btn-danger btn-sm" title="Eliminar" onclick="return confirm('¿Eliminar este usuario?')">
+                                        <i class="fas fa-trash"></i>
+                                    </a>
+                                </div>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="6" class="text-center">No hay usuarios con roles asignados.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- SECCIÓN: USUARIOS SIN ROL ASIGNADO (PENDIENTES) -->
+<!-- ============================================================ -->
+{% if usuarios_sin_rol %}
+<div class="row mt-4">
+    <div class="col-md-12">
+        <div class="card card-warning">
+            <div class="card-header">
+                <h3 class="card-title">⚠️ Usuarios sin rol asignado</h3>
+            </div>
+            <div class="card-body table-responsive">
+                <table class="table table-bordered">
+                    <thead>
+                        <tr>
+                            <th>Usuario</th>
+                            <th>Nombre</th>
+                            <th>Email</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for u in usuarios_sin_rol %}
+                        <tr>
+                            <td>{{ u.username }}</td>
+                            <td>{{ u.first_name }} {{ u.last_name }}</td>
+                            <td>{{ u.email|default:"-" }}</td>
+                            <td>
+                                <button type="button" class="btn btn-sm btn-primary" data-toggle="modal" data-target="#modalAsignarRol" data-user-id="{{ u.id }}" data-user-name="{{ u.username }}">
+                                    <i class="fas fa-tag"></i> Asignar Rol
+                                </button>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- ============================================================ -->
+<!-- MODAL PARA ASIGNAR ROL RÁPIDO -->
+<!-- ============================================================ -->
+<div class="modal fade" id="modalAsignarRol" tabindex="-1" role="dialog">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <form method="post" action="{% url 'roles:asignar_rol' %}">
+                {% csrf_token %}
+                <div class="modal-header">
+                    <h5 class="modal-title">Asignar rol a usuario</h5>
+                    <button type="button" class="close" data-dismiss="modal">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" name="usuario_id" id="modal_usuario_id">
+                    <div class="form-group">
+                        <label>Usuario</label>
+                        <input type="text" id="modal_usuario_name" class="form-control" readonly>
+                    </div>
+                    <div class="form-group">
+                        <label>Rol</label>
+                        <select name="rol_id" class="form-control" required>
+                            <option value="">Seleccione...</option>
+                            {% for rol in roles %}
+                            <option value="{{ rol.id }}">{{ rol.nombre }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Asignar Rol</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Modal para asignar rol desde la lista de usuarios sin rol
+    $('#modalAsignarRol').on('show.bs.modal', function(event) {
+        var button = $(event.relatedTarget);
+        var userId = button.data('user-id');
+        var userName = button.data('user-name');
+        
+        var modal = $(this);
+        modal.find('#modal_usuario_id').val(userId);
+        modal.find('#modal_usuario_name').val(userName);
+    });
+</script>
+{% endblock %}

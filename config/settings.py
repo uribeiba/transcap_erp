@@ -77,6 +77,7 @@ INSTALLED_APPS = [
     'gastos',
     'dashboard',
     'compras',
+    'roles',
 ]
 
 MIDDLEWARE = [

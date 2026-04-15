@@ -31,6 +31,10 @@ urlpatterns = [
     path('facturacion/', include('facturacion.urls')),
     path('gastos/', include('gastos.urls')),
     path('compras/', include('compras.urls')),   # ← NUEVO: módulo de compras
+    
+    #Gestión de Roles (nuevo)
+    path('roles/', include('roles.urls')),
+
 ]
 
 if settings.DEBUG:
