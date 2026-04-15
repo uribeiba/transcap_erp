@@ -46,6 +46,10 @@ def asignar_rol(request):
             defaults={'rol': rol}
         )
         
+        # ✅ Sincronizar permisos del rol al usuario
+        usuario.user_permissions.clear()
+        usuario.user_permissions.set(rol.permisos.all())
+        
         messages.success(request, f'Rol "{rol.nombre}" asignado a {usuario.username}')
     
     return redirect('roles:panel')
@@ -78,7 +82,6 @@ def crear_usuario(request):
     if request.method == 'POST':
         form = CrearUsuarioForm(request.POST)
         if form.is_valid():
-            # Crear usuario
             user = User.objects.create(
                 username=form.cleaned_data['username'],
                 email=form.cleaned_data['email'],
@@ -87,15 +90,14 @@ def crear_usuario(request):
                 password=make_password(form.cleaned_data['password']),
                 is_active=True
             )
-            # Asignar rol
-            UsuarioRol.objects.create(
-                usuario=user,
-                rol=form.cleaned_data['rol']
-            )
+            rol = form.cleaned_data['rol']
+            UsuarioRol.objects.create(usuario=user, rol=rol)
+            
+            # ✅ Sincronizar permisos
+            user.user_permissions.set(rol.permisos.all())
+            
             messages.success(request, f'Usuario "{user.username}" creado correctamente.')
             return redirect('roles:panel')
-        else:
-            messages.error(request, 'Error al crear el usuario. Revisa los campos.')
     else:
         form = CrearUsuarioForm()
     

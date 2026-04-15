@@ -125,7 +125,7 @@
             <nav class="mt-2">
                 <ul class="nav nav-pills nav-sidebar flex-column" data-widget="treeview" data-accordion="false" role="menu">
 
-                    <!-- DASHBOARD -->
+                    <!-- DASHBOARD (todos ven) -->
                     <li class="nav-item">
                         <a href="{% url 'dashboard' %}" class="nav-link {% if request.path == '/' or request.path == '/dashboard/' %}active{% endif %}">
                             <i class="nav-icon fas fa-tachometer-alt"></i>
@@ -133,7 +133,7 @@
                         </a>
                     </li>
 
-                    <!-- Centro de Comercio -->
+                    <!-- Centro de Comercio (todos ven) -->
                     <li class="nav-item has-treeview {% if '/clientes/' in request.path or '/cotizaciones/' in request.path or '/bitacora/' in request.path or '/edp/' in request.path %}menu-open{% endif %}">
                         <a href="#" class="nav-link {% if '/clientes/' in request.path or '/cotizaciones/' in request.path or '/bitacora/' in request.path or '/edp/' in request.path %}active{% endif %}">
                             <i class="nav-icon fas fa-store"></i>
@@ -148,6 +148,7 @@
                     </li>
 
                     <!-- Operaciones -->
+                    {% if perms.roles.puede_ver_operaciones or user.is_superuser %}
                     <li class="nav-item has-treeview {% if '/operaciones/' in request.path or '/facturacion/' in request.path %}menu-open{% endif %}">
                         <a href="#" class="nav-link {% if '/operaciones/' in request.path or '/facturacion/' in request.path %}active{% endif %}">
                             <i class="nav-icon fas fa-clipboard-list"></i>
@@ -160,8 +161,9 @@
                             <li class="nav-item"><a href="{% url 'facturacion:informe' %}" class="nav-link"><i class="far fa-circle nav-icon"></i><p>Informes</p></a></li>
                         </ul>
                     </li>
+                    {% endif %}
 
-                    <!-- FINANZAS (menú desplegable) -->
+                    <!-- FINANZAS -->
                     {% if perms.roles.puede_ver_finanzas or user.is_superuser %}
                     <li class="nav-item has-treeview {% if '/gastos/' in request.path %}menu-open{% endif %}">
                         <a href="#" class="nav-link {% if '/gastos/' in request.path %}active{% endif %}">
@@ -178,6 +180,7 @@
                     {% endif %}
 
                     <!-- Compras -->
+                    {% if perms.roles.puede_ver_compras or user.is_superuser %}
                     <li class="nav-item has-treeview {% if '/compras/' in request.path %}menu-open{% endif %}">
                         <a href="#" class="nav-link {% if '/compras/' in request.path %}active{% endif %}">
                             <i class="nav-icon fas fa-shopping-cart"></i>
@@ -189,8 +192,10 @@
                             <li class="nav-item"><a href="{% url 'compras:ordenes' %}" class="nav-link"><i class="far fa-circle nav-icon"></i><p>Órdenes de Compra</p></a></li>
                         </ul>
                     </li>
+                    {% endif %}
 
                     <!-- Inventario -->
+                    {% if perms.roles.puede_ver_inventario or user.is_superuser %}
                     <li class="nav-item has-treeview {% if '/inventario/' in request.path %}menu-open{% endif %}">
                         <a href="#" class="nav-link {% if '/inventario/' in request.path %}active{% endif %}">
                             <i class="nav-icon fas fa-boxes"></i>
@@ -204,8 +209,10 @@
                             <li class="nav-item"><a href="{% url 'inventario:lista_movimientos' %}" class="nav-link"><i class="far fa-circle nav-icon"></i><p>Movimientos</p></a></li>
                         </ul>
                     </li>
+                    {% endif %}
 
                     <!-- Taller / Flota -->
+                    {% if perms.roles.puede_ver_taller or user.is_superuser %}
                     <li class="nav-item has-treeview {% if '/taller/' in request.path or 'taller_' in request.resolver_match.url_name|default:'' %}menu-open{% endif %}">
                         <a href="#" class="nav-link {% if '/taller/' in request.path or 'taller_' in request.resolver_match.url_name|default:'' %}active{% endif %}">
                             <i class="nav-icon fas fa-tools"></i>
@@ -221,10 +228,10 @@
                             <li class="nav-item"><a href="{% url 'taller_reporte_vehiculo_selector' %}" class="nav-link"><i class="far fa-circle nav-icon"></i><p>Reportes</p></a></li>
                         </ul>
                     </li>
+                    {% endif %}
 
-
-                    {% if perms.roles.puede_ver_finanzas or user.is_superuser %}
                     <!-- RRHH / Remuneraciones -->
+                    {% if perms.roles.puede_ver_rrhh or user.is_superuser %}
                     <li class="nav-item has-treeview {% if '/remuneraciones/' in request.path %}menu-open{% endif %}">
                         <a href="#" class="nav-link {% if '/remuneraciones/' in request.path %}active{% endif %}">
                             <i class="nav-icon fas fa-users"></i>
@@ -245,20 +252,18 @@
                     </li>
                     {% endif %}
 
-                    <!-- Solo visible para superadmin o usuarios con permiso -->
-{% if user.is_superuser or perms.roles.puede_ver_roles %}
-<li class="nav-item">
-    <a href="{% url 'roles:panel' %}" class="nav-link">
-        <i class="nav-icon fas fa-user-shield"></i>
-        <p>Gestión de Roles</p>
-    </a>
-</li>
-{% endif %}
+                    <!-- Gestión de Roles -->
+                    {% if perms.roles.puede_ver_roles or user.is_superuser %}
+                    <li class="nav-item">
+                        <a href="{% url 'roles:panel' %}" class="nav-link">
+                            <i class="nav-icon fas fa-user-shield"></i>
+                            <p>Gestión de Roles</p>
+                        </a>
+                    </li>
+                    {% endif %}
 
-
-
-{% if user.is_superuser %}
-                    <!-- Parámetros -->
+                    <!-- Parámetros (solo superusuario) -->
+                    {% if user.is_superuser %}
                     <li class="nav-item">
                         <a href="{% url 'parametros:panel' %}" class="nav-link {% if request.path|slice:':12' == '/parametros/' %}active{% endif %}">
                             <i class="nav-icon fas fa-sliders-h"></i>
