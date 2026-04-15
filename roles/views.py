@@ -9,6 +9,10 @@ from django.contrib.auth.hashers import make_password
 from .forms import CrearUsuarioForm
 from .models import UsuarioRol
 
+from django.contrib.auth.hashers import make_password
+from .forms import CrearUsuarioForm, EditarUsuarioForm
+
+
 def es_administrador_roles(user):
     return user.is_superuser or user.has_perm('roles.puede_ver_roles')
 
@@ -96,3 +100,67 @@ def crear_usuario(request):
         form = CrearUsuarioForm()
     
     return render(request, 'roles/crear_usuario.html', {'form': form})
+
+
+
+
+
+@login_required
+@user_passes_test(es_administrador_roles)
+def editar_usuario(request, usuario_id):
+    usuario = get_object_or_404(User, pk=usuario_id)
+    usuario_rol = UsuarioRol.objects.filter(usuario=usuario).first()
+    
+    if request.method == 'POST':
+        form = EditarUsuarioForm(request.POST, instance=usuario)
+        if form.is_valid():
+            user = form.save(commit=False)
+            # Si se ingresó una nueva contraseña, actualizarla
+            nueva_password = form.cleaned_data.get('password')
+            if nueva_password:
+                user.password = make_password(nueva_password)
+            user.save()
+            
+            # Actualizar rol
+            rol_id = request.POST.get('rol_id')
+            if rol_id:
+                rol = get_object_or_404(Rol, pk=rol_id)
+                if usuario_rol:
+                    usuario_rol.rol = rol
+                    usuario_rol.save()
+                else:
+                    UsuarioRol.objects.create(usuario=usuario, rol=rol)
+            
+            messages.success(request, f'Usuario "{usuario.username}" actualizado correctamente.')
+            return redirect('roles:panel')
+        else:
+            messages.error(request, 'Error al actualizar el usuario.')
+    else:
+        form = EditarUsuarioForm(instance=usuario)
+        roles = Rol.objects.all()
+        rol_actual = usuario_rol.rol if usuario_rol else None
+    
+    return render(request, 'roles/editar_usuario.html', {
+        'form': form,
+        'usuario': usuario,
+        'roles': roles,
+        'rol_actual': rol_actual,
+    })
+
+
+@login_required
+@user_passes_test(es_administrador_roles)
+def eliminar_usuario(request, usuario_id):
+    usuario = get_object_or_404(User, pk=usuario_id)
+    
+    if request.method == 'POST':
+        # No permitir eliminar el propio usuario
+        if request.user.id == usuario.id:
+            messages.error(request, 'No puedes eliminar tu propio usuario.')
+            return redirect('roles:panel')
+        
+        usuario.delete()
+        messages.success(request, f'Usuario "{usuario.username}" eliminado correctamente.')
+        return redirect('roles:panel')
+    
+    return render(request, 'roles/eliminar_usuario.html', {'usuario': usuario})

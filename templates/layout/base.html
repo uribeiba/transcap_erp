@@ -257,7 +257,7 @@
 
 
 
-                    {% if perms.core.puede_ver_finanzas or request.user.is_superuser %}
+{% if user.is_superuser %}
                     <!-- Parámetros -->
                     <li class="nav-item">
                         <a href="{% url 'parametros:panel' %}" class="nav-link {% if request.path|slice:':12' == '/parametros/' %}active{% endif %}">
