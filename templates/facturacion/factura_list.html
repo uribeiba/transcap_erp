@@ -40,6 +40,8 @@
                             <span class="badge badge-success">Aceptada SII</span>
                         {% elif factura.estado == 'REC' %}
                             <span class="badge badge-danger">Rechazada</span>
+                        {% elif factura.estado == 'ANU' %}
+                            <span class="badge badge-dark">Anulada</span>
                         {% else %}
                             <span class="badge badge-warning">{{ factura.get_estado_display }}</span>
                         {% endif %}
@@ -65,14 +67,24 @@
                                     <i class="fas fa-paper-plane"></i>
                                 </a>
                             {% endif %}
+                            {# ✅ Botón Anular (para facturas emitidas, enviadas o aceptadas) #}
+                            {% if factura.estado != 'ANU' and factura.estado != 'BOR' %}
+                                <a href="{% url 'facturacion:anular' factura.pk %}" 
+                                   class="btn btn-dark btn-sm" 
+                                   title="Anular"
+                                   onclick="return confirm('¿Anular esta factura? Esta acción no se puede deshacer.')">
+                                    <i class="fas fa-ban"></i>
+                                </a>
+                            {% endif %}
                             <a href="{% url 'facturacion:pdf' factura.pk %}" class="btn btn-secondary btn-sm" title="PDF" target="_blank">
                                 <i class="fas fa-file-pdf"></i>
                             </a>
                         </div>
-                    </div>
-                </tr>
+                    </td>
+                <tr>
                 {% empty %}
-                <tr><td colspan="6" class="text-center">No hay facturas registradas.{% endfor %}
+                <tr>
+                    <td colspan="6" class="text-center">No hay facturas registradas.{% endfor %}
             </tbody>
         </table>
     </div>

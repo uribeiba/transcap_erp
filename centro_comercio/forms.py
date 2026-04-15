@@ -55,7 +55,7 @@ class CotizacionForm(forms.ModelForm):
     class Meta:
         model = Cotizacion
         fields = [
-            "numero",
+            # "numero",  ← ELIMINADO (no se envía)
             "codigo",
             "cliente",
             "fecha",
@@ -70,8 +70,9 @@ class CotizacionForm(forms.ModelForm):
             "recargo_porcentaje",
             "glosa",
             "observaciones",
-            "condicion_venta",  # NUEVO
+            "condicion_venta",
         ]
+        # ... resto del código
 
         widgets = {
             "numero": forms.NumberInput(

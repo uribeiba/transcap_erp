@@ -9,7 +9,7 @@ from django.views.decorators.http import require_POST
 from django.template.loader import get_template
 
 from bitacora.models import Bitacora
-from .models import EDP, EDPServicio, EDPago
+from .models import EDP, EDPServicio, EDPago, EstadoEDP
 from .forms import EDPForm, ServiciosSelectForm, EDPPagoFormSet
 
 STEPS = ["edp", "servicios", "pagos", "finalizar"]
@@ -206,17 +206,17 @@ def edp_wizard(request, edp_id: int, step: str):
     # ---------- STEP 3: PAGOS (CON CONTROL DE ACCESO Y TRY/EXCEPT) ----------
     if step == "pagos":
         # 🔥 CONTROL DE ACCESO: Verificar si puede registrar pagos
-        if edp.estado == 'BORR':
-            messages.warning(request, "⚠️ El EDP está en estado 'Borrador'. Cambia el estado a 'En proceso' para poder registrar pagos.")
+        if edp.estado == EstadoEDP.BORRADOR:
+            messages.warning(request, "⚠️ El EDP está en estado 'Borrador'. Cambia el estado a 'No facturado' para poder registrar pagos.")
             return redirect("edp:wizard", edp_id=edp.id, step="edp")
         
-        # Verificar si los pagos están deshabilitados (EDP pagado)
-        pagos_disabled = edp.estado == 'PAGA'
+        # Verificar si los pagos están deshabilitados (EDP facturado)
+        pagos_disabled = edp.estado == EstadoEDP.FACTURADO
         
         if request.method == "POST":
-            # Si está pagado, no permitir modificar pagos
+            # Si está facturado, no permitir modificar pagos
             if pagos_disabled:
-                messages.error(request, "No se pueden modificar pagos de un EDP que ya está pagado.")
+                messages.error(request, "No se pueden modificar pagos de un EDP que ya está facturado.")
                 return redirect("edp:wizard", edp_id=edp.id, step="finalizar")
             
             try:
@@ -248,11 +248,11 @@ def edp_wizard(request, edp_id: int, step: str):
                         
                         edp.recalcular_totales()
                         
-                        # Si se registró al menos un pago y está en estado 'BORR', cambiar a 'PROC'
-                        if edp.pagos.exists() and edp.estado == 'BORR':
-                            edp.estado = 'PROC'
+                        # Si se registró al menos un pago y está en estado 'BORRADOR', cambiar a 'NO_FACTURADO'
+                        if edp.pagos.exists() and edp.estado == EstadoEDP.BORRADOR:
+                            edp.estado = EstadoEDP.NO_FACTURADO
                             edp.save()
-                            messages.info(request, "El EDP ha cambiado a estado 'En proceso' porque se registró al menos un pago.")
+                            messages.info(request, "El EDP ha cambiado a estado 'No facturado' porque se registró al menos un pago.")
                     
                     messages.success(request, "Pagos guardados correctamente.")
                     if _is_ajax(request):

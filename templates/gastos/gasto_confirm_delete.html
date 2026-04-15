@@ -1,5 +1,5 @@
 {% extends "layout/base.html" %}
-{% block title %}Eliminar Categoría{% endblock %}
+{% block title %}Eliminar Gasto{% endblock %}
 {% block page_title %}⚠️ Confirmar Eliminación{% endblock %}
 
 {% block content %}
@@ -8,21 +8,22 @@
         <h3 class="card-title">¿Está seguro?</h3>
     </div>
     <div class="card-body">
-        <p>¿Eliminar la categoría <strong>"{{ object.nombre }}"</strong>?</p>
+        <p>¿Eliminar el gasto <strong>"{{ object.descripcion }}"</strong>?</p>
+        <p class="text-muted">
+            <strong>Fecha:</strong> {{ object.fecha|date:"d/m/Y" }}<br>
+            <strong>Categoría:</strong> {{ object.categoria.nombre }}<br>
+            <strong>Monto:</strong> ${{ object.monto_total|floatformat:0 }}
+        </p>
         <p class="text-danger">
             <i class="fas fa-exclamation-triangle"></i> 
-            Esta acción no se puede deshacer. 
-            {% if object.gasto_set.count > 0 %}
-                <strong>Advertencia:</strong> Esta categoría tiene {{ object.gasto_set.count }} gasto(s) asociado(s). 
-                Si tiene gastos asociados, la categoría NO podrá eliminarse y será desactivada automáticamente.
-            {% endif %}
+            Esta acción no se puede deshacer.
         </p>
     </div>
     <div class="card-footer">
         <form method="post">
             {% csrf_token %}
             <button type="submit" class="btn btn-danger">Sí, eliminar</button>
-            <a href="{% url 'gastos:categorias' %}" class="btn btn-secondary">Cancelar</a>
+            <a href="{% url 'gastos:lista' %}" class="btn btn-secondary">Cancelar</a>
         </form>
     </div>
 </div>

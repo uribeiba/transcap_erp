@@ -63,7 +63,7 @@
             {% endif %}
           </td>
 
-          <!-- Sucursal (NUEVO) -->
+          <!-- Sucursal -->
           <td>
             {% if c.sucursal %}
               <span class="badge badge-light">{{ c.sucursal }}</span>
@@ -72,7 +72,7 @@
             {% endif %}
           </td>
 
-          <!-- Vendedor (NUEVO) -->
+          <!-- Vendedor -->
           <td>
             {% if c.vendedor %}
               <div>{{ c.vendedor.nombre }}</div>
@@ -110,7 +110,7 @@
             </small>
           </td>
 
-          <!-- Acciones (mejoradas) -->
+          <!-- Acciones -->
           <td class="text-center">
             <div class="btn-group btn-group-sm" role="group">
               <button type="button" class="btn btn-outline-primary btn-ver" title="Ver detalle">
@@ -122,7 +122,8 @@
               <button type="button" class="btn btn-outline-info btn-duplicar" title="Duplicar">
                 <i class="fas fa-copy"></i>
               </button>
-              <button type="button" class="btn btn-outline-danger btn-eliminar" title="Eliminar">
+              <!-- ✅ Botón Eliminar: se actualizará dinámicamente según el estado -->
+              <button type="button" class="btn btn-outline-danger btn-eliminar" title="Eliminar" data-estado="{{ c.estado }}">
                 <i class="far fa-trash-alt"></i>
               </button>
             </div>
@@ -145,7 +146,6 @@
   </table>
 </div>
 
-<!-- Tooltip para detalles de totales (requiere Bootstrap Tooltip) -->
 <script>
 (function() {
   // Inicializar tooltips para los íconos de detalle
@@ -203,9 +203,47 @@
     }
   });
   
-  // Agregar evento para cambiar estado
+  // Función para actualizar el botón eliminar según el estado
+  function actualizarBotonEliminar(row, estado) {
+    const btnEliminar = row.querySelector('.btn-eliminar');
+    if (btnEliminar) {
+      if (estado === 'PEND') {
+        btnEliminar.disabled = false;
+        btnEliminar.style.opacity = '1';
+        btnEliminar.classList.remove('btn-outline-secondary');
+        btnEliminar.classList.add('btn-outline-danger');
+        btnEliminar.title = 'Eliminar';
+      } else {
+        btnEliminar.disabled = true;
+        btnEliminar.style.opacity = '0.5';
+        btnEliminar.classList.remove('btn-outline-danger');
+        btnEliminar.classList.add('btn-outline-secondary');
+        btnEliminar.title = 'No se puede eliminar cotizaciones aceptadas o anuladas';
+      }
+      btnEliminar.setAttribute('data-estado', estado);
+    }
+  }
+  
+  // Inicializar estado de los botones eliminar según el estado actual
+  document.querySelectorAll('#tablaCotizaciones tbody tr').forEach(row => {
+    const estadoSelect = row.querySelector('.estado-select');
+    if (estadoSelect) {
+      const estado = estadoSelect.value;
+      actualizarBotonEliminar(row, estado);
+    }
+  });
+  
+  // Evento para cambiar estado (sin abrir modal) - CON ACTUALIZACIÓN DEL BOTÓN
   document.querySelectorAll('.estado-select').forEach(select => {
-    const originalValue = select.value;
+    let originalValue = select.value;
+    
+    select.addEventListener('mousedown', function(e) {
+      e.stopPropagation();
+    });
+    
+    select.addEventListener('click', function(e) {
+      e.stopPropagation();
+    });
     
     select.addEventListener('change', async function(e) {
       e.stopPropagation();
@@ -214,7 +252,6 @@
       
       if (newValue === originalValue) return;
       
-      // Confirmar cambio de estado
       const estadoText = this.options[this.selectedIndex].text;
       const confirmado = confirm(`¿Cambiar estado de la cotización a "${estadoText}"?`);
       
@@ -223,8 +260,6 @@
         return;
       }
       
-      // Mostrar indicador de carga
-      const originalHTML = this.outerHTML;
       this.disabled = true;
       this.style.opacity = '0.6';
       
@@ -244,18 +279,25 @@
         const data = await response.json();
         
         if (response.ok && data.ok) {
-          // Actualizar estilo visual de la fila si es necesario
           const row = this.closest('tr');
+          
+          // Actualizar clases de la fila
           if (newValue === 'ACEP') {
             row.classList.add('table-success');
             row.classList.remove('table-warning');
           } else if (newValue === 'ANUL') {
             row.classList.add('table-danger');
+            row.classList.remove('table-success');
           } else {
             row.classList.remove('table-success', 'table-danger');
           }
           
-          // Mostrar mensaje de éxito
+          // ✅ ACTUALIZAR EL BOTÓN ELIMINAR DINÁMICAMENTE
+          actualizarBotonEliminar(row, newValue);
+          
+          // Actualizar el valor original
+          originalValue = newValue;
+          
           const toast = document.createElement('div');
           toast.className = 'alert alert-success alert-dismissible fade show position-fixed';
           toast.style.top = '20px';
@@ -272,7 +314,6 @@
           document.body.appendChild(toast);
           setTimeout(() => toast.remove(), 3000);
         } else {
-          // Revertir cambio
           this.value = originalValue;
           alert('Error al cambiar el estado. Por favor, intente nuevamente.');
         }
@@ -287,7 +328,27 @@
     });
   });
   
-  // Estilo para filas según estado
+  // Evento para abrir detalle - SOLO en celdas específicas
+  const tablaWrap = document.getElementById('tablaWrap');
+  if (tablaWrap) {
+    tablaWrap.addEventListener('click', function(e) {
+      if (e.target.closest('.estado-select')) return;
+      if (e.target.closest('.btn-group')) return;
+      if (e.target.closest('.total-hover')) return;
+      if (e.target.closest('button')) return;
+      if (e.target.closest('a')) return;
+      
+      const row = e.target.closest('tr[data-id]');
+      if (row) {
+        const cotizacionId = row.getAttribute('data-id');
+        if (typeof window.abrirDetalleCotizacion === 'function') {
+          window.abrirDetalleCotizacion(cotizacionId);
+        }
+      }
+    });
+  }
+  
+  // Estilo para filas según estado (inicial)
   document.querySelectorAll('#tablaCotizaciones tbody tr').forEach(row => {
     const estadoSelect = row.querySelector('.estado-select');
     if (estadoSelect) {
@@ -305,7 +366,6 @@
 <style>
   /* Estilos adicionales para la tabla */
   #tablaCotizaciones tbody tr {
-    cursor: pointer;
     transition: background-color 0.2s ease;
   }
   

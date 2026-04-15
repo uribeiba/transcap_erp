@@ -8,23 +8,16 @@ from django.db.models import Sum, Q
 from django.utils import timezone
 from datetime import datetime
 from django.contrib.auth.decorators import login_required, permission_required
+from reportlab.lib.pagesizes import A4
+from reportlab.lib.units import mm
+from reportlab.pdfgen import canvas
+from io import BytesIO
 
 from .models import Factura, EstadoFactura, TipoDTE
 from .forms import FacturaForm
 from operaciones.models import Viaje
 from centro_comercio.models import Cliente
 from .services.sii_client import enviar_dte_sii
-
-# ------------------------------------------------------------
-# Importación condicional de WeasyPrint (para evitar errores en servidores sin librerías)
-# ------------------------------------------------------------
-try:
-    from weasyprint import HTML
-    WEASYPRINT_AVAILABLE = True
-except ImportError:
-    WEASYPRINT_AVAILABLE = False
-    HTML = None
-    print("Advertencia: WeasyPrint no está disponible. La generación de PDF no funcionará.")
 
 
 # ---------- VISTAS BASADAS EN CLASES ----------
@@ -94,18 +87,95 @@ def enviar_factura_sii(request, pk):
 
 @login_required
 def generar_pdf_factura(request, pk):
-    if not WEASYPRINT_AVAILABLE:
-        return HttpResponse(
-            "La generación de PDF no está disponible en este servidor. "
-            "Contacte al administrador para instalar las dependencias necesarias.",
-            status=503
-        )
+    """Genera PDF de factura usando ReportLab"""
     factura = get_object_or_404(Factura, pk=pk)
-    template = get_template('facturacion/factura_pdf.html')
-    html = template.render({'factura': factura})
+    
+    # Crear buffer y canvas
+    buffer = BytesIO()
+    p = canvas.Canvas(buffer, pagesize=A4)
+    width, height = A4
+    x = 20 * mm
+    y = height - 20 * mm
+    
+    # Título
+    p.setFont("Helvetica-Bold", 16)
+    p.drawString(x, y, f"{factura.get_tipo_dte_display()} N° {factura.folio}")
+    y -= 10 * mm
+    
+    # Emisor
+    p.setFont("Helvetica-Bold", 12)
+    p.drawString(x, y, "Emisor:")
+    y -= 5 * mm
+    p.setFont("Helvetica", 10)
+    p.drawString(x, y, f"{factura.razon_social_emisor}")
+    y -= 4 * mm
+    p.drawString(x, y, f"RUT: {factura.rut_emisor}")
+    y -= 4 * mm
+    p.drawString(x, y, f"Giro: {factura.giro_emisor}")
+    y -= 10 * mm
+    
+    # Receptor
+    p.setFont("Helvetica-Bold", 12)
+    p.drawString(x, y, "Receptor:")
+    y -= 5 * mm
+    p.setFont("Helvetica", 10)
+    p.drawString(x, y, f"{factura.razon_social_cliente}")
+    y -= 4 * mm
+    p.drawString(x, y, f"RUT: {factura.rut_cliente}")
+    y -= 4 * mm
+    p.drawString(x, y, f"Dirección: {factura.direccion_cliente}, {factura.comuna_cliente}, {factura.ciudad_cliente}")
+    y -= 10 * mm
+    
+    # Detalles
+    p.setFont("Helvetica-Bold", 12)
+    p.drawString(x, y, "Detalle:")
+    y -= 5 * mm
+    
+    # Encabezados de tabla
+    p.setFont("Helvetica-Bold", 9)
+    p.drawString(x, y, "Descripción")
+    p.drawString(x + 80 * mm, y, "Cant.")
+    p.drawString(x + 100 * mm, y, "Precio")
+    p.drawString(x + 130 * mm, y, "Total")
+    y -= 5 * mm
+    p.line(x, y, x + 170 * mm, y)
+    y -= 4 * mm
+    
+    p.setFont("Helvetica", 9)
+    for detalle in factura.detalles.all():
+        p.drawString(x, y, detalle.descripcion[:40])
+        p.drawString(x + 80 * mm, y, str(detalle.cantidad))
+        p.drawString(x + 100 * mm, y, f"${detalle.precio_unitario:,.0f}")
+        p.drawString(x + 130 * mm, y, f"${detalle.monto_total:,.0f}")
+        y -= 5 * mm
+        if y < 50 * mm:
+            p.showPage()
+            y = height - 20 * mm
+            p.setFont("Helvetica", 9)
+    
+    y -= 5 * mm
+    p.line(x, y, x + 170 * mm, y)
+    y -= 4 * mm
+    
+    # Totales
+    p.setFont("Helvetica-Bold", 10)
+    p.drawString(x + 100 * mm, y, f"Neto: ${factura.monto_neto:,.0f}")
+    y -= 5 * mm
+    p.drawString(x + 100 * mm, y, f"IVA (19%): ${factura.monto_iva:,.0f}")
+    y -= 5 * mm
+    p.drawString(x + 100 * mm, y, f"Total: ${factura.monto_total:,.0f}")
+    
+    # Pie de página
+    y = 20 * mm
+    p.setFont("Helvetica-Oblique", 8)
+    p.drawString(x, y, "Documento generado por Transcap ERP - www.transcap.cl")
+    
+    p.save()
+    
+    buffer.seek(0)
     response = HttpResponse(content_type='application/pdf')
     response['Content-Disposition'] = f'inline; filename="factura_{factura.folio}.pdf"'
-    HTML(string=html).write_pdf(response)
+    response.write(buffer.getvalue())
     return response
 
 
@@ -198,4 +268,16 @@ def eliminar_factura(request, pk):
         messages.success(request, 'Factura eliminada correctamente.')
     else:
         messages.error(request, 'No se puede eliminar una factura que ya ha sido emitida.')
+    return redirect('facturacion:lista')
+
+
+@login_required
+def anular_factura(request, pk):
+    factura = get_object_or_404(Factura, pk=pk)
+    if factura.estado in [EstadoFactura.EMITIDA, EstadoFactura.ENVIADA, EstadoFactura.ACEPTADA]:
+        factura.estado = EstadoFactura.ANULADA
+        factura.save()
+        messages.success(request, f'Factura N° {factura.folio} ha sido anulada correctamente.')
+    else:
+        messages.warning(request, 'No se puede anular esta factura.')
     return redirect('facturacion:lista')

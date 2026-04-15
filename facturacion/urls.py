@@ -13,4 +13,5 @@ urlpatterns = [
     path('<int:pk>/emitir/', views.emitir_factura, name='emitir'),
     path('<int:pk>/eliminar/', views.eliminar_factura, name='eliminar'),
     path('informes/', views.informe_facturas, name='informe'),
+    path('<int:pk>/anular/', views.anular_factura, name='anular'),
 ]

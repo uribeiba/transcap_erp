@@ -62,7 +62,6 @@ from .forms import (
 from datetime import timedelta
 
 
-
 # ============================================
 # WIDGETS PARA FORMULARIOS
 # ============================================
@@ -293,7 +292,7 @@ def mantenimiento_editar(request, pk):
         "m": mantenimiento,
         "repuesto_form": repuesto_form,
         "repuestos": repuestos,
-        "total_repuestos": total_repuestos,  # 🔥 NUEVO
+        "total_repuestos": total_repuestos,
     },
 )
 
@@ -316,11 +315,8 @@ def mantenimiento_cambiar_estado(request, pk, nuevo_estado):
     return redirect("taller_mantenimientos")
 
 
-
 def mantenimiento_repuesto_eliminar(request, pk, repuesto_id):
-    """Elimina un repuesto asociado a un mantenimiento.
-    Por mientras solo elimina el registro; no revierte movimiento de inventario.
-    """
+    """Elimina un repuesto asociado a un mantenimiento"""
     mantenimiento = get_object_or_404(Mantenimiento, pk=pk)
     repuesto = get_object_or_404(
         RepuestoMantenimiento,
@@ -364,8 +360,6 @@ def _anotar_estado_documentos(qs, campo_fecha="fecha_vencimiento", dias_alerta=3
     docs.sort(key=lambda x: (x.estado_flag, getattr(x, campo_fecha) or hoy))
     return docs
 
-
-# -------------------- Documentos de Vehículos --------------------
 
 def documentos_vehiculo_lista(request):
     """Lista documentos de vehículos con filtros"""
@@ -440,7 +434,6 @@ def documento_vehiculo_editar(request, pk):
     )
 
 
-# -------------------- Documentos de Conductores --------------------
 def documentos_conductor_lista(request):
     """Lista documentos de conductores con filtros, KPIs e historial por conductor."""
     tipo = request.GET.get("tipo") or ""
@@ -457,7 +450,6 @@ def documentos_conductor_lista(request):
 
     docs = _anotar_estado_documentos(qs)
 
-    # Alias visual para template
     for d in docs:
         if d.estado_flag == 0:
             d.estado_doc = "vencido"
@@ -466,17 +458,14 @@ def documentos_conductor_lista(request):
         else:
             d.estado_doc = "vigente"
 
-    # KPIs generales
     total_vencidos = sum(1 for d in docs if d.estado_doc == "vencido")
     total_por_vencer = sum(1 for d in docs if d.estado_doc == "por_vencer")
     total_vigentes = sum(1 for d in docs if d.estado_doc == "vigente")
 
-    # Filtro por estado
     if estado:
         mapa = {"vencido": 0, "por_vencer": 1, "vigente": 2}
         docs = [d for d in docs if d.estado_flag == mapa.get(estado, 2)]
 
-    # Historial del conductor seleccionado
     conductor_actual = None
     historial_conductor = []
     historial_vencidos = 0
@@ -616,9 +605,9 @@ def reporte_vehiculo(request, vehiculo_id: int):
         Mantenimiento.objects.filter(vehiculo=vehiculo)
         .annotate(fecha_ref=Coalesce(F("fecha_real"), F("fecha_programada")))
         .annotate(mes=TruncMonth("fecha_ref"))
-        .annotate(costo_total=costo_total_expr)
+        .annotate(costo_calc=costo_total_expr)
         .values("mes")
-        .annotate(costo=Sum("costo_total"))
+        .annotate(costo=Sum("costo_calc"))
         .order_by("mes")
     )
 
@@ -1165,7 +1154,6 @@ def debug_vehiculos_tipo(request):
 
 # ============================================
 # MÓDULOS DESHABILITADOS POR MIENTRAS
-# Rutas / Coordinación ya no se gestionan en Taller
 # ============================================
 
 @login_required
@@ -1239,20 +1227,18 @@ def coordinacion_viaje_pdf(request, pk):
     return HttpResponseForbidden(
         "Módulo deshabilitado por mientras. La coordinación de viajes ahora se gestiona en otro módulo."
     )
-    
-    
-    
 
 
+# ============================================
+# DASHBOARD TALLER (único)
+# ============================================
 
 @login_required
 def dashboard_taller(request):
     hoy = timezone.now().date()
     inicio_mes = hoy.replace(day=1)
     proxima_semana = hoy + timezone.timedelta(days=7)
-    limite_docs = hoy + timezone.timedelta(days=30)
 
-    # KPIs generales
     total = Mantenimiento.objects.count()
     pendientes = Mantenimiento.objects.filter(estado="PENDIENTE").count()
     proceso = Mantenimiento.objects.filter(estado="EN_PROCESO").count()
@@ -1262,14 +1248,12 @@ def dashboard_taller(request):
         fecha_programada__gte=inicio_mes
     ).aggregate(total=Sum("costo_total"))["total"] or 0
 
-    # Alertas por fecha
     alertas_fecha = Mantenimiento.objects.select_related("vehiculo").filter(
         estado__in=["PENDIENTE", "EN_PROCESO"],
         fecha_programada__isnull=False,
         fecha_programada__lte=proxima_semana,
     ).order_by("fecha_programada")[:10]
 
-    # Alertas por kilometraje
     alertas_km = Mantenimiento.objects.select_related("vehiculo").filter(
         estado__in=["PENDIENTE", "EN_PROCESO"],
         km_programado__isnull=False,
@@ -1277,7 +1261,6 @@ def dashboard_taller(request):
         km_programado__lte=F("vehiculo__km_actual") + 1000,
     ).order_by("km_programado")[:10]
 
-    # Ranking vehículos por costo
     ranking_vehiculos = (
         Mantenimiento.objects
         .values("vehiculo__id", "vehiculo__patente", "vehiculo__marca", "vehiculo__modelo")
@@ -1288,14 +1271,12 @@ def dashboard_taller(request):
         .order_by("-costo_total", "-total_mantenimientos")[:10]
     )
 
-    # Últimos mantenimientos
     ultimos = (
         Mantenimiento.objects
         .select_related("vehiculo", "taller")
         .order_by("-id")[:10]
     )
 
-    # Serie mensual
     serie_costos = (
         Mantenimiento.objects
         .filter(fecha_programada__isnull=False)
@@ -1305,131 +1286,7 @@ def dashboard_taller(request):
         .order_by("mes")
     )
 
-    labels_meses = [
-        item["mes"].strftime("%m/%Y") if item["mes"] else ""
-        for item in serie_costos
-    ]
-    data_costos = [float(item["total"] or 0) for item in serie_costos]
-    data_cantidad = [int(item["cantidad"] or 0) for item in serie_costos]
-
-    # ============================
-    # Documentos conductores
-    # ============================
-    docs_conductor_vencidos = (
-        DocumentoConductor.objects
-        .select_related("conductor")
-        .filter(fecha_vencimiento__lt=hoy)
-        .order_by("fecha_vencimiento")[:10]
-    )
-
-    docs_conductor_por_vencer = (
-        DocumentoConductor.objects
-        .select_related("conductor")
-        .filter(
-            fecha_vencimiento__gte=hoy,
-            fecha_vencimiento__lte=limite_docs,
-        )
-        .order_by("fecha_vencimiento")[:10]
-    )
-
-    total_docs_conductor_vencidos = DocumentoConductor.objects.filter(
-        fecha_vencimiento__lt=hoy
-    ).count()
-
-    total_docs_conductor_por_vencer = DocumentoConductor.objects.filter(
-        fecha_vencimiento__gte=hoy,
-        fecha_vencimiento__lte=limite_docs,
-    ).count()
-
-    # ============================
-    # Documentos vehículos
-    # ============================
-    docs_vehiculo_vencidos = (
-        DocumentoVehiculo.objects
-        .select_related("vehiculo")
-        .filter(fecha_vencimiento__lt=hoy)
-        .order_by("fecha_vencimiento")[:10]
-    )
-
-    docs_vehiculo_por_vencer = (
-        DocumentoVehiculo.objects
-        .select_related("vehiculo")
-        .filter(
-            fecha_vencimiento__gte=hoy,
-            fecha_vencimiento__lte=limite_docs,
-        )
-        .order_by("fecha_vencimiento")[:10]
-    )
-
-    total_docs_vehiculo
-    
-    
-
-
-
-@login_required
-def dashboard_taller(request):
-    hoy = timezone.now().date()
-    inicio_mes = hoy.replace(day=1)
-
-    # KPIs generales
-    total = Mantenimiento.objects.count()
-    pendientes = Mantenimiento.objects.filter(estado="PENDIENTE").count()
-    proceso = Mantenimiento.objects.filter(estado="EN_PROCESO").count()
-    finalizados = Mantenimiento.objects.filter(estado="FINALIZADO").count()
-
-    costo_mes = Mantenimiento.objects.filter(
-        fecha_programada__gte=inicio_mes
-    ).aggregate(total=Sum("costo_total"))["total"] or 0
-
-    # Alertas por fecha
-    proxima_semana = hoy + timezone.timedelta(days=7)
-    alertas_fecha = Mantenimiento.objects.select_related("vehiculo").filter(
-        estado__in=["PENDIENTE", "EN_PROCESO"],
-        fecha_programada__isnull=False,
-        fecha_programada__lte=proxima_semana,
-    ).order_by("fecha_programada")[:10]
-
-    # Alertas por kilometraje
-    alertas_km = Mantenimiento.objects.select_related("vehiculo").filter(
-        estado__in=["PENDIENTE", "EN_PROCESO"],
-        km_programado__isnull=False,
-        vehiculo__km_actual__isnull=False,
-        km_programado__lte=F("vehiculo__km_actual") + 1000,
-    ).order_by("km_programado")[:10]
-
-    # Ranking vehículos por costo
-    ranking_vehiculos = (
-        Mantenimiento.objects
-        .values("vehiculo__id", "vehiculo__patente", "vehiculo__marca", "vehiculo__modelo")
-        .annotate(
-            total_mantenimientos=Count("id"),
-            costo_total=Sum("costo_total"),
-        )
-        .order_by("-costo_total", "-total_mantenimientos")[:10]
-    )
-
-    # Últimos mantenimientos
-    ultimos = (
-        Mantenimiento.objects
-        .select_related("vehiculo", "taller")
-        .order_by("-id")[:10]
-    )
-
-    # Serie mensual de costos
-    serie_costos = (
-        Mantenimiento.objects
-        .filter(fecha_programada__isnull=False)
-        .annotate(mes=TruncMonth("fecha_programada"))
-        .values("mes")
-        .annotate(total=Sum("costo_total"), cantidad=Count("id"))
-        .order_by("mes")
-    )
-
-    labels_meses = [
-        item["mes"].strftime("%m/%Y") if item["mes"] else ""
-        for item in serie_costos
-    ]
+    labels_meses = [item["mes"].strftime("%m/%Y") if item["mes"] else "" for item in serie_costos]
     data_costos = [float(item["total"] or 0) for item in serie_costos]
     data_cantidad = [int(item["cantidad"] or 0) for item in serie_costos]
 

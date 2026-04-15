@@ -11,29 +11,27 @@ from decimal import Decimal
 from calendar import monthrange
 from datetime import timedelta
 from django.utils import timezone
-from django.template.loader import get_template   # ← Importación faltante
+from io import BytesIO
+from reportlab.lib.pagesizes import A4
+from reportlab.lib.units import mm
+from reportlab.pdfgen import canvas
 
 from .models import Proveedor, OrdenCompra, DetalleOrdenCompra
 from .forms import ProveedorForm, OrdenCompraForm, DetalleOrdenCompraForm
 
 # ------------------------------------------------------------
-# Importaciones condicionales para funcionalidades opcionales
+# Importación condicional de openpyxl (para evitar errores locales)
 # ------------------------------------------------------------
+OPENPYXL_AVAILABLE = False
+Workbook = None
+Font = Alignment = PatternFill = None
+
 try:
     from openpyxl import Workbook
     from openpyxl.styles import Font, Alignment, PatternFill
     OPENPYXL_AVAILABLE = True
 except ImportError:
-    OPENPYXL_AVAILABLE = False
-    Workbook = None
-    Font = Alignment = PatternFill = None
-
-try:
-    from weasyprint import HTML
-    WEASYPRINT_AVAILABLE = True
-except ImportError:
-    WEASYPRINT_AVAILABLE = False
-    HTML = None
+    pass
 
 
 # ========== PROVEEDORES ==========
@@ -190,7 +188,10 @@ def dashboard_compras(request):
 @login_required
 def exportar_ordenes_excel(request):
     if not OPENPYXL_AVAILABLE:
-        return HttpResponse("Exportación a Excel no disponible. Instale openpyxl.", status=503)
+        return HttpResponse(
+            "Exportación a Excel no disponible. Instale openpyxl: pip install openpyxl", 
+            status=503
+        )
     ordenes = OrdenCompra.objects.select_related('proveedor').order_by('-fecha', '-id')
     wb = Workbook()
     ws = wb.active
@@ -228,14 +229,62 @@ def exportar_ordenes_excel(request):
     wb.save(response)
     return response
 
+
 @login_required
 def exportar_ordenes_pdf(request):
-    if not WEASYPRINT_AVAILABLE:
-        return HttpResponse("Generación de PDF no disponible. Instale weasyprint y sus dependencias del sistema.", status=503)
+    """Genera PDF de órdenes de compra usando ReportLab"""
     ordenes = OrdenCompra.objects.select_related('proveedor').order_by('-fecha', '-id')
-    template = get_template('compras/ordenes_pdf.html')
-    html = template.render({'ordenes': ordenes, 'fecha_generacion': timezone.now()})
+    
+    buffer = BytesIO()
+    p = canvas.Canvas(buffer, pagesize=A4)
+    width, height = A4
+    x = 20 * mm
+    y = height - 20 * mm
+    
+    # Título
+    p.setFont("Helvetica-Bold", 14)
+    p.drawString(x, y, "Transcap ERP - Órdenes de Compra")
+    y -= 10 * mm
+    
+    # Fecha de generación
+    p.setFont("Helvetica", 9)
+    p.drawString(x, y, f"Generado: {timezone.now().strftime('%d/%m/%Y %H:%M')}")
+    y -= 10 * mm
+    
+    # Encabezados de tabla
+    p.setFont("Helvetica-Bold", 8)
+    p.drawString(x, y, "Nº Orden")
+    p.drawString(x + 30 * mm, y, "Fecha")
+    p.drawString(x + 55 * mm, y, "Proveedor")
+    p.drawString(x + 110 * mm, y, "Total")
+    p.drawString(x + 140 * mm, y, "Estado")
+    y -= 5 * mm
+    p.line(x, y, x + 170 * mm, y)
+    y -= 4 * mm
+    
+    p.setFont("Helvetica", 8)
+    for orden in ordenes:
+        if y < 40 * mm:
+            p.showPage()
+            y = height - 20 * mm
+            p.setFont("Helvetica", 8)
+        
+        p.drawString(x, y, orden.numero)
+        p.drawString(x + 30 * mm, y, orden.fecha.strftime('%d/%m/%Y'))
+        p.drawString(x + 55 * mm, y, orden.proveedor.razon_social[:35])
+        p.drawString(x + 110 * mm, y, f"${orden.total():,.0f}")
+        p.drawString(x + 140 * mm, y, orden.get_estado_display())
+        y -= 5 * mm
+    
+    # Pie de página
+    y = 20 * mm
+    p.setFont("Helvetica-Oblique", 7)
+    p.drawString(x, y, "Documento generado por Transcap ERP - www.transcap.cl")
+    
+    p.save()
+    
+    buffer.seek(0)
     response = HttpResponse(content_type='application/pdf')
-    response['Content-Disposition'] = 'inline; filename="ordenes_compra.pdf"'
-    HTML(string=html).write_pdf(response)
+    response['Content-Disposition'] = 'attachment; filename="ordenes_compra.pdf"'
+    response.write(buffer.getvalue())
     return response

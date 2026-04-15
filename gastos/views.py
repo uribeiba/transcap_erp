@@ -1,4 +1,4 @@
-from django.shortcuts import render
+from django.shortcuts import redirect, render
 from django.views.generic import ListView, CreateView, UpdateView, DeleteView, DetailView
 from django.urls import reverse_lazy
 from django.contrib import messages
@@ -13,7 +13,7 @@ from django.utils import timezone
 from datetime import timedelta, date
 from calendar import monthrange
 import json
-
+from django.db.models.deletion import ProtectedError
 
 
 
@@ -42,6 +42,7 @@ class GastoUpdateView(LoginRequiredMixin, UpdateView):
 class GastoDeleteView(LoginRequiredMixin, DeleteView):
     model = Gasto
     success_url = reverse_lazy('gastos:lista')
+    template_name = 'gastos/gasto_confirm_delete.html'   # ← agrega esta línea
 
     def delete(self, request, *args, **kwargs):
         messages.success(request, 'Gasto eliminado.')
@@ -111,9 +112,25 @@ class CategoriaDeleteView(LoginRequiredMixin, DeleteView):
     success_url = reverse_lazy('gastos:categorias')
     template_name = 'gastos/categoria_confirm_delete.html'
 
-    def delete(self, request, *args, **kwargs):
-        messages.success(request, 'Categoría eliminada correctamente.')
-        return super().delete(request, *args, **kwargs)
+    def post(self, request, *args, **kwargs):
+        """Manejo personalizado de POST para capturar ProtectedError"""
+        self.object = self.get_object()
+        try:
+            self.object.delete()
+            messages.success(request, 'Categoría eliminada correctamente.')
+            return redirect(self.success_url)
+        except ProtectedError as e:
+            # Obtener los gastos que impiden la eliminación
+            gastos_asociados = []
+            for obj in e.protected_objects:
+                if isinstance(obj, Gasto):
+                    gastos_asociados.append(f"Gasto #{obj.id} - {obj.descripcion} (${obj.monto_total})")
+            mensaje = (
+                f"No se puede eliminar la categoría '{self.object.nombre}' porque tiene {len(e.protected_objects)} gasto(s) asociado(s). "
+                f"Primero elimine o reasigne los siguientes gastos: {', '.join(gastos_asociados[:5])}"
+            )
+            messages.error(request, mensaje)
+            return redirect('gastos:categorias')
     
 
 def dashboard_gastos(request):

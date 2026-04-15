@@ -8,14 +8,14 @@ from bitacora.models import Bitacora
 from centro_comercio.models import Cliente
 
 
-class EDP(models.Model):
-    ESTADOS = (
-        ("BORR", "Borrador"),
-        ("PROC", "En proceso"),
-        ("PAGA", "Pagado"),
-        ("ANUL", "Anulado"),
-    )
+class EstadoEDP(models.TextChoices):
+    BORRADOR = 'BOR', 'Borrador'
+    FACTURADO = 'FACT', 'Facturado'
+    NO_FACTURADO = 'NO_FACT', 'No facturado'
+    ANULADO = 'ANUL', 'Anulado'
 
+
+class EDP(models.Model):
     codigo = models.CharField(max_length=20, unique=True)
 
     # Cabecera del documento
@@ -37,7 +37,8 @@ class EDP(models.Model):
     giro_snapshot = models.CharField(max_length=150, blank=True, null=True)
 
     glosa = models.TextField(blank=True, null=True)
-    estado = models.CharField(max_length=4, choices=ESTADOS, default="BORR")
+    # ✅ max_length cambiado de 6 a 7 para que quepa 'NO_FACT' (6 caracteres)
+    estado = models.CharField(max_length=7, choices=EstadoEDP.choices, default=EstadoEDP.BORRADOR)
 
     neto = models.DecimalField(max_digits=14, decimal_places=2, default=0)
     iva = models.DecimalField(max_digits=14, decimal_places=2, default=0)
@@ -111,6 +112,14 @@ class EDP(models.Model):
     @property
     def giro_pdf(self):
         return self.giro_snapshot or (getattr(self.cliente, "giro", "") if self.cliente else "")
+
+    def puede_registrar_pagos(self):
+        """Verifica si el EDP permite registrar pagos"""
+        return self.estado in [EstadoEDP.NO_FACTURADO, EstadoEDP.FACTURADO]
+
+    def puede_editar(self):
+        """Verifica si el EDP permite edición"""
+        return self.estado not in [EstadoEDP.FACTURADO, EstadoEDP.ANULADO]
 
 
 class EDPServicio(models.Model):

@@ -200,104 +200,77 @@
     }
   
     // ============================================
+    // FUNCIÓN GLOBAL PARA ABRIR DETALLE DESDE LA TABLA
+    // ============================================
+    window.abrirDetalleCotizacion = async function(id) {
+      modalTitle.innerHTML = 'Detalle Cotización';
+      $("#cotModal").modal("show");
+      
+      const res = await fetch(urlDetalle(id), {
+        headers: { "X-Requested-With": "XMLHttpRequest" }
+      });
+      
+      modalBody.innerHTML = await res.text();
+      bindAccionesDetalle();
+    };
+  
+    // ============================================
     // EVENTOS DE TABLA (VERSIÓN SEGURA)
     // ============================================
   
     function bindTablaActions() {
-  
-      // Evita duplicar listeners
-      tablaWrap.replaceWith(tablaWrap.cloneNode(true));
-  
-      const nuevaTablaWrap =
-        document.querySelector("#tablaWrap");
-  
-      nuevaTablaWrap.addEventListener(
-        "click",
-        async function (e) {
-  
-          const btn =
-            e.target.closest(
-              "button, a, .btn-action"
-            );
-  
-          if (!btn) {
-  
-            const tr =
-              e.target.closest(
-                "tr[data-id]"
-              );
-  
-            if (tr) {
-              abrirDetalle(
-                tr.dataset.id
-              );
-            }
-  
-            return;
-          }
-  
-          e.stopPropagation();
-  
-          const tr =
-            btn.closest(
-              "tr[data-id]"
-            );
-  
-          const id =
-            tr
-              ? tr.dataset.id
-              : null;
-  
-          if (
-            btn.classList.contains(
-              "btn-ver"
-            ) ||
-            btn.dataset.action === "ver"
-          ) {
-            abrirDetalle(id);
-          }
-  
-          else if (
-            btn.classList.contains(
-              "btn-editar"
-            ) ||
-            btn.dataset.action === "editar"
-          ) {
-            abrirEditar(id);
-          }
-  
-          else if (
-            btn.classList.contains(
-              "btn-duplicar"
-            )
-          ) {
-            if (
-              confirm(
-                "¿Duplicar cotización?"
-              )
-            ) {
-              duplicar(id);
-            }
-          }
-  
-          else if (
-            btn.classList.contains(
-              "btn-eliminar"
-            )
-          ) {
-            if (
-              confirm(
-                "¿Eliminar definitivamente?"
-              )
-            ) {
-              eliminar(id);
-            }
-          }
-  
-        }
-      );
-  
+
+// Evita duplicar listeners
+const oldTablaWrap = document.querySelector("#tablaWrap");
+const newTablaWrap = oldTablaWrap.cloneNode(true);
+oldTablaWrap.parentNode.replaceChild(newTablaWrap, oldTablaWrap);
+
+newTablaWrap.addEventListener("click", async function (e) {
+
+  // 🔒 1. NO hacer nada si es el select de estado
+  if (e.target.closest('.estado-select')) {
+    return;
+  }
+
+  // 🔒 2. Detectar botón presionado
+  const btn = e.target.closest("button");
+
+  if (!btn) return;
+
+  e.stopPropagation();
+
+  const tr = btn.closest("tr[data-id]");
+  const id = tr ? tr.dataset.id : null;
+
+  if (!id) return;
+
+  // 👁 VER DETALLE
+  if (btn.classList.contains("btn-ver")) {
+    abrirDetalle(id);
+  }
+
+  // ✏️ EDITAR
+  else if (btn.classList.contains("btn-editar")) {
+    abrirEditar(id);
+  }
+
+  // 📄 DUPLICAR
+  else if (btn.classList.contains("btn-duplicar")) {
+    if (confirm("¿Duplicar cotización?")) {
+      duplicar(id);
     }
+  }
+
+  // 🗑 ELIMINAR
+  else if (btn.classList.contains("btn-eliminar")) {
+    if (confirm("¿Eliminar definitivamente?")) {
+      eliminar(id);
+    }
+  }
+
+});
+
+}
   
     // ============================================
     // OPERACIONES
@@ -333,29 +306,53 @@
     }
   
     async function eliminar(id) {
-  
-      const res =
-        await fetch(
-          urlEliminar(id),
-          {
-            method: "POST",
-            headers: {
-              "X-CSRFToken":
-                "{{ csrf_token }}",
-              "X-Requested-With":
-                "XMLHttpRequest"
-            }
-          }
-        );
-  
-      const r =
-        await res.json();
-  
-      if (r.ok) {
-        cargarTabla();
-      }
-  
+  const res = await fetch(urlEliminar(id), {
+    method: "POST",
+    headers: {
+      "X-CSRFToken": "{{ csrf_token }}",
+      "X-Requested-With": "XMLHttpRequest"
     }
+  });
+  
+  const r = await res.json();
+  
+  if (res.ok && r.ok) {
+    await cargarTabla();
+    // Mostrar mensaje de éxito
+    const toast = document.createElement('div');
+    toast.className = 'alert alert-success alert-dismissible fade show position-fixed';
+    toast.style.top = '20px';
+    toast.style.right = '20px';
+    toast.style.zIndex = '9999';
+    toast.style.minWidth = '250px';
+    toast.innerHTML = `
+      <i class="fas fa-check-circle mr-2"></i>
+      ${r.message || 'Cotización eliminada correctamente.'}
+      <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+        <span aria-hidden="true">&times;</span>
+      </button>
+    `;
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 3000);
+  } else {
+    // Mostrar mensaje de error
+    const toast = document.createElement('div');
+    toast.className = 'alert alert-danger alert-dismissible fade show position-fixed';
+    toast.style.top = '20px';
+    toast.style.right = '20px';
+    toast.style.zIndex = '9999';
+    toast.style.minWidth = '250px';
+    toast.innerHTML = `
+      <i class="fas fa-exclamation-triangle mr-2"></i>
+      ${r.error || r.message || 'No se pudo eliminar la cotización.'}
+      <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+        <span aria-hidden="true">&times;</span>
+      </button>
+    `;
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 3000);
+  }
+}
   
     // ============================================
     // ACCIONES DEL DETALLE
@@ -459,10 +456,6 @@
     });
 
 
-
-
-  
-  
     // ============================================
     // INICIO
     // ============================================
