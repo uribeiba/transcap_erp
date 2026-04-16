@@ -34,6 +34,8 @@ urlpatterns = [
     
     #Gestión de Roles (nuevo)
     path('roles/', include('roles.urls')),
+  
+    path('api/movil/', include(('api_movil.urls', 'api_movil'), namespace='api_movil')),
 
 ]
 

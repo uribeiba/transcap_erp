@@ -1,0 +1,428 @@
+{% extends "layout/base.html" %}
+{% load static %}
+
+{% block title %}Seguimiento de Choferes{% endblock %}
+{% block page_title %}🗺️ Seguimiento en Tiempo Real{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+    #map { 
+        height: 550px; 
+        border-radius: 8px; 
+        margin-bottom: 20px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    #mapHistorial { 
+        height: 500px; 
+        border-radius: 8px; 
+    }
+    .chofer-info { 
+        font-weight: bold; 
+        color: #048B36; 
+        cursor: pointer; 
+    }
+    .chofer-info:hover { 
+        text-decoration: underline; 
+        color: #025a25;
+    }
+    .velocidad-baja { color: #28a745; font-weight: bold; }
+    .velocidad-media { color: #ffc107; font-weight: bold; }
+    .velocidad-alta { color: #dc3545; font-weight: bold; }
+    
+    .estado-badge { 
+        display: inline-block; 
+        padding: 4px 12px; 
+        border-radius: 20px; 
+        font-size: 11px; 
+        font-weight: bold;
+    }
+    .estado-PEND { background-color: #ffc107; color: #333; }
+    .estado-EN_CAMINO { background-color: #17a2b8; color: white; }
+    .estado-CARGANDO { background-color: #fd7e14; color: white; }
+    .estado-DESCARGANDO { background-color: #28a745; color: white; }
+    .estado-RETORNO { background-color: #6c757d; color: white; }
+    .estado-COMPLETADO { background-color: #048B36; color: white; }
+    
+    .reporte-foto { 
+        width: 50px; 
+        height: 50px; 
+        object-fit: cover; 
+        border-radius: 5px; 
+        cursor: pointer; 
+        margin: 2px;
+    }
+    .map-controls {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        z-index: 1000;
+        background: white;
+        padding: 8px;
+        border-radius: 8px;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">Ubicación de Choferes en Tiempo Real</h3>
+                <div class="card-tools">
+                    <button id="btnActualizar" class="btn btn-primary btn-sm">
+                        <i class="fas fa-sync-alt"></i> Actualizar
+                    </button>
+                    <button id="btnCentrarMapa" class="btn btn-secondary btn-sm">
+                        <i class="fas fa-crosshairs"></i> Centrar
+                    </button>
+                </div>
+            </div>
+            <div class="card-body" style="position: relative;">
+                <div id="map"></div>
+                <div class="map-controls">
+                    <button id="btnZoomIn" class="btn btn-sm btn-light">+</button>
+                    <button id="btnZoomOut" class="btn btn-sm btn-light">-</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">Listado de Choferes</h3>
+            </div>
+            <div class="card-body table-responsive">
+                <table class="table table-bordered table-hover">
+                    <thead class="thead-light">
+                        <tr>
+                            <th>Chofer</th>
+                            <th>RUT</th>
+                            <th>Última ubicación</th>
+                            <th>Velocidad</th>
+                            <th>Actualizado</th>
+                            <th>Estado</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tablaBody">
+                        {% for u in ubicaciones %}
+                        <tr>
+                            <td><span class="chofer-info" data-id="{{ u.conductor_id }}" style="cursor: pointer;">{{ u.nombre }}</span></td>
+                            <td>{{ u.rut }}</td>
+                            <td>{{ u.latitud|floatformat:6 }}, {{ u.longitud|floatformat:6 }}</td>
+                            <td>
+                                <span class="{% if u.velocidad < 30 %}velocidad-baja{% elif u.velocidad < 80 %}velocidad-media{% else %}velocidad-alta{% endif %}">
+                                    {{ u.velocidad|floatformat:1 }} km/h
+                                </span>
+                            </td>
+                            <td>{{ u.timestamp|date:"H:i:s" }}</td>
+                            <td><span class="badge badge-success">Activo</span></td>
+                            <td>
+                                <button class="btn btn-sm btn-info btn-ver-reportes" data-id="{{ u.conductor_id }}" data-nombre="{{ u.nombre }}">
+                                    <i class="fas fa-eye"></i> Reportes
+                                </button>
+                                <button class="btn btn-sm btn-warning btn-historial" data-id="{{ u.conductor_id }}" data-nombre="{{ u.nombre }}">
+                                    <i class="fas fa-route"></i> Historial
+                                </button>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="7" class="text-center">No hay ubicaciones registradas</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para reportes -->
+<div class="modal fade" id="modalReportes" tabindex="-1" role="dialog">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Reportes de <span id="modalChoferNombre"></span></h5>
+                <button type="button" class="close" data-dismiss="modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="row mb-3">
+                    <div class="col-md-4">
+                        <label>Fecha desde</label>
+                        <input type="date" id="fechaDesde" class="form-control">
+                    </div>
+                    <div class="col-md-4">
+                        <label>Fecha hasta</label>
+                        <input type="date" id="fechaHasta" class="form-control">
+                    </div>
+                    <div class="col-md-4">
+                        <button id="btnFiltrarReportes" class="btn btn-primary">Filtrar</button>
+                        <button id="btnLimpiarFiltros" class="btn btn-secondary">Limpiar</button>
+                    </div>
+                </div>
+                <div id="reportesLista">
+                    <div class="text-center py-4">Cargando reportes...</div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Cerrar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para historial de rutas -->
+<div class="modal fade" id="modalHistorial" tabindex="-1" role="dialog">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Historial de Ruta: <span id="historialChoferNombre"></span></h5>
+                <button type="button" class="close" data-dismiss="modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="row mb-3">
+                    <div class="col-md-3">
+                        <label>Fecha</label>
+                        <input type="date" id="historialFecha" class="form-control">
+                    </div>
+                    <div class="col-md-3">
+                        <button id="btnCargarHistorial" class="btn btn-primary">Ver Ruta</button>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="alert alert-info" id="infoDistancia">Distancia total: -- km</div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="alert alert-success" id="infoPuntos">Puntos: --</div>
+                    </div>
+                </div>
+                <div id="mapHistorial" style="height: 500px;"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Cerrar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para fotos -->
+<div class="modal fade" id="modalFoto" tabindex="-1" role="dialog">
+    <div class="modal-dialog modal-md">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Foto</h5>
+                <button type="button" class="close" data-dismiss="modal">&times;</button>
+            </div>
+            <div class="modal-body text-center">
+                <img id="fotoAmpliada" src="" style="max-width: 100%; max-height: 80vh;">
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Cerrar</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    var map;
+    var markers = {};
+    var historialMap;
+    var conductorActualId = null;
+
+    function initMap() {
+        map = L.map('map').setView([-33.4489, -70.6693], 12);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; OpenStreetMap'
+        }).addTo(map);
+    }
+
+    function getMarkerColor(velocidad) {
+        if (velocidad < 30) return '#28a745';
+        if (velocidad < 80) return '#ffc107';
+        return '#dc3545';
+    }
+
+    function createCustomIcon(color, velocidad) {
+        return L.divIcon({
+            html: `<div style="width:30px;height:30px;background:${color};border-radius:50%;border:3px solid white;display:flex;align-items:center;justify-content:center;font-size:12px;color:white;">🚛</div>`,
+            iconSize: [30, 30],
+            popupAnchor: [0, -15],
+            className: 'custom-marker'
+        });
+    }
+
+    function centrarMapa() {
+        var bounds = [];
+        for (var id in markers) {
+            bounds.push(markers[id].getLatLng());
+        }
+        if (bounds.length > 0) map.fitBounds(bounds, { padding: [50, 50] });
+        else map.setView([-33.4489, -70.6693], 12);
+    }
+
+    function actualizarMarcadores() {
+        fetch('/api/movil/api/ubicaciones/')
+            .then(response => response.json())
+            .then(data => {
+                for (let id in markers) map.removeLayer(markers[id]);
+                markers = {};
+                
+                data.forEach(item => {
+                    var color = getMarkerColor(item.velocidad);
+                    var marker = L.marker([item.latitud, item.longitud], { icon: createCustomIcon(color, item.velocidad) }).addTo(map);
+                    marker.bindPopup(`<strong>${item.nombre}</strong><br>RUT: ${item.rut}<br>Velocidad: ${item.velocidad} km/h`);
+                    markers[item.conductor_id] = marker;
+                });
+                
+                actualizarTabla(data);
+                centrarMapa();
+            });
+    }
+
+    function actualizarTabla(data) {
+        var tbody = document.getElementById('tablaBody');
+        tbody.innerHTML = '';
+        data.forEach(item => {
+            var row = tbody.insertRow();
+            row.insertCell(0).innerHTML = `<span class="chofer-info" data-id="${item.conductor_id}">${item.nombre}</span>`;
+            row.insertCell(1).innerHTML = item.rut;
+            row.insertCell(2).innerHTML = `${item.latitud.toFixed(6)}, ${item.longitud.toFixed(6)}`;
+            row.insertCell(3).innerHTML = `${item.velocidad} km/h`;
+            row.insertCell(4).innerHTML = item.timestamp;
+            row.insertCell(5).innerHTML = '<span class="badge badge-success">Activo</span>';
+            row.insertCell(6).innerHTML = `
+                <button class="btn btn-sm btn-info btn-ver-reportes" data-id="${item.conductor_id}" data-nombre="${item.nombre}">Reportes</button>
+                <button class="btn btn-sm btn-warning btn-historial" data-id="${item.conductor_id}" data-nombre="${item.nombre}">Historial</button>
+            `;
+        });
+    }
+
+    function cargarReportes(conductorId, conductorNombre) {
+        conductorActualId = conductorId;
+        document.getElementById('modalChoferNombre').innerText = conductorNombre;
+        document.getElementById('reportesLista').innerHTML = '<div class="text-center py-4">Cargando...</div>';
+        $('#modalReportes').modal('show');
+        
+        fetch(`/api/movil/api/reportes/${conductorId}/`)
+            .then(response => response.json())
+            .then(data => {
+                if (!data.success || data.reportes.length === 0) {
+                    document.getElementById('reportesLista').innerHTML = '<div class="alert alert-info">No hay reportes</div>';
+                    return;
+                }
+                
+                var html = `<table class="table table-bordered"><thead class="thead-light"><tr><th>Fecha</th><th>Estado</th><th>Observaciones</th><th>Fotos</th></tr></thead><tbody>`;
+                data.reportes.forEach(r => {
+                    html += `<tr>
+                        <td>${r.fecha}</td>
+                        <td><span class="estado-badge estado-${r.estado}">${r.estado.replace('_', ' ')}</span></td>
+                        <td>${r.observaciones || '-'}</td>
+                        <td>`;
+                    if (r.fotos.length > 0) {
+                        r.fotos.forEach(f => {
+                            html += `<img src="${f.imagen}" class="reporte-foto" data-foto="${f.imagen}" style="width:50px;height:50px;cursor:pointer;">`;
+                        });
+                    } else {
+                        html += '-';
+                    }
+                    html += `</td></tr>`;
+                });
+                html += `</tbody></table>`;
+                document.getElementById('reportesLista').innerHTML = html;
+                
+                document.querySelectorAll('.reporte-foto').forEach(img => {
+                    img.onclick = () => {
+                        document.getElementById('fotoAmpliada').src = img.getAttribute('data-foto');
+                        $('#modalFoto').modal('show');
+                    };
+                });
+            });
+    }
+
+    function cargarHistorial(conductorId, conductorNombre) {
+        document.getElementById('historialChoferNombre').innerText = conductorNombre;
+        document.getElementById('historialChoferNombre').setAttribute('data-id', conductorId);
+        document.getElementById('historialFecha').value = new Date().toISOString().split('T')[0];
+        $('#modalHistorial').modal('show');
+    }
+
+    function mostrarRuta() {
+        var conductorId = document.getElementById('historialChoferNombre').getAttribute('data-id');
+        var fecha = document.getElementById('historialFecha').value;
+        
+        fetch(`/api/movil/api/historial/${conductorId}/?fecha=${fecha}`)
+            .then(response => response.json())
+            .then(data => {
+                if (!data.success || data.ubicaciones.length === 0) {
+                    alert('No hay ubicaciones para esta fecha');
+                    return;
+                }
+                
+                document.getElementById('infoDistancia').innerHTML = `Distancia total: ${data.distancia_total} km`;
+                document.getElementById('infoPuntos').innerHTML = `Puntos: ${data.total_puntos}`;
+                
+                if (!historialMap) {
+                    historialMap = L.map('mapHistorial').setView([-33.4489, -70.6693], 12);
+                    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(historialMap);
+                } else {
+                    historialMap.eachLayer(layer => {
+                        if (layer instanceof L.Marker || layer instanceof L.Polyline) historialMap.removeLayer(layer);
+                    });
+                }
+                
+                var puntos = [];
+                var bounds = [];
+                data.ubicaciones.forEach((u, i) => {
+                    var latLng = [u.latitud, u.longitud];
+                    puntos.push(latLng);
+                    bounds.push(latLng);
+                    var marker = L.marker(latLng).addTo(historialMap);
+                    marker.bindPopup(`Punto ${i+1}<br>Hora: ${u.timestamp}<br>Velocidad: ${u.velocidad} km/h`);
+                });
+                
+                L.polyline(puntos, { color: '#048B36', weight: 3 }).addTo(historialMap);
+                if (bounds.length > 0) historialMap.fitBounds(bounds, { padding: [50, 50] });
+            });
+    }
+
+    document.getElementById('btnActualizar').addEventListener('click', actualizarMarcadores);
+    document.getElementById('btnCentrarMapa').addEventListener('click', centrarMapa);
+    document.getElementById('btnZoomIn').addEventListener('click', () => map.zoomIn());
+    document.getElementById('btnZoomOut').addEventListener('click', () => map.zoomOut());
+    document.getElementById('btnFiltrarReportes').addEventListener('click', () => {
+        var url = `/api/movil/api/reportes/${conductorActualId}/`;
+        var params = [];
+        var fd = document.getElementById('fechaDesde').value;
+        var fh = document.getElementById('fechaHasta').value;
+        if (fd) params.push(`fecha_desde=${fd}`);
+        if (fh) params.push(`fecha_hasta=${fh}`);
+        if (params.length) url += '?' + params.join('&');
+        fetch(url).then(r => r.json()).then(data => {
+            // recargar tabla...
+        });
+    });
+    document.getElementById('btnCargarHistorial').addEventListener('click', mostrarRuta);
+    
+    document.addEventListener('click', function(e) {
+        var btn = e.target.closest('.btn-ver-reportes');
+        if (btn) cargarReportes(btn.getAttribute('data-id'), btn.getAttribute('data-nombre'));
+        
+        btn = e.target.closest('.btn-historial');
+        if (btn) cargarHistorial(btn.getAttribute('data-id'), btn.getAttribute('data-nombre'));
+        
+        var link = e.target.closest('.chofer-info');
+        if (link) cargarReportes(link.getAttribute('data-id'), link.innerText);
+    });
+    
+    initMap();
+    actualizarMarcadores();
+    setInterval(actualizarMarcadores, 15000);
+</script>
+{% endblock %}

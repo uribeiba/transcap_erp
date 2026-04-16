@@ -41,12 +41,7 @@ if not SECRET_KEY:
         raise RuntimeError("SECRET_KEY no está definido en .env")
 
 
-ALLOWED_HOSTS = [
-    h.strip()
-    for h in os.getenv("ALLOWED_HOSTS", "127.0.0.1,localhost").split(",")
-    if h.strip()
-]
-
+ALLOWED_HOSTS = ['127.0.0.1', 'localhost', '192.168.1.2']
 
 # =========================
 # Application definition
@@ -78,9 +73,15 @@ INSTALLED_APPS = [
     'dashboard',
     'compras',
     'roles',
+    'api_movil',
+    'rest_framework',  # pip install djangorestframework
+    'rest_framework.authtoken',
+    'corsheaders',     # pip install django-cors-headers
+    'channels',
 ]
 
 MIDDLEWARE = [
+    'corsheaders.middleware.CorsMiddleware',  # al principio
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
@@ -215,3 +216,9 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 # =========================
 
 FOLIO_INICIAL_FACTURA = 1251
+CORS_ALLOW_ALL_ORIGINS = True
+# Para producción
+CORS_ALLOWED_ORIGINS = [
+    "https://app.transcap.cl",
+    "exp://192.168.x.x:8081",  # Expo (React Native)
+]

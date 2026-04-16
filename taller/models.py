@@ -153,6 +153,15 @@ class Conductor(models.Model):
     )
 
     activo = models.BooleanField(default=True, choices=ACTIVO_CHOICES)
+    
+    # ✅ NUEVO: Relación con el usuario de Django para autenticación
+    usuario = models.OneToOneField(
+        'auth.User',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='conductor'
+    )
 
     class Meta:
         verbose_name = "Conductor"

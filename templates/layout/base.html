@@ -262,6 +262,14 @@
                     </li>
                     {% endif %}
 
+                    <!-- ✅ NUEVO: Seguimiento de Choferes (todos pueden ver) -->
+                    <li class="nav-item">
+                        <a href="{% url 'api_movil:panel_seguimiento' %}" class="nav-link">
+                            <i class="nav-icon fas fa-map-marked-alt"></i>
+                            <p>Seguimiento de Choferes</p>
+                        </a>
+                    </li>
+
                     <!-- Parámetros (solo superusuario) -->
                     {% if user.is_superuser %}
                     <li class="nav-item">
