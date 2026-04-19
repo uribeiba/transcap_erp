@@ -46,4 +46,6 @@ urlpatterns = [
     
     path("mantenimientos/<int:pk>/repuestos/<int:repuesto_id>/eliminar/",views.mantenimiento_repuesto_eliminar,name="taller_mantenimiento_repuesto_eliminar"),
     path("dashboard/", views.dashboard_taller, name="taller_dashboard"),
+    path("flota/<int:pk>/eliminar/", views.vehiculo_eliminar, name="taller_vehiculo_eliminar"),
+    
 ]

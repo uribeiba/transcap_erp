@@ -1426,3 +1426,15 @@ def dashboard_taller(request):
             "data_cantidad": data_cantidad,
         },
     )
+    
+def vehiculo_eliminar(request, pk):
+    """Elimina un vehículo"""
+    vehiculo = get_object_or_404(Vehiculo, pk=pk)
+    
+    if request.method == "POST":
+        patente = vehiculo.patente
+        vehiculo.delete()
+        messages.success(request, f"Vehículo {patente} eliminado correctamente.")
+        return redirect("taller_flota")
+    
+    return redirect("taller_flota")
