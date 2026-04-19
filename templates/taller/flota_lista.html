@@ -13,49 +13,148 @@
             </a>
         </div>
     </div>
-    <div class="card-body table-responsive p-0">
-        <table class="table table-hover text-nowrap">
-            <thead>
-                <tr>
-                    <th>Patente</th>
-                    <th>Marca / Modelo</th>
-                    <th>Año</th>
-                    <th>Kilometraje</th>
-                    <th>Estado</th>
-                    <th>Aseguradora</th>
-                    <th></th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for v in vehiculos %}
-                <tr>
-                    <td>{{ v.patente }}</td>
-                    <td>{{ v.marca }} {{ v.modelo }}</td>
-                    <td>{{ v.anio }}</td>
-                    <td>{{ v.km_actual|default:"-" }}</td>
-                    <td>
-                        {% if v.estado == "ACTIVO" %}
-                            <span class="badge badge-success">Activo</span>
-                        {% elif v.estado == "EN_TALLER" %}
-                            <span class="badge badge-warning">En taller</span>
-                        {% else %}
-                            <span class="badge badge-secondary">Fuera de servicio</span>
-                        {% endif %}
-                    </td>
-                    <td>{{ v.aseguradora|default:"-" }}</td>
-                    <td class="text-right">
-                        <a href="{% url 'taller_vehiculo_editar' v.pk %}" class="btn btn-sm btn-outline-secondary">
-                            <i class="fas fa-edit"></i>
-                        </a>
-                    </td>
-                </tr>
-                {% empty %}
-                <tr>
-                    <td colspan="7" class="text-center">No hay vehículos registrados.</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+    <div class="card-body">
+        <!-- BUSCADOR -->
+        <div class="row mb-3">
+            <div class="col-md-6">
+                <div class="input-group">
+                    <input type="text" id="buscador" class="form-control" placeholder="Buscar por patente, marca, modelo, chasis...">
+                    <div class="input-group-append">
+                        <button class="btn btn-outline-secondary" type="button" id="btnLimpiar">
+                            <i class="fas fa-times"></i> Limpiar
+                        </button>
+                    </div>
+                </div>
+                <small class="form-text text-muted">Escribe para filtrar la tabla en tiempo real</small>
+            </div>
+            <div class="col-md-6 text-right">
+                <span id="contador" class="badge badge-info">Mostrando X de Y vehículos</span>
+            </div>
+        </div>
+
+        <div class="table-responsive">
+            <table class="table table-hover text-nowrap" id="tablaVehiculos">
+                <thead>
+                    <tr>
+                        <th>Patente</th>
+                        <th>Marca / Modelo</th>
+                        <th>Año</th>
+                        <th>Kilometraje</th>
+                        <th>Estado</th>
+                        <th>Aseguradora</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for v in vehiculos %}
+                    <tr class="fila-vehiculo">
+                        <td class="patente">{{ v.patente }}</td>
+                        <td class="marca-modelo">{{ v.marca }} {{ v.modelo }}</td>
+                        <td class="anio">{{ v.anio|default:"-" }}</td>
+                        <td class="km">{{ v.km_actual|default:"-" }}</td>
+                        <td class="estado">
+                            {% if v.estado == "ACTIVO" %}
+                                <span class="badge badge-success">Activo</span>
+                            {% elif v.estado == "EN_TALLER" %}
+                                <span class="badge badge-warning">En taller</span>
+                            {% else %}
+                                <span class="badge badge-secondary">Fuera de servicio</span>
+                            {% endif %}
+                        </td>
+                        <td class="aseguradora">{{ v.aseguradora|default:"-" }}</td>
+                        <td class="text-right">
+                            <a href="{% url 'taller_vehiculo_editar' v.pk %}" class="btn btn-sm btn-outline-secondary">
+                                <i class="fas fa-edit"></i>
+                            </a>
+                            <button class="btn btn-sm btn-outline-danger btn-eliminar" data-id="{{ v.pk }}" data-patente="{{ v.patente }}">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="7" class="text-center">No hay vehículos registrados.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
     </div>
 </div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const buscador = document.getElementById('buscador');
+        const tabla = document.getElementById('tablaVehiculos');
+        const tbody = tabla.querySelector('tbody');
+        const filas = tbody.querySelectorAll('.fila-vehiculo');
+        const contador = document.getElementById('contador');
+        const btnLimpiar = document.getElementById('btnLimpiar');
+        
+        function actualizarContador(visibles) {
+            const total = filas.length;
+            contador.textContent = `Mostrando ${visibles} de ${total} vehículos`;
+        }
+        
+        function filtrar() {
+            const termino = buscador.value.toLowerCase().trim();
+            let visibles = 0;
+            
+            filas.forEach(fila => {
+                const patente = (fila.querySelector('.patente')?.textContent || '').toLowerCase();
+                const marcaModelo = (fila.querySelector('.marca-modelo')?.textContent || '').toLowerCase();
+                const anio = (fila.querySelector('.anio')?.textContent || '').toLowerCase();
+                const aseguradora = (fila.querySelector('.aseguradora')?.textContent || '').toLowerCase();
+                
+                const coincide = termino === '' || 
+                    patente.includes(termino) || 
+                    marcaModelo.includes(termino) || 
+                    anio.includes(termino) ||
+                    aseguradora.includes(termino);
+                
+                if (coincide) {
+                    fila.style.display = '';
+                    visibles++;
+                } else {
+                    fila.style.display = 'none';
+                }
+            });
+            
+            actualizarContador(visibles);
+        }
+        
+        buscador.addEventListener('keyup', filtrar);
+        
+        btnLimpiar.addEventListener('click', function() {
+            buscador.value = '';
+            filtrar();
+            buscador.focus();
+        });
+        
+        if (filas.length > 0) {
+            actualizarContador(filas.length);
+        }
+        
+        // Botones de eliminar
+        document.querySelectorAll('.btn-eliminar').forEach(btn => {
+            btn.addEventListener('click', function(e) {
+                e.preventDefault();
+                const id = this.dataset.id;
+                const patente = this.dataset.patente;
+                if (confirm(`¿Eliminar vehículo ${patente}?`)) {
+                    fetch(`/taller/vehiculo/${id}/eliminar/`, {
+                        method: 'POST',
+                        headers: {
+                            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]')?.value || '',
+                        },
+                    }).then(response => {
+                        if (response.ok) {
+                            window.location.reload();
+                        }
+                    });
+                }
+            });
+        });
+    });
+</script>
 {% endblock %}
