@@ -1,15 +1,15 @@
 {% extends "layout/base.html" %}
 
-{% block title %}Flota de Vehículos{% endblock %}
-{% block page_title %}Flota de Vehículos{% endblock %}
+{% block title %}Conductores{% endblock %}
+{% block page_title %}Conductores{% endblock %}
 
 {% block content %}
 <div class="card">
     <div class="card-header">
-        <h3 class="card-title">Vehículos registrados</h3>
+        <h3 class="card-title">Conductores registrados</h3>
         <div class="card-tools">
-            <a href="{% url 'taller_vehiculo_nuevo' %}" class="btn btn-primary btn-sm">
-                <i class="fas fa-plus"></i> Nuevo vehículo
+            <a href="{% url 'taller_conductor_nuevo' %}" class="btn btn-primary btn-sm">
+                <i class="fas fa-plus"></i> Nuevo conductor
             </a>
         </div>
     </div>
@@ -18,7 +18,7 @@
         <div class="row mb-3">
             <div class="col-md-6">
                 <div class="input-group">
-                    <input type="text" id="buscador" class="form-control" placeholder="Buscar por patente, marca, modelo, chasis...">
+                    <input type="text" id="buscador" class="form-control" placeholder="Buscar por RUT, nombre, apellido, teléfono, tipo ficha...">
                     <div class="input-group-append">
                         <button class="btn btn-outline-secondary" type="button" id="btnLimpiar">
                             <i class="fas fa-times"></i> Limpiar
@@ -28,52 +28,49 @@
                 <small class="form-text text-muted">Escribe para filtrar la tabla en tiempo real</small>
             </div>
             <div class="col-md-6 text-right">
-                <span id="contador" class="badge badge-info">Mostrando X de Y vehículos</span>
+                <span id="contador" class="badge badge-info">Mostrando X de Y conductores</span>
             </div>
         </div>
 
         <div class="table-responsive">
-            <table class="table table-hover text-nowrap" id="tablaVehiculos">
+            <table class="table table-hover text-nowrap" id="tablaConductores">
                 <thead>
                     <tr>
-                        <th>Patente</th>
-                        <th>Marca / Modelo</th>
-                        <th>Año</th>
-                        <th>Kilometraje</th>
+                        <th>RUT</th>
+                        <th>Nombre</th>
+                        <th>Teléfono</th>
+                        <th>Licencia</th>
+                        <th>Vencimiento</th>
+                        <th>Tipo Ficha</th>
                         <th>Estado</th>
-                        <th>Aseguradora</th>
-                        <th>Acciones</th>
+                        <th></th>
                     </tr>
                 </thead>
                 <tbody>
-                    {% for v in vehiculos %}
-                    <tr class="fila-vehiculo">
-                        <td class="patente">{{ v.patente }}</td>
-                        <td class="marca-modelo">{{ v.marca }} {{ v.modelo }}</td>
-                        <td class="anio">{{ v.anio|default:"-" }}</td>
-                        <td class="km">{{ v.km_actual|default:"-" }}</td>
+                    {% for c in conductores %}
+                    <tr class="fila-conductor">
+                        <td class="rut">{{ c.rut }}</td>
+                        <td class="nombre">{{ c.nombres }} {{ c.apellidos }}</td>
+                        <td class="telefono">{{ c.telefono|default:"-" }}</td>
+                        <td class="licencia">{{ c.licencia_clase|default:"-" }}</td>
+                        <td class="vencimiento">{{ c.licencia_vencimiento|date:"d/m/Y"|default:"-" }}</td>
+                        <td class="tipo-ficha">{{ c.get_tipo_ficha_display|default:"-" }}</td>
                         <td class="estado">
-                            {% if v.estado == "ACTIVO" %}
+                            {% if c.activo %}
                                 <span class="badge badge-success">Activo</span>
-                            {% elif v.estado == "EN_TALLER" %}
-                                <span class="badge badge-warning">En taller</span>
                             {% else %}
-                                <span class="badge badge-secondary">Fuera de servicio</span>
+                                <span class="badge badge-secondary">Inactivo</span>
                             {% endif %}
                         </td>
-                        <td class="aseguradora">{{ v.aseguradora|default:"-" }}</td>
                         <td class="text-right">
-                            <a href="{% url 'taller_vehiculo_editar' v.pk %}" class="btn btn-sm btn-outline-secondary">
+                            <a href="{% url 'taller_conductor_editar' c.pk %}" class="btn btn-sm btn-outline-secondary">
                                 <i class="fas fa-edit"></i>
                             </a>
-                            <button class="btn btn-sm btn-outline-danger btn-eliminar" data-id="{{ v.pk }}" data-patente="{{ v.patente }}">
-                                <i class="fas fa-trash"></i>
-                            </button>
                         </td>
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="7" class="text-center">No hay vehículos registrados.</td>
+                        <td colspan="8" class="text-center">No hay conductores registrados.</td>
                     </tr>
                     {% endfor %}
                 </tbody>
@@ -85,15 +82,15 @@
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         const buscador = document.getElementById('buscador');
-        const tabla = document.getElementById('tablaVehiculos');
+        const tabla = document.getElementById('tablaConductores');
         const tbody = tabla.querySelector('tbody');
-        const filas = tbody.querySelectorAll('.fila-vehiculo');
+        const filas = tbody.querySelectorAll('.fila-conductor');
         const contador = document.getElementById('contador');
         const btnLimpiar = document.getElementById('btnLimpiar');
         
         function actualizarContador(visibles) {
             const total = filas.length;
-            contador.textContent = `Mostrando ${visibles} de ${total} vehículos`;
+            contador.textContent = `Mostrando ${visibles} de ${total} conductores`;
         }
         
         function filtrar() {
@@ -101,16 +98,20 @@
             let visibles = 0;
             
             filas.forEach(fila => {
-                const patente = (fila.querySelector('.patente')?.textContent || '').toLowerCase();
-                const marcaModelo = (fila.querySelector('.marca-modelo')?.textContent || '').toLowerCase();
-                const anio = (fila.querySelector('.anio')?.textContent || '').toLowerCase();
-                const aseguradora = (fila.querySelector('.aseguradora')?.textContent || '').toLowerCase();
+                const rut = (fila.querySelector('.rut')?.textContent || '').toLowerCase();
+                const nombre = (fila.querySelector('.nombre')?.textContent || '').toLowerCase();
+                const telefono = (fila.querySelector('.telefono')?.textContent || '').toLowerCase();
+                const licencia = (fila.querySelector('.licencia')?.textContent || '').toLowerCase();
+                const tipoFicha = (fila.querySelector('.tipo-ficha')?.textContent || '').toLowerCase();
+                const estado = (fila.querySelector('.estado')?.textContent || '').toLowerCase();
                 
                 const coincide = termino === '' || 
-                    patente.includes(termino) || 
-                    marcaModelo.includes(termino) || 
-                    anio.includes(termino) ||
-                    aseguradora.includes(termino);
+                    rut.includes(termino) || 
+                    nombre.includes(termino) || 
+                    telefono.includes(termino) || 
+                    licencia.includes(termino) ||
+                    tipoFicha.includes(termino) ||
+                    estado.includes(termino);
                 
                 if (coincide) {
                     fila.style.display = '';
@@ -134,27 +135,6 @@
         if (filas.length > 0) {
             actualizarContador(filas.length);
         }
-        
-        // Botones de eliminar
-        document.querySelectorAll('.btn-eliminar').forEach(btn => {
-            btn.addEventListener('click', function(e) {
-                e.preventDefault();
-                const id = this.dataset.id;
-                const patente = this.dataset.patente;
-                if (confirm(`¿Eliminar vehículo ${patente}?`)) {
-                    fetch(`/taller/vehiculo/${id}/eliminar/`, {
-                        method: 'POST',
-                        headers: {
-                            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]')?.value || '',
-                        },
-                    }).then(response => {
-                        if (response.ok) {
-                            window.location.reload();
-                        }
-                    });
-                }
-            });
-        });
     });
 </script>
 {% endblock %}

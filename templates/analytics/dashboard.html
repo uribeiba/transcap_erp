@@ -1,0 +1,339 @@
+{% extends "layout/base.html" %}
+{% load humanize %}
+
+{% block title %}Dashboard Estadístico{% endblock %}
+{% block page_title %}📊 Dashboard de Costos Operacionales{% endblock %}
+
+{% block extra_css %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+{% endblock %}
+
+{% block content %}
+
+<!-- Tarjetas resumen -->
+<div class="row">
+    <div class="col-md-3">
+        <div class="small-box bg-info">
+            <div class="inner">
+                <h3>{{ gasto_combustible_mes.monto|floatformat:0|intcomma }}</h3>
+                <p>Combustible (mes)</p>
+                <small>{{ gasto_combustible_mes.litros|floatformat:0 }} litros</small>
+            </div>
+            <div class="icon"><i class="fas fa-gas-pump"></i></div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="small-box bg-warning">
+            <div class="inner">
+                <h3>${{ gasto_peajes_mes|floatformat:0|intcomma }}</h3>
+                <p>Peajes (mes)</p>
+            </div>
+            <div class="icon"><i class="fas fa-road"></i></div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="small-box bg-success">
+            <div class="inner">
+                <h3>${{ costos_viaje_mes.total|floatformat:0|intcomma }}</h3>
+                <p>Costo total viajes (mes)</p>
+                <small>{{ costos_viaje_mes.km|floatformat:0 }} km recorridos</small>
+            </div>
+            <div class="icon"><i class="fas fa-truck"></i></div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="small-box bg-danger">
+            <div class="inner">
+                <h3>${{ costos_viaje_mes.mantencion|floatformat:0|intcomma }}</h3>
+                <p>Mantención (mes)</p>
+            </div>
+            <div class="icon"><i class="fas fa-wrench"></i></div>
+        </div>
+    </div>
+</div>
+
+<!-- Gráficos principales -->
+<div class="row">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">⛽ Top 10 - Gastos en Combustible</h3>
+            </div>
+            <div class="card-body">
+                <canvas id="chartCombustible" style="height: 300px;"></canvas>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">🛣️ Top 10 - Gastos en Peajes</h3>
+            </div>
+            <div class="card-body">
+                <canvas id="chartPeajes" style="height: 300px;"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">💰 Top 10 - Costo Total por Vehículo</h3>
+            </div>
+            <div class="card-body">
+                <canvas id="chartCostosVehiculo" style="height: 300px;"></canvas>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">👨‍✈️ Top 10 - Costo por Conductor</h3>
+            </div>
+            <div class="card-body">
+                <canvas id="chartConductores" style="height: 300px;"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Distribución de gastos -->
+<div class="row">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">🥧 Distribución de Gastos (mes)</h3>
+            </div>
+            <div class="card-body">
+                <canvas id="chartDistribucion" style="height: 300px;"></canvas>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">📊 Ranking Vehículos (Tabla)</h3>
+            </div>
+            <div class="card-body table-responsive p-0">
+                <table class="table table-hover">
+                    <thead>
+                        <tr><th>Vehículo</th><th>Viajes</th><th>Total km</th><th>Costo total</th></tr>
+                    </thead>
+                    <tbody>
+                        {% for v in ranking_costos_viaje %}
+                        <tr>
+                            <td>{{ v.vehiculo__patente }}<br><small>{{ v.vehiculo__marca }} {{ v.vehiculo__modelo }}</small></td>
+                            <td>{{ v.cantidad_viajes }}</td>
+                            <td>{{ v.total_km|floatformat:0 }}</td>
+                            <td>${{ v.total_costo|floatformat:0|intcomma }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="4" class="text-center">Sin datos</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Accesos rápidos -->
+<div class="row">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">📝 Carga de datos</h3>
+            </div>
+            <div class="card-body">
+                <a href="{% url 'analytics:cargar_combustible' %}" class="btn btn-primary">
+                    <i class="fas fa-gas-pump"></i> Cargar Combustible
+                </a>
+                <a href="{% url 'analytics:cargar_peaje' %}" class="btn btn-warning">
+                    <i class="fas fa-road"></i> Cargar Peaje
+                </a>
+                <a href="{% url 'analytics:cargar_costo_viaje' %}" class="btn btn-success">
+                    <i class="fas fa-chart-line"></i> Cargar Costo Viaje
+                </a>
+                <a href="{% url 'analytics:lista_gastos' %}" class="btn btn-info">
+                    <i class="fas fa-list"></i> Ver lista de gastos
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // 1. Gráfico de Combustible
+        const combustibleLabels = [
+            {% for v in ranking_combustible %}
+                "{{ v.vehiculo__patente }}",
+            {% endfor %}
+        ];
+        const combustibleData = [
+            {% for v in ranking_combustible %}
+                {{ v.total_monto|default:0 }},
+            {% endfor %}
+        ];
+        
+        new Chart(document.getElementById('chartCombustible'), {
+            type: 'bar',
+            data: {
+                labels: combustibleLabels,
+                datasets: [{
+                    label: 'Gasto en Combustible ($)',
+                    data: combustibleData,
+                    backgroundColor: 'rgba(54, 162, 235, 0.7)',
+                    borderColor: 'rgba(54, 162, 235, 1)',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: { legend: { position: 'top' } }
+            }
+        });
+        
+        // 2. Gráfico de Peajes
+        const peajesLabels = [
+            {% for v in ranking_peajes %}
+                "{{ v.vehiculo__patente }}",
+            {% endfor %}
+        ];
+        const peajesData = [
+            {% for v in ranking_peajes %}
+                {{ v.total_monto|default:0 }},
+            {% endfor %}
+        ];
+        
+        new Chart(document.getElementById('chartPeajes'), {
+            type: 'bar',
+            data: {
+                labels: peajesLabels,
+                datasets: [{
+                    label: 'Gasto en Peajes ($)',
+                    data: peajesData,
+                    backgroundColor: 'rgba(255, 159, 64, 0.7)',
+                    borderColor: 'rgba(255, 159, 64, 1)',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: { legend: { position: 'top' } }
+            }
+        });
+        
+        // 3. Gráfico de Costos por Vehículo
+        const costosVehiculoLabels = [
+            {% for v in ranking_costos_viaje %}
+                "{{ v.vehiculo__patente }}",
+            {% endfor %}
+        ];
+        const costosVehiculoData = [
+            {% for v in ranking_costos_viaje %}
+                {{ v.total_costo|default:0 }},
+            {% endfor %}
+        ];
+        
+        new Chart(document.getElementById('chartCostosVehiculo'), {
+            type: 'bar',
+            data: {
+                labels: costosVehiculoLabels,
+                datasets: [{
+                    label: 'Costo Total por Vehículo ($)',
+                    data: costosVehiculoData,
+                    backgroundColor: 'rgba(75, 192, 192, 0.7)',
+                    borderColor: 'rgba(75, 192, 192, 1)',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: { legend: { position: 'top' } }
+            }
+        });
+        
+        // 4. Gráfico de Conductores
+        const conductoresLabels = [
+            {% for c in ranking_conductores %}
+                "{{ c.conductor__nombres|truncatechars:15 }}",
+            {% endfor %}
+        ];
+        const conductoresData = [
+            {% for c in ranking_conductores %}
+                {{ c.total_costo|default:0 }},
+            {% endfor %}
+        ];
+        
+        new Chart(document.getElementById('chartConductores'), {
+            type: 'bar',
+            data: {
+                labels: conductoresLabels,
+                datasets: [{
+                    label: 'Costo Total por Conductor ($)',
+                    data: conductoresData,
+                    backgroundColor: 'rgba(153, 102, 255, 0.7)',
+                    borderColor: 'rgba(153, 102, 255, 1)',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: { legend: { position: 'top' } }
+            }
+        });
+        
+        // 5. Gráfico de Distribución (Torta)
+        const distribucionData = [
+            {{ costos_viaje_mes.combustible|default:0 }},
+            {{ costos_viaje_mes.peajes|default:0 }},
+            {{ costos_viaje_mes.mantencion|default:0 }}
+        ];
+        
+        new Chart(document.getElementById('chartDistribucion'), {
+            type: 'pie',
+            data: {
+                labels: ['Combustible', 'Peajes', 'Mantención'],
+                datasets: [{
+                    data: distribucionData,
+                    backgroundColor: [
+                        'rgba(54, 162, 235, 0.7)',
+                        'rgba(255, 159, 64, 0.7)',
+                        'rgba(255, 99, 132, 0.7)'
+                    ],
+                    borderColor: [
+                        'rgba(54, 162, 235, 1)',
+                        'rgba(255, 159, 64, 1)',
+                        'rgba(255, 99, 132, 1)'
+                    ],
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: {
+                    legend: { position: 'top' },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const total = distribucionData.reduce((a, b) => a + b, 0);
+                                const value = context.raw;
+                                const percentage = ((value / total) * 100).toFixed(1);
+                                return `${context.label}: $${value.toLocaleString()} (${percentage}%)`;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    });
+</script>
+{% endblock %}

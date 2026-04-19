@@ -44,13 +44,11 @@ class VehiculoForm(forms.ModelForm):
             "estado": forms.Select(attrs={"class": FORM_CONTROL}),
             "activo": forms.CheckboxInput(attrs={"class": FORM_CHECK}),
         }
-
-
 class ConductorForm(forms.ModelForm):
     class Meta:
         model = Conductor
         fields = '__all__'
-        exclude = ['usuario']  # ← Agrega esta línea
+        exclude = ['usuario']
         widgets = {
             "rut": forms.TextInput(attrs={"class": "form-control"}),
             "nombres": forms.TextInput(attrs={"class": "form-control"}),
@@ -61,6 +59,7 @@ class ConductorForm(forms.ModelForm):
             "licencia_clase": forms.TextInput(attrs={"class": "form-control"}),
             "licencia_vencimiento": forms.DateInput(attrs={"class": "form-control", "type": "date"}),
             "activo": forms.CheckboxInput(attrs={"class": "form-check-input"}),
+            "tipo_ficha": forms.Select(attrs={"class": "form-control"}),  # ✅ NUEVO
         }
 
 

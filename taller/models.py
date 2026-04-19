@@ -138,6 +138,14 @@ class Conductor(models.Model):
         (False, "Inactivo"),
     ]
 
+    TIPO_FICHA_CHOICES = [
+        ('EMPLEADO', 'Empleado'),
+        ('PROVEEDOR', 'Proveedor'),
+        ('CLIENTE_PROVEEDOR', 'Cliente - Proveedor'),
+        ('CLIENTE', 'Cliente'),
+        ('HONORARIO', 'Honorario'),
+    ]
+
     rut = models.CharField(max_length=20, unique=True)
     nombres = models.CharField(max_length=100)
     apellidos = models.CharField(max_length=100)
@@ -154,13 +162,23 @@ class Conductor(models.Model):
 
     activo = models.BooleanField(default=True, choices=ACTIVO_CHOICES)
     
-    # ✅ NUEVO: Relación con el usuario de Django para autenticación
+    # Relación con el usuario de Django para autenticación
     usuario = models.OneToOneField(
         'auth.User',
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
         related_name='conductor'
+    )
+    
+    # ✅ NUEVO: Tipo de ficha
+    tipo_ficha = models.CharField(
+        max_length=20,
+        choices=TIPO_FICHA_CHOICES,
+        default='EMPLEADO',
+        blank=True,
+        null=True,
+        help_text="Tipo de ficha del conductor"
     )
 
     class Meta:
@@ -174,7 +192,6 @@ class Conductor(models.Model):
     @property
     def nombre_completo(self):
         return f"{self.nombres} {self.apellidos}"
-
 
 # ============================================
 # DOCUMENTOS

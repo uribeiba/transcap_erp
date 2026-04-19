@@ -1,0 +1,84 @@
+{% extends "layout/base.html" %}
+{% load humanize %}
+
+{% block title %}Lista de Gastos de Combustible{% endblock %}
+{% block page_title %}⛽ Lista de Gastos de Combustible{% endblock %}
+
+{% block content %}
+
+<!-- Tarjetas resumen -->
+<div class="row">
+    <div class="col-md-6">
+        <div class="small-box bg-info">
+            <div class="inner">
+                <h3>{{ total_litros|floatformat:0|intcomma }}</h3>
+                <p>Total Litros</p>
+            </div>
+            <div class="icon"><i class="fas fa-gas-pump"></i></div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="small-box bg-success">
+            <div class="inner">
+                <h3>${{ total_monto|floatformat:0|intcomma }}</h3>
+                <p>Total Gastos</p>
+            </div>
+            <div class="icon"><i class="fas fa-dollar-sign"></i></div>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h3 class="card-title">Registro de gastos de combustible</h3>
+        <div class="card-tools">
+            <a href="{% url 'analytics:cargar_combustible' %}" class="btn btn-primary btn-sm">
+                <i class="fas fa-plus"></i> Nuevo gasto
+            </a>
+            <a href="{% url 'analytics:dashboard' %}" class="btn btn-secondary btn-sm">
+                <i class="fas fa-chart-line"></i> Ver Dashboard
+            </a>
+        </div>
+    </div>
+    <div class="card-body table-responsive">
+        <table class="table table-hover">
+            <thead>
+                <tr>
+                    <th>Fecha</th>
+                    <th>Vehículo</th>
+                    <th>Conductor</th>
+                    <th>Litros</th>
+                    <th>Precio/L</th>
+                    <th>Monto</th>
+                    <th>Kilometraje</th>
+                    <th>Rendimiento</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for g in gastos %}
+                <tr>
+                    <td>{{ g.fecha|date:"d/m/Y" }}</td>
+                    <td>{{ g.vehiculo.patente }}<br><small>{{ g.vehiculo.marca }} {{ g.vehiculo.modelo }}</small></td>
+                    <td>{{ g.conductor.nombre_completo|default:"-" }}</td>
+                    <td>{{ g.litros|floatformat:2 }}</td>
+                    <td>${{ g.precio_litro|floatformat:2|default:"-" }}</td>
+                    <td><strong>${{ g.monto|floatformat:0|intcomma }}</strong></td>
+                    <td>{{ g.kilometraje|default:"-" }}</td>
+                    <td>
+                        {% if g.rendimiento %}
+                            <span class="badge badge-info">{{ g.rendimiento }} L/100km</span>
+                        {% else %}
+                            -
+                        {% endif %}
+                    </td>
+                 </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="8" class="text-center">No hay gastos registrados</td>
+                 </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

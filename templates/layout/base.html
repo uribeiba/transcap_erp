@@ -132,6 +132,16 @@
                             <p>Panel de Control</p>
                         </a>
                     </li>
+                    <!-- Dashboard Estadístico (solo administradores) -->
+                
+{% if user.is_superuser or user.rol_usuario.rol.nombre == 'Administrador' %}
+<li class="nav-item">
+    <a href="{% url 'analytics:dashboard' %}" class="nav-link">
+        <i class="nav-icon fas fa-chart-pie"></i>
+        <p>Estadísticas Operacionales</p>
+    </a>
+</li>
+{% endif %}
 
                     <!-- Centro de Comercio (todos ven) -->
                     <li class="nav-item has-treeview {% if '/clientes/' in request.path or '/cotizaciones/' in request.path or '/bitacora/' in request.path or '/edp/' in request.path %}menu-open{% endif %}">

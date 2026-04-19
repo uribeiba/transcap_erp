@@ -14,11 +14,11 @@
         </div>
     </div>
     <div class="card-body">
-        <!-- ✅ BUSCADOR -->
+        <!-- BUSCADOR -->
         <div class="row mb-3">
             <div class="col-md-6">
                 <div class="input-group">
-                    <input type="text" id="buscador" class="form-control" placeholder="Buscar por RUT, nombre, apellido, teléfono...">
+                    <input type="text" id="buscador" class="form-control" placeholder="Buscar por RUT, nombre, apellido, teléfono, tipo ficha...">
                     <div class="input-group-append">
                         <button class="btn btn-outline-secondary" type="button" id="btnLimpiar">
                             <i class="fas fa-times"></i> Limpiar
@@ -38,6 +38,7 @@
                     <tr>
                         <th>RUT</th>
                         <th>Nombre</th>
+                        <th>Tipo Ficha</th>
                         <th>Teléfono</th>
                         <th>Licencia</th>
                         <th>Vencimiento</th>
@@ -47,9 +48,10 @@
                 </thead>
                 <tbody>
                     {% for c in conductores %}
-                    <tr>
+                    <tr class="fila-conductor">
                         <td class="rut">{{ c.rut }}</td>
                         <td class="nombre">{{ c.nombres }} {{ c.apellidos }}</td>
+                        <td class="tipo-ficha">{{ c.get_tipo_ficha_display|default:"-" }}</td>
                         <td class="telefono">{{ c.telefono|default:"-" }}</td>
                         <td class="licencia">{{ c.licencia_clase|default:"-" }}</td>
                         <td class="vencimiento">{{ c.licencia_vencimiento|date:"d/m/Y"|default:"-" }}</td>
@@ -68,7 +70,7 @@
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="7" class="text-center">No hay conductores registrados.</td>
+                        <td colspan="8" class="text-center">No hay conductores registrados.</td>
                     </tr>
                     {% endfor %}
                 </tbody>
@@ -77,13 +79,12 @@
     </div>
 </div>
 
-{% block extra_js %}
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         const buscador = document.getElementById('buscador');
         const tabla = document.getElementById('tablaConductores');
         const tbody = tabla.querySelector('tbody');
-        const filas = tbody.querySelectorAll('tr');
+        const filas = tbody.querySelectorAll('.fila-conductor');
         const contador = document.getElementById('contador');
         const btnLimpiar = document.getElementById('btnLimpiar');
         
@@ -97,13 +98,9 @@
             let visibles = 0;
             
             filas.forEach(fila => {
-                // Saltar fila de "no hay conductores"
-                if (fila.cells.length === 1 && fila.cells[0].colSpan === 7) {
-                    return;
-                }
-                
                 const rut = (fila.querySelector('.rut')?.textContent || '').toLowerCase();
                 const nombre = (fila.querySelector('.nombre')?.textContent || '').toLowerCase();
+                const tipoFicha = (fila.querySelector('.tipo-ficha')?.textContent || '').toLowerCase();
                 const telefono = (fila.querySelector('.telefono')?.textContent || '').toLowerCase();
                 const licencia = (fila.querySelector('.licencia')?.textContent || '').toLowerCase();
                 const estado = (fila.querySelector('.estado')?.textContent || '').toLowerCase();
@@ -111,6 +108,7 @@
                 const coincide = termino === '' || 
                     rut.includes(termino) || 
                     nombre.includes(termino) || 
+                    tipoFicha.includes(termino) ||
                     telefono.includes(termino) || 
                     licencia.includes(termino) ||
                     estado.includes(termino);
@@ -124,20 +122,6 @@
             });
             
             actualizarContador(visibles);
-            
-            // Mostrar mensaje si no hay resultados
-            let mensajeFila = tbody.querySelector('.no-resultados');
-            if (visibles === 0 && termino !== '') {
-                if (!mensajeFila) {
-                    mensajeFila = document.createElement('tr');
-                    mensajeFila.className = 'no-resultados';
-                    mensajeFila.innerHTML = '<td colspan="7" class="text-center text-muted">No hay conductores que coincidan con la búsqueda</td>';
-                    tbody.appendChild(mensajeFila);
-                }
-                mensajeFila.style.display = '';
-            } else if (mensajeFila) {
-                mensajeFila.style.display = 'none';
-            }
         }
         
         buscador.addEventListener('keyup', filtrar);
@@ -148,9 +132,9 @@
             buscador.focus();
         });
         
-        // Contador inicial
-        actualizarContador(filas.length);
+        if (filas.length > 0) {
+            actualizarContador(filas.length);
+        }
     });
 </script>
-{% endblock %}
 {% endblock %}

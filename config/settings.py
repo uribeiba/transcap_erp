@@ -78,6 +78,7 @@ INSTALLED_APPS = [
     'rest_framework.authtoken',
     'corsheaders',     # pip install django-cors-headers
     'channels',
+    'analytics',
 ]
 
 MIDDLEWARE = [

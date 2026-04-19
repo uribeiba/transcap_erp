@@ -1,0 +1,109 @@
+{% extends "layout/base.html" %}
+
+{% block title %}Cargar Combustible{% endblock %}
+{% block page_title %}⛽ Cargar Gasto de Combustible{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <h3 class="card-title">Registrar carga de combustible</h3>
+    </div>
+    <div class="card-body">
+        <form method="post" id="formCombustible">
+            {% csrf_token %}
+            <div class="row">
+                {% for field in form %}
+                <div class="col-md-4">
+                    <div class="form-group">
+                        <label>{{ field.label }}</label>
+                        {{ field }}
+                        {% if field.help_text %}
+                        <small class="form-text text-muted">{{ field.help_text }}</small>
+                        {% endif %}
+                        {% for error in field.errors %}
+                        <div class="text-danger small">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            
+            <!-- Mostrar último kilometraje -->
+            <div class="row" id="ultimoKmContainer" style="display: none;">
+                <div class="col-md-12">
+                    <div class="alert alert-info">
+                        <strong>📊 Último registro:</strong>
+                        <span id="ultimoKmTexto"></span>
+                    </div>
+                </div>
+            </div>
+            
+            <button type="submit" class="btn btn-primary">
+                <i class="fas fa-save"></i> Guardar
+            </button>
+            <a href="{% url 'analytics:lista_gastos' %}" class="btn btn-secondary">
+                Ver lista de gastos
+            </a>
+            <a href="{% url 'analytics:dashboard' %}" class="btn btn-secondary">
+                Volver al Dashboard
+            </a>
+        </form>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const litrosInput = document.getElementById('id_litros');
+        const precioInput = document.getElementById('id_precio_litro');
+        const montoInput = document.getElementById('id_monto');
+        const vehiculoSelect = document.getElementById('id_vehiculo');
+        const kilometrajeInput = document.getElementById('id_kilometraje');
+        
+        // Calcular monto automáticamente cuando cambian litros o precio
+        function calcularMonto() {
+            const litros = parseFloat(litrosInput.value) || 0;
+            const precio = parseFloat(precioInput.value) || 0;
+            if (litros > 0 && precio > 0) {
+                montoInput.value = (litros * precio).toFixed(2);
+            } else if (litros > 0 && montoInput.value && !precio) {
+                const monto = parseFloat(montoInput.value) || 0;
+                if (monto > 0) {
+                    precioInput.value = (monto / litros).toFixed(2);
+                }
+            }
+        }
+        
+        litrosInput.addEventListener('input', calcularMonto);
+        precioInput.addEventListener('input', calcularMonto);
+        montoInput.addEventListener('input', function() {
+            const litros = parseFloat(litrosInput.value) || 0;
+            const monto = parseFloat(montoInput.value) || 0;
+            if (litros > 0 && monto > 0) {
+                precioInput.value = (monto / litros).toFixed(2);
+            }
+        });
+        
+        // Obtener último kilometraje al seleccionar vehículo
+        vehiculoSelect.addEventListener('change', function() {
+            const vehiculoId = this.value;
+            if (vehiculoId) {
+                fetch(`/analytics/api/ultimo-kilometraje/${vehiculoId}/`)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.ultimo_km) {
+                            document.getElementById('ultimoKmTexto').innerHTML = 
+                                `Último kilometraje: ${data.ultimo_km} km (${data.ultima_fecha})`;
+                            document.getElementById('ultimoKmContainer').style.display = 'block';
+                            
+                            // Sugerir que el nuevo km debe ser mayor
+                            kilometrajeInput.placeholder = `Debe ser mayor a ${data.ultimo_km}`;
+                            kilometrajeInput.min = data.ultimo_km;
+                        } else {
+                            document.getElementById('ultimoKmContainer').style.display = 'none';
+                        }
+                    });
+            }
+        });
+    });
+</script>
+{% endblock %}
