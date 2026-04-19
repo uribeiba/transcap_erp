@@ -49,21 +49,18 @@ class VehiculoForm(forms.ModelForm):
 class ConductorForm(forms.ModelForm):
     class Meta:
         model = Conductor
-        fields = "__all__"
+        fields = '__all__'
+        exclude = ['usuario']  # ← Agrega esta línea
         widgets = {
-            "rut": forms.TextInput(attrs={"class": FORM_CONTROL}),
-            "nombres": forms.TextInput(attrs={"class": FORM_CONTROL}),
-            "apellidos": forms.TextInput(attrs={"class": FORM_CONTROL}),
-            "telefono": forms.TextInput(attrs={"class": FORM_CONTROL}),
-            "email": forms.EmailInput(attrs={"class": FORM_CONTROL}),
-            "fecha_ingreso": forms.DateInput(
-                attrs={"class": FORM_CONTROL, "type": "date"}
-            ),
-            "licencia_clase": forms.TextInput(attrs={"class": FORM_CONTROL}),
-            "licencia_vencimiento": forms.DateInput(
-                attrs={"class": FORM_CONTROL, "type": "date"}
-            ),
-            "activo": forms.CheckboxInput(attrs={"class": FORM_CHECK}),
+            "rut": forms.TextInput(attrs={"class": "form-control"}),
+            "nombres": forms.TextInput(attrs={"class": "form-control"}),
+            "apellidos": forms.TextInput(attrs={"class": "form-control"}),
+            "telefono": forms.TextInput(attrs={"class": "form-control"}),
+            "email": forms.EmailInput(attrs={"class": "form-control"}),
+            "fecha_ingreso": forms.DateInput(attrs={"class": "form-control", "type": "date"}),
+            "licencia_clase": forms.TextInput(attrs={"class": "form-control"}),
+            "licencia_vencimiento": forms.DateInput(attrs={"class": "form-control", "type": "date"}),
+            "activo": forms.CheckboxInput(attrs={"class": "form-check-input"}),
         }
 
 

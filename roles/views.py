@@ -11,6 +11,7 @@ from .models import UsuarioRol
 
 from django.contrib.auth.hashers import make_password
 from .forms import CrearUsuarioForm, EditarUsuarioForm
+from taller.models import Conductor  # Agregar esta línea con los otros imports
 
 
 def es_administrador_roles(user):
@@ -46,7 +47,20 @@ def asignar_rol(request):
             defaults={'rol': rol}
         )
         
-        # ✅ Sincronizar permisos del rol al usuario
+        # ✅ NUEVO: Sincronizar con conductor
+        try:
+            conductor = Conductor.objects.get(usuario=usuario)
+            if rol.nombre != 'Chofer':
+                conductor.activo = False
+                conductor.save()
+                messages.info(request, f'El usuario ya no aparece como conductor porque su rol es {rol.nombre}')
+            else:
+                conductor.activo = True
+                conductor.save()
+        except Conductor.DoesNotExist:
+            pass
+        
+        # Sincronizar permisos del rol al usuario
         usuario.user_permissions.clear()
         usuario.user_permissions.set(rol.permisos.all())
         
@@ -117,7 +131,6 @@ def editar_usuario(request, usuario_id):
         form = EditarUsuarioForm(request.POST, instance=usuario)
         if form.is_valid():
             user = form.save(commit=False)
-            # Si se ingresó una nueva contraseña, actualizarla
             nueva_password = form.cleaned_data.get('password')
             if nueva_password:
                 user.password = make_password(nueva_password)
@@ -132,6 +145,19 @@ def editar_usuario(request, usuario_id):
                     usuario_rol.save()
                 else:
                     UsuarioRol.objects.create(usuario=usuario, rol=rol)
+                
+                # ✅ NUEVO: Sincronizar con conductor
+                try:
+                    conductor = Conductor.objects.get(usuario=usuario)
+                    if rol.nombre != 'Chofer':
+                        conductor.activo = False
+                        conductor.save()
+                        messages.info(request, f'El usuario ya no aparece como conductor')
+                    else:
+                        conductor.activo = True
+                        conductor.save()
+                except Conductor.DoesNotExist:
+                    pass
             
             messages.success(request, f'Usuario "{usuario.username}" actualizado correctamente.')
             return redirect('roles:panel')

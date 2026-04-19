@@ -32,6 +32,12 @@ from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.units import mm
 
+from inventario.models import User
+from roles.models import UsuarioRol,Rol
+
+from django.contrib.auth.models import User
+
+
 # ============================================
 # Imports de la app local (taller)
 # ============================================
@@ -123,8 +129,8 @@ def vehiculo_editar(request, pk):
 # ============================================
 
 def conductores_lista(request):
-    """Lista todos los conductores"""
-    conductores = Conductor.objects.all()
+    """Lista todos los conductores activos"""
+    conductores = Conductor.objects.filter(activo=True)  # Solo activos
     return render(
         request,
         "taller/conductores_lista.html",
@@ -132,17 +138,82 @@ def conductores_lista(request):
     )
 
 
+# ============================================
+# VISTAS PARA CONDUCTORES (CORREGIDAS)
+# ============================================
+
+import logging
+logger = logging.getLogger(__name__)
+
 def conductor_crear(request):
-    """Crea un nuevo conductor"""
+    """Crea un nuevo conductor y automáticamente crea un usuario con rol Chofer"""
     if request.method == "POST":
         form = ConductorForm(request.POST)
         if form.is_valid():
-            form.save()
-            messages.success(request, "Conductor creado correctamente.")
+            conductor = form.save(commit=False)
+            
+            # Limpiar RUT para usar como username (sin puntos ni guión)
+            rut_limpio = conductor.rut.replace('.', '').replace('-', '')
+            username = rut_limpio
+            password = rut_limpio
+            
+            # Buscar o crear rol "Chofer"
+            rol_chofer, created_rol = Rol.objects.get_or_create(
+                nombre='Chofer',
+                defaults={'descripcion': 'Rol para conductores que usan la app móvil'}
+            )
+            
+            if created_rol:
+                logger.info(f"Rol 'Chofer' creado automáticamente")
+            
+            # Crear usuario
+            user, created_user = User.objects.get_or_create(username=username)
+            
+            if created_user:
+                user.set_password(password)
+                user.first_name = conductor.nombres
+                user.last_name = conductor.apellidos
+                user.email = conductor.email or ''
+                user.save()
+                logger.info(f"Usuario creado: {username}")
+            else:
+                logger.info(f"Usuario ya existía: {username}")
+            
+            # Asignar rol Chofer (si no lo tiene ya)
+            usuario_rol, created_ur = UsuarioRol.objects.get_or_create(
+                usuario=user,
+                defaults={'rol': rol_chofer}
+            )
+            
+            if not created_ur and usuario_rol.rol != rol_chofer:
+                usuario_rol.rol = rol_chofer
+                usuario_rol.save()
+                logger.info(f"Rol actualizado a Chofer para {username}")
+            
+            # Sincronizar permisos del rol al usuario
+            user.user_permissions.set(rol_chofer.permisos.all())
+            
+            # Vincular conductor con usuario
+            conductor.usuario = user
+            conductor.save()
+            
+            if created_user:
+                messages.success(
+                    request, 
+                    f'Conductor creado correctamente. Usuario "{username}" creado con contraseña "{password}". El chofer debe cambiarla al iniciar sesión.'
+                )
+            else:
+                messages.success(
+                    request,
+                    f'Conductor creado correctamente y vinculado al usuario existente "{username}".'
+                )
+            
             return redirect("taller_conductores")
+        else:
+            messages.error(request, "Por favor corrige los errores del formulario.")
     else:
         form = ConductorForm()
-
+    
     return render(
         request,
         "taller/conductor_form.html",
@@ -151,23 +222,70 @@ def conductor_crear(request):
 
 
 def conductor_editar(request, pk):
-    """Edita un conductor existente"""
+    """Edita un conductor existente y permite gestionar su usuario asociado"""
     conductor = get_object_or_404(Conductor, pk=pk)
-
+    
     if request.method == "POST":
         form = ConductorForm(request.POST, instance=conductor)
         if form.is_valid():
-            form.save()
+            conductor = form.save()
+            
+            # Si el conductor no tiene usuario asociado, crearlo
+            if not conductor.usuario:
+                rut_limpio = conductor.rut.replace('.', '').replace('-', '')
+                username = rut_limpio
+                password = rut_limpio
+                
+                rol_chofer, _ = Rol.objects.get_or_create(nombre='Chofer')
+                
+                user, created = User.objects.get_or_create(username=username)
+                if created:
+                    user.set_password(password)
+                    user.first_name = conductor.nombres
+                    user.last_name = conductor.apellidos
+                    user.email = conductor.email or ''
+                    user.save()
+                    messages.info(request, f'Usuario "{username}" creado con contraseña "{password}".')
+                else:
+                    messages.info(request, f'Vinculado al usuario existente "{username}".')
+                
+                # Asignar rol Chofer
+                UsuarioRol.objects.update_or_create(
+                    usuario=user,
+                    defaults={'rol': rol_chofer}
+                )
+                
+                # Sincronizar permisos
+                user.user_permissions.set(rol_chofer.permisos.all())
+                
+                conductor.usuario = user
+                conductor.save()
+            else:
+                # Restablecer contraseña si se solicitó
+                if request.POST.get('reset_password'):
+                    new_password = conductor.rut.replace('.', '').replace('-', '')
+                    conductor.usuario.set_password(new_password)
+                    conductor.usuario.save()
+                    messages.info(request, f'Contraseña restablecida a "{new_password}". El conductor debe cambiarla al iniciar sesión.')
+                
+                # Actualizar nombre en el usuario si cambió
+                if conductor.usuario.first_name != conductor.nombres or conductor.usuario.last_name != conductor.apellidos:
+                    conductor.usuario.first_name = conductor.nombres
+                    conductor.usuario.last_name = conductor.apellidos
+                    conductor.usuario.save()
+                    messages.info(request, "Nombre de usuario actualizado.")
+            
             messages.success(request, "Conductor actualizado correctamente.")
             return redirect("taller_conductores")
     else:
         form = ConductorForm(instance=conductor)
-
+    
     return render(
         request,
         "taller/conductor_form.html",
         {"form": form, "modo": "Editar", "conductor": conductor},
     )
+
 
 
 # ============================================

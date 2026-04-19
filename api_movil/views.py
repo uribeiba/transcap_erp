@@ -25,6 +25,7 @@ from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, 
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import cm
 from django.http import HttpResponse
+from django.db.models import Q
 
 
 class AuthViewSet(viewsets.ViewSet):
@@ -35,18 +36,40 @@ class AuthViewSet(viewsets.ViewSet):
         rut = request.data.get('rut')
         password = request.data.get('password')
         
+        # Limpiar RUT para comparación
+        rut_limpio = rut.replace('.', '').replace('-', '') if rut else None
+        
         try:
-            conductor = Conductor.objects.get(rut=rut, activo=True)
-            if conductor.usuario and conductor.usuario.check_password(password):
-                from rest_framework.authtoken.models import Token
-                token, _ = Token.objects.get_or_create(user=conductor.usuario)
-                return Response({
-                    'success': True,
-                    'token': token.key,
-                    'conductor_id': conductor.id,
-                    'nombre': f"{conductor.nombres} {conductor.apellidos}",
-                    'rut': conductor.rut,
-                })
+            # Buscar conductor por RUT (con o sin puntos)
+            conductor = Conductor.objects.filter(
+                Q(rut=rut) | Q(rut__icontains=rut_limpio) if rut_limpio else Q(rut=rut),
+                activo=True
+            ).first()
+            
+            if not conductor:
+                # Intentar buscar por username del usuario
+                try:
+                    user = User.objects.get(username=rut_limpio)
+                    conductor = Conductor.objects.get(usuario=user, activo=True)
+                except:
+                    pass
+            
+            if conductor and conductor.usuario:
+                if conductor.usuario.check_password(password):
+                    from rest_framework.authtoken.models import Token
+                    token, _ = Token.objects.get_or_create(user=conductor.usuario)
+                    return Response({
+                        'success': True,
+                        'token': token.key,
+                        'conductor_id': conductor.id,
+                        'nombre': f"{conductor.nombres} {conductor.apellidos}",
+                        'rut': conductor.rut,
+                    })
+                else:
+                    return Response({'success': False, 'error': 'Contraseña incorrecta'}, status=401)
+            else:
+                return Response({'success': False, 'error': 'Conductor no tiene usuario asociado'}, status=401)
+                
         except Conductor.DoesNotExist:
             pass
         

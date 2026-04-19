@@ -13,47 +13,144 @@
             </a>
         </div>
     </div>
-    <div class="card-body table-responsive p-0">
-        <table class="table table-hover text-nowrap">
-            <thead>
-                <tr>
-                    <th>RUT</th>
-                    <th>Nombre</th>
-                    <th>Teléfono</th>
-                    <th>Licencia</th>
-                    <th>Vencimiento</th>
-                    <th>Estado</th>
-                    <th></th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for c in conductores %}
-                <tr>
-                    <td>{{ c.rut }}</td>
-                    <td>{{ c.nombres }} {{ c.apellidos }}</td>
-                    <td>{{ c.telefono|default:"-" }}</td>
-                    <td>{{ c.licencia_clase|default:"-" }}</td>
-                    <td>{{ c.licencia_vencimiento|date:"d/m/Y"|default:"-" }}</td>
-                    <td>
-                        {% if c.activo %}
-                            <span class="badge badge-success">Activo</span>
-                        {% else %}
-                            <span class="badge badge-secondary">Inactivo</span>
-                        {% endif %}
-                    </td>
-                    <td class="text-right">
-                        <a href="{% url 'taller_conductor_editar' c.pk %}" class="btn btn-sm btn-outline-secondary">
-                            <i class="fas fa-edit"></i>
-                        </a>
-                    </td>
-                </tr>
-                {% empty %}
-                <tr>
-                    <td colspan="7" class="text-center">No hay conductores registrados.</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+    <div class="card-body">
+        <!-- ✅ BUSCADOR -->
+        <div class="row mb-3">
+            <div class="col-md-6">
+                <div class="input-group">
+                    <input type="text" id="buscador" class="form-control" placeholder="Buscar por RUT, nombre, apellido, teléfono...">
+                    <div class="input-group-append">
+                        <button class="btn btn-outline-secondary" type="button" id="btnLimpiar">
+                            <i class="fas fa-times"></i> Limpiar
+                        </button>
+                    </div>
+                </div>
+                <small class="form-text text-muted">Escribe para filtrar la tabla en tiempo real</small>
+            </div>
+            <div class="col-md-6 text-right">
+                <span id="contador" class="badge badge-info">Mostrando X de Y conductores</span>
+            </div>
+        </div>
+
+        <div class="table-responsive">
+            <table class="table table-hover text-nowrap" id="tablaConductores">
+                <thead>
+                    <tr>
+                        <th>RUT</th>
+                        <th>Nombre</th>
+                        <th>Teléfono</th>
+                        <th>Licencia</th>
+                        <th>Vencimiento</th>
+                        <th>Estado</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for c in conductores %}
+                    <tr>
+                        <td class="rut">{{ c.rut }}</td>
+                        <td class="nombre">{{ c.nombres }} {{ c.apellidos }}</td>
+                        <td class="telefono">{{ c.telefono|default:"-" }}</td>
+                        <td class="licencia">{{ c.licencia_clase|default:"-" }}</td>
+                        <td class="vencimiento">{{ c.licencia_vencimiento|date:"d/m/Y"|default:"-" }}</td>
+                        <td class="estado">
+                            {% if c.activo %}
+                                <span class="badge badge-success">Activo</span>
+                            {% else %}
+                                <span class="badge badge-secondary">Inactivo</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-right">
+                            <a href="{% url 'taller_conductor_editar' c.pk %}" class="btn btn-sm btn-outline-secondary">
+                                <i class="fas fa-edit"></i>
+                            </a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="7" class="text-center">No hay conductores registrados.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
     </div>
 </div>
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const buscador = document.getElementById('buscador');
+        const tabla = document.getElementById('tablaConductores');
+        const tbody = tabla.querySelector('tbody');
+        const filas = tbody.querySelectorAll('tr');
+        const contador = document.getElementById('contador');
+        const btnLimpiar = document.getElementById('btnLimpiar');
+        
+        function actualizarContador(visibles) {
+            const total = filas.length;
+            contador.textContent = `Mostrando ${visibles} de ${total} conductores`;
+        }
+        
+        function filtrar() {
+            const termino = buscador.value.toLowerCase().trim();
+            let visibles = 0;
+            
+            filas.forEach(fila => {
+                // Saltar fila de "no hay conductores"
+                if (fila.cells.length === 1 && fila.cells[0].colSpan === 7) {
+                    return;
+                }
+                
+                const rut = (fila.querySelector('.rut')?.textContent || '').toLowerCase();
+                const nombre = (fila.querySelector('.nombre')?.textContent || '').toLowerCase();
+                const telefono = (fila.querySelector('.telefono')?.textContent || '').toLowerCase();
+                const licencia = (fila.querySelector('.licencia')?.textContent || '').toLowerCase();
+                const estado = (fila.querySelector('.estado')?.textContent || '').toLowerCase();
+                
+                const coincide = termino === '' || 
+                    rut.includes(termino) || 
+                    nombre.includes(termino) || 
+                    telefono.includes(termino) || 
+                    licencia.includes(termino) ||
+                    estado.includes(termino);
+                
+                if (coincide) {
+                    fila.style.display = '';
+                    visibles++;
+                } else {
+                    fila.style.display = 'none';
+                }
+            });
+            
+            actualizarContador(visibles);
+            
+            // Mostrar mensaje si no hay resultados
+            let mensajeFila = tbody.querySelector('.no-resultados');
+            if (visibles === 0 && termino !== '') {
+                if (!mensajeFila) {
+                    mensajeFila = document.createElement('tr');
+                    mensajeFila.className = 'no-resultados';
+                    mensajeFila.innerHTML = '<td colspan="7" class="text-center text-muted">No hay conductores que coincidan con la búsqueda</td>';
+                    tbody.appendChild(mensajeFila);
+                }
+                mensajeFila.style.display = '';
+            } else if (mensajeFila) {
+                mensajeFila.style.display = 'none';
+            }
+        }
+        
+        buscador.addEventListener('keyup', filtrar);
+        
+        btnLimpiar.addEventListener('click', function() {
+            buscador.value = '';
+            filtrar();
+            buscador.focus();
+        });
+        
+        // Contador inicial
+        actualizarContador(filas.length);
+    });
+</script>
+{% endblock %}
 {% endblock %}
