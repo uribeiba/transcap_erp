@@ -234,11 +234,49 @@
                             <li class="nav-item"><a href="{% url 'taller_conductores' %}" class="nav-link"><i class="far fa-circle nav-icon"></i><p>Conductores</p></a></li>
                             <li class="nav-item"><a href="{% url 'taller_mantenimientos' %}" class="nav-link"><i class="far fa-circle nav-icon"></i><p>Mantenimientos</p></a></li>
                             <li class="nav-item"><a href="{% url 'taller_docs_vehiculos' %}" class="nav-link"><i class="far fa-circle nav-icon"></i><p>Documentos y Seguros</p></a></li>
-                            <li class="nav-item"><a href="#" class="nav-link"><i class="far fa-circle nav-icon"></i><p>Multas Conductores</p></a></li>
+                            <li class="nav-item"><a href="{% url 'taller_multas_conductores' %}" class="nav-link"><i class="far fa-circle nav-icon"></i><p>Multas Conductores</p></a></li>
                             <li class="nav-item"><a href="{% url 'taller_reporte_vehiculo_selector' %}" class="nav-link"><i class="far fa-circle nav-icon"></i><p>Reportes</p></a></li>
                         </ul>
                     </li>
                     {% endif %}
+
+                    <!-- DOCUMENTOS / OCR -->
+{% if user.is_authenticated %}
+<li class="nav-item has-treeview {% if '/documentos/' in request.path %}menu-open{% endif %}">
+    <a href="#" class="nav-link {% if '/documentos/' in request.path %}active{% endif %}">
+        <i class="nav-icon fas fa-file-alt"></i>
+        <p>
+            Documentos
+            <i class="right fas fa-angle-left"></i>
+        </p>
+    </a>
+
+    <ul class="nav nav-treeview">
+
+        <li class="nav-item">
+            <a href="{% url 'documentos:dashboard' %}" class="nav-link">
+                <i class="far fa-circle nav-icon"></i>
+                <p>Dashboard</p>
+            </a>
+        </li>
+
+        <li class="nav-item">
+            <a href="{% url 'documentos:crear' %}" class="nav-link">
+                <i class="far fa-circle nav-icon"></i>
+                <p>Nuevo Registro</p>
+            </a>
+        </li>
+
+        <li class="nav-item">
+            <a href="{% url 'documentos:lista' %}" class="nav-link">
+                <i class="far fa-circle nav-icon"></i>
+                <p>Lista de Documentos</p>
+            </a>
+        </li>
+
+    </ul>
+</li>
+{% endif %}
 
                     <!-- RRHH / Remuneraciones -->
                     {% if perms.roles.puede_ver_rrhh or user.is_superuser %}

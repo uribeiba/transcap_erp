@@ -1,0 +1,446 @@
+{% extends "layout/base.html" %}
+
+{% block title %}
+Lista de Documentos
+{% endblock %}
+
+{% block content %}
+
+<div class="content-wrapper">
+
+    <!-- Header -->
+    <section class="content-header">
+        <div class="container-fluid">
+
+            <div class="row mb-2">
+
+                <div class="col-sm-6">
+                    <h1>
+                        <i class="fas fa-folder"></i>
+                        Documentos Registrados
+                    </h1>
+                </div>
+
+                <div class="col-sm-6 text-right">
+                    <a href="{% url 'documentos:crear' %}" class="btn btn-primary">
+                        <i class="fas fa-plus"></i>
+                        Nuevo Documento
+                    </a>
+                </div>
+
+            </div>
+
+        </div>
+    </section>
+
+    <section class="content">
+        <div class="container-fluid">
+
+            <!-- FILTROS -->
+            <div class="card card-primary">
+
+                <div class="card-header">
+                    <h3 class="card-title">
+                        <i class="fas fa-filter"></i>
+                        Filtros
+                    </h3>
+                </div>
+
+                <div class="card-body">
+
+                    <form method="get">
+
+                        <div class="row">
+
+                            <div class="col-md-3">
+                                <label>Usuario</label>
+
+                                <select name="usuario" class="form-control">
+
+                                    <option value="">
+                                        Todos
+                                    </option>
+
+                                    {% for u in usuarios %}
+
+                                        <option
+                                            value="{{ u.id }}"
+                                            {% if request.GET.usuario == u.id|stringformat:"s" %}
+                                                selected
+                                            {% endif %}
+                                        >
+                                            {{ u.username }}
+                                        </option>
+
+                                    {% endfor %}
+
+                                </select>
+
+                            </div>
+
+                            <div class="col-md-3">
+                                <label>Tipo</label>
+
+                                <select name="tipo" class="form-control">
+
+                                    <option value="">
+                                        Todos
+                                    </option>
+
+                                    <option value="GUIA">
+                                        Guía
+                                    </option>
+
+                                    <option value="PEAJE">
+                                        Peaje
+                                    </option>
+
+                                    <option value="CARGA">
+                                        Carga
+                                    </option>
+
+                                </select>
+
+                            </div>
+
+                            <div class="col-md-2">
+                                <label>Desde</label>
+
+                                <input
+                                    type="date"
+                                    name="fecha_desde"
+                                    class="form-control"
+                                    value="{{ request.GET.fecha_desde }}"
+                                >
+
+                            </div>
+
+                            <div class="col-md-2">
+                                <label>Hasta</label>
+
+                                <input
+                                    type="date"
+                                    name="fecha_hasta"
+                                    class="form-control"
+                                    value="{{ request.GET.fecha_hasta }}"
+                                >
+
+                            </div>
+
+                            <div class="col-md-2">
+
+                                <label>&nbsp;</label>
+
+                                <button
+                                    type="submit"
+                                    class="btn btn-primary btn-block"
+                                >
+                                    <i class="fas fa-search"></i>
+                                    Filtrar
+                                </button>
+
+                            </div>
+
+                        </div>
+
+                    </form>
+
+                </div>
+
+            </div>
+
+            <!-- TABLA -->
+            <div class="card">
+
+                <div class="card-header">
+                    <h3 class="card-title">
+                        Lista de Documentos
+                    </h3>
+                </div>
+
+                <div class="card-body table-responsive p-0">
+
+                    <table class="table table-bordered table-hover">
+
+                        <thead class="thead-dark">
+
+                            <tr>
+
+                                <th width="90">
+                                    Imagen
+                                </th>
+
+                                <th>
+                                    Número
+                                </th>
+
+                                <th>
+                                    Tipo
+                                </th>
+
+                                <th>
+                                    Usuario
+                                </th>
+
+                                <th>
+                                    Fecha
+                                </th>
+
+                                <th>
+                                    Estado
+                                </th>
+
+                                <th width="160">
+                                    Acciones
+                                </th>
+
+                            </tr>
+
+                        </thead>
+
+                        <tbody>
+
+                        {% for doc in documentos %}
+
+                            <tr>
+
+                                <!-- IMAGEN -->
+                                <td class="text-center">
+
+                                    {% if doc.imagen %}
+
+                                        <a
+                                            href="#"
+                                            data-toggle="modal"
+                                            data-target="#modalImagen{{ doc.id }}"
+                                        >
+
+                                            <img
+                                                src="{{ doc.imagen.url }}"
+                                                width="70"
+                                                class="img-thumbnail"
+                                                style="cursor:pointer"
+                                            >
+
+                                        </a>
+
+                                    {% else %}
+
+                                        <span class="text-muted">
+                                            Sin imagen
+                                        </span>
+
+                                    {% endif %}
+
+                                </td>
+
+                                <!-- NUMERO -->
+                                <td>
+                                    {{ doc.numero_documento }}
+                                </td>
+
+                                <!-- TIPO -->
+                                <td>
+
+                                    <span class="badge badge-info">
+                                        {{ doc.tipo_documento }}
+                                    </span>
+
+                                </td>
+
+                                <!-- USUARIO -->
+                                <td>
+                                    {{ doc.usuario.username }}
+                                </td>
+
+                                <!-- FECHA -->
+                                <td>
+                                    {{ doc.fecha_registro|date:"d-m-Y H:i" }}
+                                </td>
+
+                                <!-- ESTADO -->
+                                <td>
+
+                                    {% if doc.estado == "OK" %}
+
+                                        <span class="badge badge-success">
+                                            OK
+                                        </span>
+
+                                    {% elif doc.estado == "PENDIENTE" %}
+
+                                        <span class="badge badge-warning">
+                                            Pendiente
+                                        </span>
+
+                                    {% else %}
+
+                                        <span class="badge badge-secondary">
+                                            {{ doc.estado }}
+                                        </span>
+
+                                    {% endif %}
+
+                                </td>
+
+                                <!-- ACCIONES -->
+                                <td class="text-center">
+
+                                    {% if doc.imagen %}
+
+                                        <a
+                                            href="{{ doc.imagen.url }}"
+                                            target="_blank"
+                                            class="btn btn-info btn-sm"
+                                        >
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+
+                                    {% endif %}
+
+                                    <a
+                                        href="{% url 'documentos:eliminar' doc.id %}"
+                                        class="btn btn-danger btn-sm"
+                                        onclick="return confirm('¿Eliminar documento?')"
+                                    >
+                                        <i class="fas fa-trash"></i>
+                                    </a>
+
+                                </td>
+
+                            </tr>
+
+                            <!-- MODAL IMAGEN -->
+
+                            <div
+                                class="modal fade"
+                                id="modalImagen{{ doc.id }}"
+                                tabindex="-1"
+                            >
+
+                                <div class="modal-dialog modal-lg">
+
+                                    <div class="modal-content">
+
+                                        <div class="modal-header">
+
+                                            <h5 class="modal-title">
+                                                Documento {{ doc.numero_documento }}
+                                            </h5>
+
+                                            <button
+                                                type="button"
+                                                class="close"
+                                                data-dismiss="modal"
+                                            >
+                                                <span>&times;</span>
+                                            </button>
+
+                                        </div>
+
+                                        <div class="modal-body text-center">
+
+                                            {% if doc.imagen %}
+
+                                                <img
+                                                    src="{{ doc.imagen.url }}"
+                                                    class="img-fluid"
+                                                >
+
+                                            {% endif %}
+
+                                        </div>
+
+                                        <div class="modal-footer">
+
+                                            <a
+                                                href="{{ doc.imagen.url }}"
+                                                download
+                                                class="btn btn-success"
+                                            >
+                                                <i class="fas fa-download"></i>
+                                                Descargar
+                                            </a>
+
+                                            <button
+                                                type="button"
+                                                class="btn btn-secondary"
+                                                data-dismiss="modal"
+                                            >
+                                                Cerrar
+                                            </button>
+
+                                        </div>
+
+                                    </div>
+
+                                </div>
+
+                            </div>
+
+                        {% empty %}
+
+                            <tr>
+                                <td colspan="7" class="text-center">
+                                    No hay documentos registrados
+                                </td>
+                            </tr>
+
+                        {% endfor %}
+
+                        </tbody>
+
+                    </table>
+
+                </div>
+
+                <!-- PAGINACION -->
+
+                <div class="card-footer clearfix">
+
+                    <ul class="pagination pagination-sm m-0 float-right">
+
+                        {% if documentos.has_previous %}
+
+                            <li class="page-item">
+                                <a
+                                    class="page-link"
+                                    href="?page={{ documentos.previous_page_number }}"
+                                >
+                                    «
+                                </a>
+                            </li>
+
+                        {% endif %}
+
+                        <li class="page-item active">
+                            <span class="page-link">
+                                {{ documentos.number }}
+                            </span>
+                        </li>
+
+                        {% if documentos.has_next %}
+
+                            <li class="page-item">
+                                <a
+                                    class="page-link"
+                                    href="?page={{ documentos.next_page_number }}"
+                                >
+                                    »
+                                </a>
+                            </li>
+
+                        {% endif %}
+
+                    </ul>
+
+                </div>
+
+            </div>
+
+        </div>
+    </section>
+
+</div>
+
+{% endblock %}

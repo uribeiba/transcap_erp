@@ -1,0 +1,225 @@
+{% extends "layout/base.html" %}
+
+{% block title %}
+Dashboard Documentos
+{% endblock %}
+
+{% block content %}
+
+<section class="content-header">
+    <div class="container-fluid">
+        <div class="row mb-2">
+            <div class="col-sm-6">
+                <h1>Dashboard de Documentos</h1>
+            </div>
+            <div class="col-sm-6 text-right">
+                <a href="{% url 'documentos:crear' %}" class="btn btn-primary">
+                    <i class="fas fa-plus"></i>
+                    Nuevo Documento
+                </a>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="content">
+
+<div class="container-fluid">
+
+<!-- TARJETAS -->
+
+<div class="row">
+
+<div class="col-lg-3 col-6">
+<div class="small-box bg-info">
+<div class="inner">
+<h3>
+{{ total }}
+</h3>
+<p>
+Total Documentos
+</p>
+</div>
+<div class="icon">
+<i class="fas fa-file"></i>
+</div>
+<a href="{% url 'documentos:lista' %}" class="small-box-footer">
+Ver más
+<i class="fas fa-arrow-circle-right"></i>
+</a>
+</div>
+</div>
+
+<div class="col-lg-3 col-6">
+<div class="small-box bg-primary">
+<div class="inner">
+<h3>
+{{ total_guias }}
+</h3>
+<p>
+Guías
+</p>
+</div>
+<div class="icon">
+<i class="fas fa-truck"></i>
+</div>
+<a href="{% url 'documentos:lista' %}?tipo=GUIA" class="small-box-footer">
+Ver más
+<i class="fas fa-arrow-circle-right"></i>
+</a>
+</div>
+</div>
+
+<div class="col-lg-3 col-6">
+<div class="small-box bg-warning">
+<div class="inner">
+<h3>
+{{ total_peajes }}
+</h3>
+<p>
+Peajes
+</p>
+</div>
+<div class="icon">
+<i class="fas fa-road"></i>
+</div>
+<a href="{% url 'documentos:lista' %}?tipo=PEAJE" class="small-box-footer">
+Ver más
+<i class="fas fa-arrow-circle-right"></i>
+</a>
+</div>
+</div>
+
+<div class="col-lg-3 col-6">
+<div class="small-box bg-success">
+<div class="inner">
+<h3>
+{{ total_carga }}
+</h3>
+<p>
+Fotos de Carga
+</p>
+</div>
+<div class="icon">
+<i class="fas fa-camera"></i>
+</div>
+<a href="{% url 'documentos:lista' %}?tipo=CARGA" class="small-box-footer">
+Ver más
+<i class="fas fa-arrow-circle-right"></i>
+</a>
+</div>
+</div>
+
+</div>
+
+<!-- ULTIMOS DOCUMENTOS -->
+
+<div class="card">
+
+<div class="card-header">
+<h3 class="card-title">
+Últimos Documentos Registrados
+</h3>
+</div>
+
+<div class="card-body table-responsive p-0">
+
+<table class="table table-hover table-bordered">
+
+<thead>
+<tr>
+<th>ID</th>
+<th>Imagen</th>
+<th>Usuario</th>
+<th>Tipo</th>
+<th>Número</th>
+<th>Fecha</th>
+</tr>
+</thead>
+
+<tbody>
+
+{% for doc in ultimos %}
+
+<tr>
+
+<td>
+{{ doc.id }}
+</td>
+
+<td>
+
+{% if doc.imagen %}
+
+<img
+src="{{ doc.imagen.url }}"
+width="70"
+class="img-thumbnail"
+>
+
+{% else %}
+
+Sin imagen
+
+{% endif %}
+
+</td>
+
+<td>
+{{ doc.usuario }}
+</td>
+
+<td>
+
+{% if doc.tipo == 'GUIA' %}
+<span class="badge badge-primary">
+Guía
+</span>
+
+{% elif doc.tipo == 'PEAJE' %}
+<span class="badge badge-warning">
+Peaje
+</span>
+
+{% elif doc.tipo == 'CARGA' %}
+<span class="badge badge-success">
+Carga
+</span>
+
+{% endif %}
+
+</td>
+
+<td>
+{{ doc.numero_documento }}
+</td>
+
+<td>
+{{ doc.fecha_registro|date:"d-m-Y H:i" }}
+</td>
+
+</tr>
+
+{% empty %}
+
+<tr>
+<td colspan="6" class="text-center">
+No hay registros aún
+</td>
+</tr>
+
+{% endfor %}
+
+</tbody>
+
+</table>
+
+</div>
+
+</div>
+
+</div>
+
+</section>
+
+{% endblock %}

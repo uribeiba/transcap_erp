@@ -1,0 +1,135 @@
+{% extends "layout/base.html" %}
+{% load humanize %}
+
+{% block title %}Multas Conductores{% endblock %}
+{% block page_title %}Multas Conductores{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <h3 class="card-title">Listado de Multas</h3>
+        <div class="card-tools">
+            <a href="{% url 'taller_multa_conductor_nuevo' %}" class="btn btn-primary btn-sm">
+                <i class="fas fa-plus"></i> Nueva Multa
+            </a>
+        </div>
+    </div>
+    <div class="card-body">
+        <div class="row mb-3">
+            <div class="col-md-6">
+                <div class="input-group">
+                    <input type="text" id="buscador" class="form-control" placeholder="Buscar por conductor, infracción...">
+                    <div class="input-group-append">
+                        <button class="btn btn-outline-secondary" type="button" id="btnLimpiar">
+                            <i class="fas fa-times"></i> Limpiar
+                        </button>
+                    </div>
+                </div>
+                <small class="form-text text-muted">Escribe para filtrar la tabla en tiempo real</small>
+            </div>
+            <div class="col-md-6 text-right">
+                <span id="contador" class="badge badge-info">Mostrando X de Y multas</span>
+            </div>
+        </div>
+
+        <div class="table-responsive">
+            <table class="table table-hover text-nowrap" id="tablaMultas">
+                <thead>
+                    <tr>
+                        <th>Conductor</th>
+                        <th>Vehículo</th>
+                        <th>Fecha</th>
+                        <th>Infracción</th>
+                        <th>Monto</th>
+                        <th>Estado</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for m in multas %}
+                    <tr class="fila-multa">
+                        <td class="conductor">{{ m.conductor.nombre_completo }}<br><small>{{ m.conductor.rut }}</small></td>
+                        <td class="vehiculo">{{ m.vehiculo.patente|default:"-" }}<br><small>{{ m.vehiculo.marca }} {{ m.vehiculo.modelo }}</small></td>
+                        <td class="fecha">{{ m.fecha|date:"d/m/Y" }}</td>
+                        <td class="infraccion">{{ m.infraccion }}</td>
+                        <td class="monto">${{ m.monto|floatformat:0|intcomma }}</td>
+                        <td class="estado">
+                            {% if m.estado == "PENDIENTE" %}
+                                <span class="badge badge-warning">Pendiente</span>
+                            {% else %}
+                                <span class="badge badge-success">Pagada</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-right">
+                            <a href="{% url 'taller_multa_conductor_editar' m.pk %}" class="btn btn-sm btn-outline-secondary">
+                                <i class="fas fa-edit"></i>
+                            </a>
+                            <button class="btn btn-sm btn-outline-danger btn-eliminar" data-id="{{ m.pk }}">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="7" class="text-center">No hay multas registradas.{% if user.is_superuser %} <a href="{% url 'taller_multa_conductor_nuevo' %}">Crear primera multa</a>{% endif %}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const buscador = document.getElementById('buscador');
+        const tbody = document.querySelector('#tablaMultas tbody');
+        const filas = tbody.querySelectorAll('.fila-multa');
+        const contador = document.getElementById('contador');
+        const btnLimpiar = document.getElementById('btnLimpiar');
+        
+        function actualizarContador(visibles) {
+            const total = filas.length;
+            contador.textContent = `Mostrando ${visibles} de ${total} multas`;
+        }
+        
+        function filtrar() {
+            const termino = buscador.value.toLowerCase().trim();
+            let visibles = 0;
+            
+            filas.forEach(fila => {
+                const conductor = (fila.querySelector('.conductor')?.textContent || '').toLowerCase();
+                const infraccion = (fila.querySelector('.infraccion')?.textContent || '').toLowerCase();
+                const vehiculo = (fila.querySelector('.vehiculo')?.textContent || '').toLowerCase();
+                
+                const coincide = termino === '' || 
+                    conductor.includes(termino) || 
+                    infraccion.includes(termino) ||
+                    vehiculo.includes(termino);
+                
+                if (coincide) {
+                    fila.style.display = '';
+                    visibles++;
+                } else {
+                    fila.style.display = 'none';
+                }
+            });
+            
+            actualizarContador(visibles);
+        }
+        
+        if (buscador) {
+            buscador.addEventListener('keyup', filtrar);
+            btnLimpiar.addEventListener('click', function() {
+                buscador.value = '';
+                filtrar();
+                buscador.focus();
+            });
+        }
+        
+        if (filas.length > 0) {
+            actualizarContador(filas.length);
+        }
+    });
+</script>
+{% endblock %}

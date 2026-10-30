@@ -12,6 +12,7 @@ urlpatterns = [
     path('auth/login/', views.AuthViewSet.as_view({'post': 'login'}), name='chofer_login'),
     path('panel/', views.panel_seguimiento, name='panel_seguimiento'),
     path('api/ubicaciones/', views.api_ubicaciones, name='api_ubicaciones'),
+    path('reportes/actualizar_ubicacion/', views.actualizar_ubicacion, name='actualizar_ubicacion'),  # ← AGREGAR
     path('', include(router.urls)),
     path('api/reportes/<int:conductor_id>/', views.obtener_reportes_chofer, name='reportes_chofer'),
     path('api/reportes/<int:conductor_id>/exportar/excel/', views.exportar_reportes_excel, name='exportar_reportes_excel'),

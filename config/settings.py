@@ -79,6 +79,7 @@ INSTALLED_APPS = [
     'corsheaders',     # pip install django-cors-headers
     'channels',
     'analytics',
+    'documentos',
 ]
 
 MIDDLEWARE = [

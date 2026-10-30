@@ -37,6 +37,10 @@ urlpatterns = [
   
     path('api/movil/', include(('api_movil.urls', 'api_movil'), namespace='api_movil')),
     path('analytics/', include('analytics.urls')),
+    path(
+    "documentos/",
+    include(("documentos.urls", "documentos"), namespace="documentos")
+),
 
 ]
 

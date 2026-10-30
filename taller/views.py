@@ -1,6 +1,7 @@
 # ============================================
 # Imports estándar de Python
 # ============================================
+from django.db import models
 from decimal import Decimal
 from datetime import date as date_cls
 
@@ -36,6 +37,7 @@ from inventario.models import User
 from roles.models import UsuarioRol,Rol
 
 from django.contrib.auth.models import User
+from .forms import MultaConductorForm
 
 
 # ============================================
@@ -1438,3 +1440,58 @@ def vehiculo_eliminar(request, pk):
         return redirect("taller_flota")
     
     return redirect("taller_flota")
+
+
+def multas_conductores_lista(request):
+    """Lista todas las multas de conductores"""
+    multas = MultaConductor.objects.select_related('conductor', 'vehiculo').all().order_by('-fecha')
+    
+    context = {
+        'multas': multas,
+        'total_multas': multas.count(),
+        'total_monto': multas.aggregate(total=models.Sum('monto'))['total'] or 0,
+    }
+    return render(request, 'taller/multas_conductores_lista.html', context)
+
+
+def multa_conductor_nuevo(request):
+    """Crear nueva multa"""
+    if request.method == 'POST':
+        form = MultaConductorForm(request.POST)
+        if form.is_valid():
+            form.save()
+            messages.success(request, 'Multa registrada correctamente.')
+            return redirect('taller_multas_conductores')
+    else:
+        form = MultaConductorForm()
+    
+    return render(request, 'taller/multa_conductor_form.html', {'form': form, 'modo': 'Crear'})
+
+
+def multa_conductor_editar(request, pk):
+    """Editar multa existente"""
+    multa = get_object_or_404(MultaConductor, pk=pk)
+    
+    if request.method == 'POST':
+        form = MultaConductorForm(request.POST, instance=multa)
+        if form.is_valid():
+            form.save()
+            messages.success(request, 'Multa actualizada correctamente.')
+            return redirect('taller_multas_conductores')
+    else:
+        form = MultaConductorForm(instance=multa)
+    
+    return render(request, 'taller/multa_conductor_form.html', {'form': form, 'modo': 'Editar', 'multa': multa})
+
+
+def multa_conductor_eliminar(request, pk):
+    """Eliminar multa"""
+    multa = get_object_or_404(MultaConductor, pk=pk)
+    
+    if request.method == 'POST':
+        infraccion = multa.infraccion
+        multa.delete()
+        messages.success(request, f'Multa "{infraccion}" eliminada correctamente.')
+        return redirect('taller_multas_conductores')
+    
+    return redirect('taller_multas_conductores')

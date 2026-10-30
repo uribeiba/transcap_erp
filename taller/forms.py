@@ -326,3 +326,23 @@ class CoordinacionViajeForm(forms.ModelForm):
             tipo="SEMIRREMOLQUE",
             activo=True
         ).order_by("patente")
+        
+        
+class MultaConductorForm(forms.ModelForm):
+    class Meta:
+        model = MultaConductor
+        fields = ['conductor', 'vehiculo', 'fecha', 'infraccion', 'monto', 'estado', 'observaciones']
+        widgets = {
+            'conductor': forms.Select(attrs={'class': 'form-control'}),
+            'vehiculo': forms.Select(attrs={'class': 'form-control'}),
+            'fecha': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
+            'infraccion': forms.TextInput(attrs={'class': 'form-control'}),
+            'monto': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}),
+            'estado': forms.Select(attrs={'class': 'form-control'}),
+            'observaciones': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
+        }
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['vehiculo'].queryset = Vehiculo.objects.filter(activo=True).order_by('patente')
+        self.fields['conductor'].queryset = Conductor.objects.filter(activo=True).order_by('apellidos')

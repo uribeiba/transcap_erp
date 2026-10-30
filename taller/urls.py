@@ -48,4 +48,10 @@ urlpatterns = [
     path("dashboard/", views.dashboard_taller, name="taller_dashboard"),
     path("flota/<int:pk>/eliminar/", views.vehiculo_eliminar, name="taller_vehiculo_eliminar"),
     
+    # Multas Conductores
+path("multas-conductores/", views.multas_conductores_lista, name="taller_multas_conductores"),
+path("multas-conductores/nuevo/", views.multa_conductor_nuevo, name="taller_multa_conductor_nuevo"),
+path("multas-conductores/<int:pk>/editar/", views.multa_conductor_editar, name="taller_multa_conductor_editar"),
+path("multas-conductores/<int:pk>/eliminar/", views.multa_conductor_eliminar, name="taller_multa_conductor_eliminar"),
+    
 ]
