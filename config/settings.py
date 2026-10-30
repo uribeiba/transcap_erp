@@ -41,7 +41,13 @@ if not SECRET_KEY:
         raise RuntimeError("SECRET_KEY no está definido en .env")
 
 
-ALLOWED_HOSTS = ['127.0.0.1', 'localhost', '192.168.1.2']
+ALLOWED_HOSTS = [
+    h.strip()
+    for h in os.getenv(
+        "ALLOWED_HOSTS",
+        "127.0.0.1,localhost"
+    ).split(",")
+]
 
 # =========================
 # Application definition

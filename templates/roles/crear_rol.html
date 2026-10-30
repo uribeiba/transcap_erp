@@ -1,0 +1,448 @@
+{% extends "layout/base.html" %}
+{% load static %}
+
+{% block title %}Crear Nuevo Rol - TransCap ERP{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4 py-4">
+    <!-- Encabezado -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h4 class="text-white mb-1">
+                        <i class="fas fa-user-plus me-2 text-primary"></i>Crear Nuevo Rol
+                    </h4>
+                    <nav aria-label="breadcrumb">
+                        <ol class="breadcrumb mb-0">
+                            <li class="breadcrumb-item">
+                                <a href="{% url 'dashboard' %}" class="text-decoration-none text-secondary">
+                                    <i class="fas fa-home"></i>
+                                </a>
+                            </li>
+                            <li class="breadcrumb-item">
+                                <a href="{% url 'roles:panel' %}" class="text-decoration-none text-secondary">
+                                    Gestión de Roles
+                                </a>
+                            </li>
+                            <li class="breadcrumb-item active text-light" aria-current="page">
+                                Crear Rol
+                            </li>
+                        </ol>
+                    </nav>
+                </div>
+                <div>
+                    <a href="{% url 'roles:panel' %}" class="btn btn-outline-secondary btn-sm">
+                        <i class="fas fa-arrow-left me-1"></i>Volver al Panel
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Formulario -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card bg-dark-card border-0 shadow-lg">
+                <div class="card-header bg-dark-header border-bottom border-secondary py-3">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5 class="text-white mb-0">
+                            <i class="fas fa-cog text-primary me-2"></i>Configuración del Rol
+                        </h5>
+                        <span class="badge bg-primary">
+                            <i class="fas fa-info-circle me-1"></i>Nuevo
+                        </span>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <form method="POST" id="crearRolForm">
+                        {% csrf_token %}
+                        
+                        <!-- Datos básicos del rol -->
+                        <div class="row g-3 mb-4">
+                            <div class="col-md-6">
+                                <label for="nombre" class="form-label text-light fw-bold">
+                                    <i class="fas fa-tag text-primary me-1"></i>
+                                    Nombre del Rol <span class="text-danger">*</span>
+                                </label>
+                                <input type="text" 
+                                       class="form-control bg-dark-input text-light border-secondary" 
+                                       id="nombre" 
+                                       name="nombre" 
+                                       placeholder="Ej: Administrador, Auditor, Secretaria, Chofer"
+                                       required 
+                                       autofocus>
+                                <small class="text-secondary">
+                                    <i class="fas fa-info-circle me-1"></i>
+                                    El nombre debe ser único y descriptivo.
+                                </small>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="descripcion" class="form-label text-light fw-bold">
+                                    <i class="fas fa-align-left text-primary me-1"></i>
+                                    Descripción
+                                </label>
+                                <textarea class="form-control bg-dark-input text-light border-secondary" 
+                                          id="descripcion" 
+                                          name="descripcion" 
+                                          rows="3" 
+                                          placeholder="Describe las responsabilidades y alcance de este rol..."></textarea>
+                                <small class="text-secondary">
+                                    <i class="fas fa-info-circle me-1"></i>
+                                    Descripción breve de las funciones del rol.
+                                </small>
+                            </div>
+                        </div>
+
+                        <!-- Permisos -->
+                        <div class="card bg-dark-card border-0 shadow-sm">
+                            <div class="card-header bg-dark-header border-bottom border-secondary py-2">
+                                <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+                                    <h6 class="text-white mb-0">
+                                        <i class="fas fa-shield-alt text-primary me-2"></i>
+                                        Permisos del Sistema
+                                        <span class="badge bg-secondary ms-2">{{ permisos|length }}</span>
+                                    </h6>
+                                    <div class="btn-group btn-group-sm" role="group">
+                                        <button type="button" class="btn btn-outline-primary" id="seleccionarTodos">
+                                            <i class="fas fa-check-double me-1"></i>Seleccionar Todos
+                                        </button>
+                                        <button type="button" class="btn btn-outline-secondary" id="deseleccionarTodos">
+                                            <i class="fas fa-times me-1"></i>Deseleccionar
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="card-body">
+                                {% if permisos %}
+                                    <!-- Barra de búsqueda -->
+                                    <div class="mb-3">
+                                        <div class="input-group">
+                                            <span class="input-group-text bg-dark-input border-secondary text-secondary">
+                                                <i class="fas fa-search"></i>
+                                            </span>
+                                            <input type="text" 
+                                                   class="form-control bg-dark-input text-light border-secondary" 
+                                                   id="buscarPermisos" 
+                                                   placeholder="Buscar permisos por nombre...">
+                                            <button class="btn btn-outline-secondary" type="button" id="limpiarBusqueda">
+                                                <i class="fas fa-times"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <!-- Agrupación de permisos por módulo -->
+                                    <div class="row g-3">
+                                        {% regroup permisos by content_type.app_label as permisos_por_modulo %}
+                                        {% for modulo in permisos_por_modulo %}
+                                            <div class="col-md-6 col-lg-4 modulo-permisos" data-modulo="{{ modulo.grouper }}">
+                                                <div class="card bg-dark-card border border-secondary h-100">
+                                                    <div class="card-header bg-dark-header border-bottom border-secondary py-2">
+                                                        <div class="form-check">
+                                                            <input type="checkbox" 
+                                                                   class="form-check-input modulo-selector" 
+                                                                   id="selectModulo{{ forloop.counter }}">
+                                                            <label class="form-check-label text-light fw-bold" for="selectModulo{{ forloop.counter }}">
+                                                                <i class="fas fa-folder-open text-primary me-1"></i>
+                                                                {{ modulo.grouper|title }}
+                                                            </label>
+                                                            <span class="badge bg-secondary float-end">{{ modulo.list|length }}</span>
+                                                        </div>
+                                                    </div>
+                                                    <div class="card-body py-2">
+                                                        {% for permiso in modulo.list %}
+                                                            <div class="permiso-item" data-permiso="{{ permiso.codename|lower }}">
+                                                                <div class="form-check form-check-sm">
+                                                                    <input type="checkbox" 
+                                                                           class="form-check-input permiso-checkbox" 
+                                                                           name="permisos" 
+                                                                           value="{{ permiso.id }}" 
+                                                                           id="permiso{{ permiso.id }}">
+                                                                    <label class="form-check-label text-light small" for="permiso{{ permiso.id }}">
+                                                                        {{ permiso.name }}
+                                                                    </label>
+                                                                </div>
+                                                            </div>
+                                                        {% endfor %}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        {% endfor %}
+                                    </div>
+
+                                    <!-- Resumen de selección -->
+                                    <div class="mt-3 p-2 bg-dark-header rounded-2 text-center">
+                                        <span class="badge bg-info" id="contadorSeleccionados">
+                                            <i class="fas fa-check-circle me-1"></i>
+                                            0 permisos seleccionados
+                                        </span>
+                                        <span class="badge bg-secondary ms-2" id="contadorTotal">
+                                            <i class="fas fa-list me-1"></i>
+                                            Total: {{ permisos|length }} permisos
+                                        </span>
+                                    </div>
+                                {% else %}
+                                    <div class="alert alert-warning">
+                                        <i class="fas fa-exclamation-triangle me-2"></i>
+                                        No hay permisos disponibles en el sistema.
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <!-- Botones de acción -->
+                        <div class="mt-4 d-flex gap-2 justify-content-end">
+                            <a href="{% url 'roles:panel' %}" class="btn btn-outline-secondary">
+                                <i class="fas fa-times me-1"></i>Cancelar
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save me-1"></i>Crear Rol
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Variables
+    const form = document.getElementById('crearRolForm');
+    const nombreInput = document.getElementById('nombre');
+    const descripcionInput = document.getElementById('descripcion');
+    const permisosCheckboxes = document.querySelectorAll('.permiso-checkbox');
+    const moduloSelectors = document.querySelectorAll('.modulo-selector');
+    const buscarInput = document.getElementById('buscarPermisos');
+    const limpiarBusquedaBtn = document.getElementById('limpiarBusqueda');
+    const contadorSeleccionados = document.getElementById('contadorSeleccionados');
+    const contadorTotal = document.getElementById('contadorTotal');
+
+    // 1. Contador de permisos seleccionados
+    function actualizarContador() {
+        const seleccionados = document.querySelectorAll('.permiso-checkbox:checked').length;
+        const total = permisosCheckboxes.length;
+        contadorSeleccionados.innerHTML = `<i class="fas fa-check-circle me-1"></i>${seleccionados} permisos seleccionados`;
+        
+        // Cambiar color según cantidad seleccionada
+        if (seleccionados === 0) {
+            contadorSeleccionados.className = 'badge bg-secondary';
+        } else if (seleccionados === total) {
+            contadorSeleccionados.className = 'badge bg-success';
+        } else {
+            contadorSeleccionados.className = 'badge bg-info';
+        }
+    }
+
+    // 2. Seleccionar/Deseleccionar todos los permisos
+    document.getElementById('seleccionarTodos').addEventListener('click', function() {
+        permisosCheckboxes.forEach(checkbox => checkbox.checked = true);
+        actualizarContador();
+        actualizarSelectoresModulo();
+    });
+
+    document.getElementById('deseleccionarTodos').addEventListener('click', function() {
+        permisosCheckboxes.forEach(checkbox => checkbox.checked = false);
+        actualizarContador();
+        actualizarSelectoresModulo();
+    });
+
+    // 3. Actualizar selectores de módulo
+    function actualizarSelectoresModulo() {
+        moduloSelectors.forEach(selector => {
+            const moduloDiv = selector.closest('.modulo-permisos');
+            const checkboxes = moduloDiv.querySelectorAll('.permiso-checkbox');
+            const todosChecked = Array.from(checkboxes).every(cb => cb.checked);
+            selector.checked = todosChecked;
+        });
+    }
+
+    // 4. Evento para cada permiso
+    permisosCheckboxes.forEach(checkbox => {
+        checkbox.addEventListener('change', function() {
+            actualizarContador();
+            actualizarSelectoresModulo();
+        });
+    });
+
+    // 5. Evento para selectores de módulo
+    moduloSelectors.forEach(selector => {
+        selector.addEventListener('change', function() {
+            const moduloDiv = this.closest('.modulo-permisos');
+            const checkboxes = moduloDiv.querySelectorAll('.permiso-checkbox');
+            checkboxes.forEach(cb => cb.checked = this.checked);
+            actualizarContador();
+        });
+    });
+
+    // 6. Búsqueda de permisos
+    buscarInput.addEventListener('input', function() {
+        const busqueda = this.value.toLowerCase().trim();
+        const items = document.querySelectorAll('.permiso-item');
+        
+        items.forEach(item => {
+            const texto = item.textContent.toLowerCase();
+            const moduloDiv = item.closest('.modulo-permisos');
+            
+            if (busqueda === '' || texto.includes(busqueda)) {
+                item.style.display = '';
+                if (moduloDiv) moduloDiv.style.display = '';
+            } else {
+                item.style.display = 'none';
+            }
+        });
+        
+        // Ocultar módulos vacíos
+        document.querySelectorAll('.modulo-permisos').forEach(modulo => {
+            const itemsVisibles = modulo.querySelectorAll('.permiso-item[style*="display: none"]');
+            const totalItems = modulo.querySelectorAll('.permiso-item').length;
+            if (itemsVisibles.length === totalItems && buscarInput.value !== '') {
+                modulo.style.display = 'none';
+            } else {
+                modulo.style.display = '';
+            }
+        });
+    });
+
+    // 7. Limpiar búsqueda
+    limpiarBusquedaBtn.addEventListener('click', function() {
+        buscarInput.value = '';
+        buscarInput.dispatchEvent(new Event('input'));
+    });
+
+    // 8. Validación del formulario
+    form.addEventListener('submit', function(e) {
+        const nombre = nombreInput.value.trim();
+        if (!nombre) {
+            e.preventDefault();
+            Swal.fire({
+                icon: 'warning',
+                title: 'Campo requerido',
+                text: 'El nombre del rol es obligatorio.',
+                confirmButtonColor: '#0d6efd'
+            });
+            nombreInput.focus();
+            return;
+        }
+        
+        const seleccionados = document.querySelectorAll('.permiso-checkbox:checked');
+        if (seleccionados.length === 0) {
+            e.preventDefault();
+            Swal.fire({
+                icon: 'warning',
+                title: 'Permisos requeridos',
+                text: 'Debes seleccionar al menos un permiso para el rol.',
+                confirmButtonColor: '#0d6efd'
+            });
+            return;
+        }
+    });
+
+    // 9. Inicializar contador
+    actualizarContador();
+    actualizarSelectoresModulo();
+
+    // 10. Tecla Escape para limpiar búsqueda
+    buscarInput.addEventListener('keyup', function(e) {
+        if (e.key === 'Escape') {
+            limpiarBusquedaBtn.click();
+        }
+    });
+});
+</script>
+
+<style>
+/* Estilos para el tema oscuro */
+.bg-dark-card {
+    background-color: #1a1d24 !important;
+}
+
+.bg-dark-header {
+    background-color: #2a2d35 !important;
+}
+
+.bg-dark-input {
+    background-color: #0d0f12 !important;
+    color: #e9ecef !important;
+}
+
+.bg-dark-input:focus {
+    background-color: #0d0f12 !important;
+    color: #e9ecef !important;
+    border-color: #0d6efd !important;
+    box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25) !important;
+}
+
+.bg-dark-input::placeholder {
+    color: #6c757d !important;
+}
+
+.permiso-item {
+    padding: 4px 0;
+    transition: background-color 0.2s;
+    border-radius: 4px;
+}
+
+.permiso-item:hover {
+    background-color: #2a2d35;
+}
+
+.permiso-item .form-check-label {
+    cursor: pointer;
+}
+
+.form-check-sm .form-check-input {
+    margin-top: 0.25rem;
+    background-color: #0d0f12;
+    border-color: #495057;
+}
+
+.form-check-sm .form-check-input:checked {
+    background-color: #0d6efd;
+    border-color: #0d6efd;
+}
+
+.modulo-permisos .card {
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.modulo-permisos .card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 0.5rem 1rem rgba(0,0,0,0.3) !important;
+}
+
+.modulo-permisos .card-header .form-check-input {
+    background-color: #0d0f12;
+    border-color: #495057;
+}
+
+.modulo-permisos .card-header .form-check-input:checked {
+    background-color: #0d6efd;
+    border-color: #0d6efd;
+}
+
+#contadorSeleccionados {
+    font-size: 0.9rem;
+    padding: 0.5rem 1rem;
+}
+
+.breadcrumb-item a {
+    color: #adb5bd !important;
+    transition: color 0.2s;
+}
+
+.breadcrumb-item a:hover {
+    color: #0d6efd !important;
+}
+
+@media (max-width: 768px) {
+    .btn-group {
+        width: 100%;
+    }
+    .btn-group .btn {
+        flex: 1;
+    }
+}
+</style>
+{% endblock %}
