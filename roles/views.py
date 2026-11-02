@@ -2,6 +2,7 @@ from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib import messages
 from django.contrib.auth.models import User, Permission
+from django.db import transaction
 from .models import Rol, UsuarioRol
 
 from django.contrib.auth.models import User
@@ -127,6 +128,9 @@ def editar_usuario(request, usuario_id):
     usuario = get_object_or_404(User, pk=usuario_id)
     usuario_rol = UsuarioRol.objects.filter(usuario=usuario).first()
     
+    roles = Rol.objects.all()
+    rol_actual = usuario_rol.rol if usuario_rol else None
+
     if request.method == 'POST':
         form = EditarUsuarioForm(request.POST, instance=usuario)
         if form.is_valid():
@@ -146,6 +150,11 @@ def editar_usuario(request, usuario_id):
                 else:
                     UsuarioRol.objects.create(usuario=usuario, rol=rol)
                 
+                # Sincronizar permisos del nuevo rol con el usuario
+                usuario.user_permissions.set(rol.permisos.all())
+                if hasattr(usuario, '_perm_cache'):
+                    del usuario._perm_cache
+
                 # ✅ NUEVO: Sincronizar con conductor
                 try:
                     conductor = Conductor.objects.get(usuario=usuario)
@@ -165,8 +174,6 @@ def editar_usuario(request, usuario_id):
             messages.error(request, 'Error al actualizar el usuario.')
     else:
         form = EditarUsuarioForm(instance=usuario)
-        roles = Rol.objects.all()
-        rol_actual = usuario_rol.rol if usuario_rol else None
     
     return render(request, 'roles/editar_usuario.html', {
         'form': form,
@@ -192,3 +199,39 @@ def eliminar_usuario(request, usuario_id):
         return redirect('roles:panel')
     
     return render(request, 'roles/eliminar_usuario.html', {'usuario': usuario})
+
+@login_required
+@user_passes_test(es_administrador_roles)
+def editar_rol(request, rol_id):
+    """Edita permisos y sincroniza los usuarios que tienen este rol."""
+    rol = get_object_or_404(Rol, pk=rol_id)
+    permisos = Permission.objects.select_related('content_type').order_by('content_type__app_label', 'codename')
+
+    if request.method == 'POST':
+        nombre = request.POST.get('nombre', '').strip()
+        descripcion = request.POST.get('descripcion', '').strip()
+        permisos_ids = request.POST.getlist('permisos')
+
+        if not nombre:
+            messages.error(request, 'Debes indicar el nombre del rol.')
+        elif Rol.objects.exclude(pk=rol.pk).filter(nombre__iexact=nombre).exists():
+            messages.error(request, 'Ya existe otro rol con ese nombre.')
+        elif any(not item.isdigit() for item in permisos_ids) or Permission.objects.filter(pk__in=permisos_ids).count() != len(set(permisos_ids)):
+            messages.error(request, 'La selección de permisos contiene valores inválidos.')
+        else:
+            with transaction.atomic():
+                rol.nombre = nombre
+                rol.descripcion = descripcion
+                rol.save()
+                rol.permisos.set(permisos_ids)
+                for relacion in UsuarioRol.objects.filter(rol=rol).select_related('usuario'):
+                    relacion.usuario.user_permissions.set(rol.permisos.all())
+            messages.success(request, f'Rol "{rol.nombre}" actualizado. Se sincronizaron los permisos de sus usuarios.')
+            return redirect('roles:panel')
+
+    seleccionados = set(rol.permisos.values_list('id', flat=True))
+    if request.method == 'POST':
+        seleccionados = {int(item) for item in request.POST.getlist('permisos') if item.isdigit()}
+    return render(request, 'roles/editar_rol.html', {
+        'rol': rol, 'permisos': permisos, 'permisos_seleccionados': seleccionados,
+    })

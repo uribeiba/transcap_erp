@@ -41,6 +41,7 @@
                             <th>Rol</th>
                             <th>Permisos</th>
                             <th>Usuarios</th>
+                            <th class="text-center">Acciones</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -49,6 +50,11 @@
                             <td>{{ rol.nombre }}</td>
                             <td>{{ rol.permisos.count }} permisos</td>
                             <td>{{ rol.usuariorol_set.count }} usuarios</td>
+                            <td class="text-center">
+                                <a href="{% url 'roles:editar_rol' rol.id %}" class="btn btn-warning btn-sm" title="Editar rol y permisos" aria-label="Editar rol {{ rol.nombre }}">
+                                    <i class="fas fa-edit"></i> Editar
+                                </a>
+                            </td>
                         </tr>
                         {% endfor %}
                     </tbody>

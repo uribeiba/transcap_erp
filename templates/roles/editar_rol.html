@@ -1,0 +1,172 @@
+{% extends 'layout/base.html' %}
+{% block title %}Editar rol | Transcap ERP{% endblock %}
+{% block page_title %}Editar rol: {{ rol.nombre }}{% endblock %}
+
+{% block extra_css %}
+<style>
+  .role-edit .card-header { background: #292e38; color: #fff; }
+  .role-edit .permission-toolbar { display:flex; gap:12px; align-items:center; flex-wrap:wrap; margin:18px 0; }
+  .role-edit .permission-toolbar input { flex:1 1 260px; min-width:0; }
+  .role-edit .permission-group { border:1px solid #d8dee7; border-radius:8px; margin-bottom:14px; background:#fff; overflow:hidden; }
+  .role-edit .permission-group summary { cursor:pointer; padding:12px 14px; background:#f3f6fa; font-weight:700; display:flex; justify-content:space-between; gap:8px; align-items:center; }
+  .role-edit .permission-group summary::marker { color:#16803d; }
+  .role-edit .permission-items { padding:12px 14px; }
+  .role-edit .permission-item { display:flex; align-items:flex-start; gap:10px; padding:9px 4px; border-bottom:1px solid #eef1f5; min-width:0; }
+  .role-edit .permission-item:last-child { border-bottom:0; }
+  .role-edit .permission-item input[type=checkbox] { flex:0 0 17px; width:17px; height:17px; margin-top:3px; cursor:pointer; }
+  .role-edit .permission-item label { display:block; flex:1; min-width:0; margin:0; line-height:1.5; font-weight:500; overflow-wrap:break-word; white-space:normal; cursor:pointer; }
+  .role-edit .permission-group-controls { display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:8px; }
+  .role-edit .group-count { font-size:12px; font-weight:500; color:#536171; white-space:nowrap; }
+  .role-edit .total-count { padding:6px 12px; border-radius:20px; background:#e6f3e9; color:#13662c; font-weight:700; }
+  .role-edit .no-results { display:none; padding:15px; color:#64748b; }
+  @media(max-width:600px){ .role-edit .permission-toolbar .btn { flex:1 1 auto; } }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="card card-dark role-edit">
+  <div class="card-header"><h3 class="card-title"><i class="fas fa-user-shield mr-2"></i>Permisos y configuración del rol</h3></div>
+  <div class="card-body">
+    <form method="post">
+      {% csrf_token %}
+      <div class="row">
+        <div class="col-md-6 form-group">
+          <label for="nombre">Nombre del rol</label>
+          <input id="nombre" name="nombre" class="form-control" maxlength="150" required value="{{ rol.nombre }}">
+        </div>
+        <div class="col-md-6 form-group">
+          <label for="descripcion">Descripción</label>
+          <textarea id="descripcion" name="descripcion" class="form-control" rows="2">{{ rol.descripcion|default_if_none:'' }}</textarea>
+        </div>
+      </div>
+      <div class="d-flex justify-content-between align-items-center flex-wrap" style="gap:10px">
+        <div>
+          <h5 class="mb-1"><i class="fas fa-key mr-1"></i>Permisos del rol</h5>
+          <p class="text-muted mb-0">Al guardar, los permisos se actualizarán también para los usuarios con este rol.</p>
+        </div>
+        <span class="total-count" id="totalSeleccionados" aria-live="polite">0 permisos seleccionados</span>
+      </div>
+      <div class="permission-toolbar">
+        <input type="search" class="form-control" id="buscarPermisos" placeholder="Buscar permisos o módulos..." aria-label="Buscar permisos">
+        <button type="button" class="btn btn-outline-primary btn-sm" id="abrirModulos">Abrir módulos</button>
+        <button type="button" class="btn btn-outline-secondary btn-sm" id="cerrarModulos">Cerrar módulos</button>
+      </div>
+      {% regroup permisos by content_type.app_label as modulos %}
+      <div class="row" id="gruposPermisos">
+        {% for modulo in modulos %}
+        <div class="col-lg-4 col-md-6 permission-column">
+          <details class="permission-group" data-module="{{ modulo.grouper }}">
+            <summary><span class="module-name">{{ modulo.grouper|title }}</span><span class="group-count">0 seleccionados</span></summary>
+            <div class="permission-items">
+              <div class="permission-group-controls">
+                <button type="button" class="btn btn-outline-success btn-sm select-group">Seleccionar módulo</button>
+                <button type="button" class="btn btn-outline-secondary btn-sm clear-group">Quitar selección</button>
+              </div>
+              {% for permiso in modulo.list %}
+              <div class="permission-item" data-name="{{ permiso.name }}" data-code="{{ permiso.codename }}">
+                <input type="checkbox" name="permisos" id="permiso_{{ permiso.id }}" value="{{ permiso.id }}" {% if permiso.id in permisos_seleccionados %}checked{% endif %}>
+                <label for="permiso_{{ permiso.id }}" class="permission-label">{{ permiso.name }}</label>
+              </div>
+              {% endfor %}
+            </div>
+          </details>
+        </div>
+        {% endfor %}
+      </div>
+      <p class="no-results" id="sinResultados">No se encontraron permisos para esta búsqueda.</p>
+      <div class="mt-3">
+        <button type="submit" class="btn btn-success"><i class="fas fa-save mr-1"></i>Guardar cambios</button>
+        <a href="{% url 'roles:panel' %}" class="btn btn-secondary">Cancelar</a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+  'use strict';
+  const moduleNames = {
+    admin:'Administración de Django', analytics:'Estadísticas', api_movil:'Aplicación móvil',
+    auth:'Usuarios y autenticación', bitacora:'Bitácora', centro_comercio:'Centro de Comercio',
+    compras:'Compras', contenttypes:'Tipos de contenido', documentos:'Documentos',
+    edp:'Estados de pago (EDP)', facturacion:'Facturación', gastos:'Gastos y finanzas',
+    inventario:'Inventario', operaciones:'Operaciones', parametros:'Parámetros',
+    remuneraciones:'RRHH y remuneraciones', roles:'Roles y permisos', sessions:'Sesiones',
+    taller:'Taller y flota', servicios:'Servicios', sites:'Sitios web'
+  };
+  const modelNames = {
+    costoviaje:'costo por viaje', gastocombustible:'gasto de combustible',
+    gastopeaje:'gasto de peaje', fotoreporte:'foto de reporte', reporte_chofer:'reporte de chofer',
+    reportechofer:'reporte de chofer', ubicacionchofer:'ubicación de chofer',
+    ubicaciondechofer:'ubicación de chofer', logentry:'registro de actividad',
+    permission:'permiso', group:'grupo', user:'usuario', contenttype:'tipo de contenido',
+    session:'sesión', usuariorol:'rol de usuario'
+  };
+  const actions = {add:'Crear', change:'Editar', delete:'Eliminar', view:'Ver'};
+  const normalize = value => (value || '').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+  function pretty(value) {
+    const key = (value || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+    if (modelNames[key]) return modelNames[key];
+    return (value || '').replace(/([a-záéíóúñ])([A-Z])/g, '$1 $2').replace(/[_-]+/g, ' ').replace(/([a-zA-Z])([0-9])/g,'$1 $2').trim().toLowerCase();
+  }
+  function translate(code, original) {
+    const match = /^(add|change|delete|view)_(.+)$/.exec(code || '');
+    if (match) return actions[match[1]] + ' ' + pretty(match[2]);
+    const english = /^Can (add|change|delete|view) (.+)$/i.exec(original || '');
+    if (english) return actions[english[1].toLowerCase()] + ' ' + pretty(english[2]);
+    return pretty(original) || code;
+  }
+  const columns = Array.from(document.querySelectorAll('.role-edit .permission-column'));
+  columns.forEach(column => {
+    const details = column.querySelector('details');
+    const module = details.dataset.module;
+    details.querySelector('.module-name').textContent = moduleNames[module] || pretty(module).replace(/^./, c => c.toUpperCase());
+    details.querySelectorAll('.permission-item').forEach(item => {
+      item.querySelector('.permission-label').textContent = translate(item.dataset.code, item.dataset.name);
+    });
+    details.querySelector('.select-group').addEventListener('click', () => {
+      details.querySelectorAll('input[type="checkbox"]').forEach(box => { box.checked = true; });
+      updateCounts();
+    });
+    details.querySelector('.clear-group').addEventListener('click', () => {
+      details.querySelectorAll('input[type="checkbox"]').forEach(box => { box.checked = false; });
+      updateCounts();
+    });
+  });
+  function updateCounts() {
+    let total = 0;
+    columns.forEach(column => {
+      const boxes = Array.from(column.querySelectorAll('input[type="checkbox"]'));
+      const count = boxes.filter(box => box.checked).length;
+      total += count;
+      column.querySelector('.group-count').textContent = count + ' de ' + boxes.length;
+    });
+    document.getElementById('totalSeleccionados').textContent = total + (total === 1 ? ' permiso seleccionado' : ' permisos seleccionados');
+  }
+  document.querySelectorAll('.role-edit input[name="permisos"]').forEach(box => box.addEventListener('change', updateCounts));
+  document.getElementById('abrirModulos').addEventListener('click', () => columns.forEach(c => { c.querySelector('details').open = true; }));
+  document.getElementById('cerrarModulos').addEventListener('click', () => columns.forEach(c => { c.querySelector('details').open = false; }));
+  document.getElementById('buscarPermisos').addEventListener('input', function () {
+    const query = normalize(this.value.trim());
+    let visible = 0;
+    columns.forEach(column => {
+      const details = column.querySelector('details');
+      const moduleMatch = normalize(details.querySelector('.module-name').textContent).includes(query);
+      let matched = 0;
+      details.querySelectorAll('.permission-item').forEach(item => {
+        const text = item.querySelector('.permission-label').textContent + ' ' + item.dataset.name + ' ' + item.dataset.code;
+        const show = !query || moduleMatch || normalize(text).includes(query);
+        item.style.display = show ? '' : 'none';
+        if (show) matched++;
+      });
+      column.style.display = matched ? '' : 'none';
+      if (matched) { visible++; if (query) details.open = true; }
+    });
+    document.getElementById('sinResultados').style.display = visible ? 'none' : 'block';
+  });
+  updateCounts();
+})();
+</script>
+{% endblock %}

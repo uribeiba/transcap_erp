@@ -1,0 +1,351 @@
+{% extends "layout/base.html" %}
+{% load static %}
+
+{% block title %}Crear Nuevo Rol - TransCap ERP{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4 py-4">
+    <!-- Encabezado -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h4 class="text-white mb-1">
+                        <i class="fas fa-user-plus me-2 text-primary"></i>Crear Nuevo Rol
+                    </h4>
+                    <nav aria-label="breadcrumb">
+                        <ol class="breadcrumb mb-0">
+                            <li class="breadcrumb-item">
+                                <a href="{% url 'dashboard' %}" class="text-decoration-none text-secondary">
+                                    <i class="fas fa-home"></i>
+                                </a>
+                            </li>
+                            <li class="breadcrumb-item">
+                                <a href="{% url 'roles:panel' %}" class="text-decoration-none text-secondary">
+                                    Gestión de Roles
+                                </a>
+                            </li>
+                            <li class="breadcrumb-item active text-light" aria-current="page">
+                                Crear Rol
+                            </li>
+                        </ol>
+                    </nav>
+                </div>
+                <div>
+                    <a href="{% url 'roles:panel' %}" class="btn btn-outline-secondary btn-sm">
+                        <i class="fas fa-arrow-left me-1"></i>Volver al Panel
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Formulario -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card bg-dark-card border-0 shadow-lg">
+                <div class="card-header bg-dark-header border-bottom border-secondary py-3">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5 class="text-white mb-0">
+                            <i class="fas fa-cog text-primary me-2"></i>Configuración del Rol
+                        </h5>
+                        <span class="badge bg-primary">
+                            <i class="fas fa-info-circle me-1"></i>Nuevo
+                        </span>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <form method="POST" id="crearRolForm">
+                        {% csrf_token %}
+                        
+                        <!-- Datos básicos del rol -->
+                        <div class="row g-3 mb-4">
+                            <div class="col-md-6">
+                                <label for="nombre" class="form-label text-light fw-bold">
+                                    <i class="fas fa-tag text-primary me-1"></i>
+                                    Nombre del Rol <span class="text-danger">*</span>
+                                </label>
+                                <input type="text" 
+                                       class="form-control bg-dark-input text-light border-secondary" 
+                                       id="nombre" 
+                                       name="nombre" 
+                                       placeholder="Ej: Administrador, Auditor, Secretaria, Chofer"
+                                       required 
+                                       autofocus>
+                                <small class="text-secondary">
+                                    <i class="fas fa-info-circle me-1"></i>
+                                    El nombre debe ser único y descriptivo.
+                                </small>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="descripcion" class="form-label text-light fw-bold">
+                                    <i class="fas fa-align-left text-primary me-1"></i>
+                                    Descripción
+                                </label>
+                                <textarea class="form-control bg-dark-input text-light border-secondary" 
+                                          id="descripcion" 
+                                          name="descripcion" 
+                                          rows="3" 
+                                          placeholder="Describe las responsabilidades y alcance de este rol..."></textarea>
+                                <small class="text-secondary">
+                                    <i class="fas fa-info-circle me-1"></i>
+                                    Descripción breve de las funciones del rol.
+                                </small>
+                            </div>
+                        </div>
+
+                                                 <!-- Permisos: conserva los identificadores originales de Django -->
+                         <div class="roles-preset mb-3">
+                           <label for="plantillaRol" class="form-label text-light fw-bold">Configuración inicial del rol (opcional)</label>
+                           <select id="plantillaRol" class="form-select bg-dark-input border-secondary text-light">
+                             <option value="">Seleccionar permisos manualmente</option>
+                             <option value="secretaria">Secretaria — acceso administrativo limitado</option>
+                           </select>
+                           <small class="roles-help d-block mt-2">La opción Secretaria es una propuesta inicial editable. No oculta menús ni protege rutas por sí sola; eso se configura en Django.</small>
+                         </div>
+                         <section class="roles-permisos" aria-labelledby="tituloPermisos">
+                           <div class="roles-heading">
+                             <div>
+                               <h5 id="tituloPermisos"><i class="fas fa-shield-alt me-2"></i>¿A qué puede acceder este rol?</h5>
+                               <p>Abre un módulo y selecciona las acciones permitidas. Puedes elegir permisos individuales o todo el módulo.</p>
+                             </div>
+                             <span class="roles-counter" id="contadorSeleccionados" aria-live="polite">0 permisos seleccionados</span>
+                           </div>
+                           {% if permisos %}
+                           <div class="roles-tools">
+                             <label for="buscarPermisos" class="visually-hidden">Buscar permisos</label>
+                             <div class="input-group">
+                               <span class="input-group-text bg-dark-input border-secondary text-light"><i class="fas fa-search"></i></span>
+                               <input type="search" class="form-control bg-dark-input text-light border-secondary" id="buscarPermisos" placeholder="Buscar módulo, acción o permiso…" autocomplete="off">
+                               <button type="button" class="btn btn-outline-secondary" id="limpiarBusqueda">Limpiar</button>
+                             </div>
+                             <div class="roles-tool-buttons">
+                               <button type="button" class="btn btn-outline-primary btn-sm" id="expandirModulos">Abrir módulos</button>
+                               <button type="button" class="btn btn-outline-secondary btn-sm" id="contraerModulos">Cerrar módulos</button>
+                               <button type="button" class="btn btn-outline-secondary btn-sm" id="deseleccionarTodos">Quitar selección</button>
+                             </div>
+                           </div>
+                           <p class="roles-help">Los permisos de administración interna se muestran al final. Asígnalos solo si son necesarios.</p>
+                           <div class="roles-modules" id="listaModulos">
+                             {% regroup permisos by content_type.app_label as permisos_por_modulo %}
+                             {% for modulo in permisos_por_modulo %}
+                             <details class="roles-module modulo-permisos" data-modulo="{{ modulo.grouper }}" {% if forloop.first %}open{% endif %}>
+                               <summary class="roles-module-header">
+                                 <span class="roles-module-title"><i class="fas fa-folder me-2"></i><span class="modulo-nombre">{{ modulo.grouper|title }}</span></span>
+                                 <span class="roles-module-meta"><span class="roles-module-count">0 de {{ modulo.list|length }}</span><i class="fas fa-chevron-down roles-chevron"></i></span>
+                               </summary>
+                               <div class="roles-module-body">
+                                 <label class="roles-select-module"><input type="checkbox" class="form-check-input modulo-selector"> <span>Seleccionar todos los permisos de este módulo</span></label>
+                                 <div class="roles-permission-grid">
+                                   {% for permiso in modulo.list %}
+                                   <label class="roles-permission permiso-item" data-permiso="{{ permiso.codename|lower }}" data-nombre="{{ permiso.name|lower }}">
+                                     <input type="checkbox" class="form-check-input permiso-checkbox" name="permisos" value="{{ permiso.id }}" id="permiso{{ permiso.id }}">
+                                     <span class="roles-permission-label" data-original="{{ permiso.name }}" data-codename="{{ permiso.codename }}">{{ permiso.name }}</span>
+                                   </label>
+                                   {% endfor %}
+                                 </div>
+                               </div>
+                             </details>
+                             {% endfor %}
+                           </div>
+                           <p class="roles-empty" id="sinResultados" hidden>No encontramos permisos con esa búsqueda.</p>
+                           <p class="roles-footer-count" id="contadorTotal">{{ permisos|length }} permisos disponibles</p>
+                           {% else %}
+                           <div class="alert alert-warning">No hay permisos disponibles en el sistema.</div>
+                           {% endif %}
+                         </section>
+
+<!-- Botones de acción -->
+                        <div class="mt-4 d-flex gap-2 justify-content-end">
+                            <a href="{% url 'roles:panel' %}" class="btn btn-outline-secondary">
+                                <i class="fas fa-times me-1"></i>Cancelar
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save me-1"></i>Crear Rol
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const form = document.getElementById('crearRolForm');
+  const modules = [...document.querySelectorAll('.roles-module')];
+  const checks = [...document.querySelectorAll('.permiso-checkbox')];
+  const search = document.getElementById('buscarPermisos');
+  const counter = document.getElementById('contadorSeleccionados');
+  const technical = new Set(['admin', 'auth', 'authtoken', 'contenttypes', 'sessions', 'sites']);
+  const appNames = {
+    'admin':'Administración técnica', 'auth':'Usuarios y autenticación', 'authtoken':'Tokens de acceso',
+    'contenttypes':'Tipos de contenido', 'sessions':'Sesiones', 'sites':'Sitios',
+    'api_movil':'Aplicación móvil', 'centro_comercio':'Centro de comercio',
+    'rrhh':'Recursos humanos', 'remuneraciones':'Remuneraciones', 'inventario':'Inventario',
+    'compras':'Compras', 'documentos':'Documentos', 'roles':'Gestión de roles',
+    'analytics':'Estadísticas', 'bitacora':'Bitácora', 'operaciones':'Operaciones',
+    'facturacion':'Facturación', 'gastos':'Gastos', 'taller':'Taller y flota', 'parametros':'Parámetros', 'seguimiento_choferes':'Seguimiento de choferes'
+  };
+  const titleCase = s => s.replace(/_/g, ' ').replace(/\b\p{L}/gu, c => c.toUpperCase());
+  const actionNames = {add:'Crear',change:'Editar',delete:'Eliminar',view:'Ver'};
+  const modelNames = {
+    'costoviaje':'costo de viaje', 'costoporviaje':'costo por viaje',
+    'gastocombustible':'gasto de combustible', 'gastocombustibles':'gasto de combustible',
+    'gastopeaje':'gasto de peaje', 'ubicacionchofer':'ubicación del chofer',
+    'reportechofer':'reporte del chofer', 'fotoreporte':'foto del reporte',
+    'ordencompra':'orden de compra', 'detalleordencompra':'detalle de orden de compra',
+    'cotizacionitem':'ítem de cotización', 'logentry':'registro de actividad',
+    'contenttype':'tipo de contenido'
+  };
+  function humanModel(value) {
+    const normalized = value.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]/g,'');
+    if (modelNames[normalized]) return modelNames[normalized];
+    const spaced = value.replace(/_/g,' ').replace(/([a-záéíóúñ])([A-Z])/g,'$1 $2').toLowerCase();
+    return spaced;
+  }
+  function translatedName(el) {
+    const code = el.dataset.codename || '';
+    const original = el.dataset.original || '';
+    const match = code.match(/^(add|change|delete|view)_(.+)$/);
+    if (match) return `${actionNames[match[1]]} ${humanModel(match[2])}`;
+    const english = original.match(/^Can (add|change|delete|view) (.+)$/i);
+    if (english) return `${actionNames[english[1].toLowerCase()]} ${humanModel(english[2])}`;
+    return original; // Mantener intactos los permisos personalizados desconocidos.
+  }
+  modules.forEach(mod => {
+    const key = mod.dataset.modulo.toLowerCase();
+    mod.querySelector('.modulo-nombre').textContent = appNames[key] || titleCase(key);
+    if (technical.has(key)) mod.classList.add('roles-technical');
+    mod.querySelectorAll('.roles-permission-label').forEach(label => {
+      label.textContent = translatedName(label);
+      label.title = label.dataset.original;
+    });
+  });
+  // Los módulos técnicos se colocan al final, pero nunca se eliminan.
+  const list = document.getElementById('listaModulos');
+  modules.filter(m => m.classList.contains('roles-technical')).forEach(m => list.appendChild(m));
+  function update() {
+    if (!counter) return;
+    const selected = checks.filter(c => c.checked).length;
+    counter.textContent = `${selected} ${selected === 1 ? 'permiso seleccionado' : 'permisos seleccionados'}`;
+    modules.forEach(mod => {
+      const items = [...mod.querySelectorAll('.permiso-checkbox')];
+      const count = items.filter(c => c.checked).length;
+      mod.querySelector('.roles-module-count').textContent = `${count} de ${items.length}`;
+      const selector = mod.querySelector('.modulo-selector');
+      selector.checked = items.length > 0 && count === items.length;
+      selector.indeterminate = count > 0 && count < items.length;
+    });
+  }
+  checks.forEach(c => c.addEventListener('change', update));
+  // Preselección conservadora: solo permisos de consulta de módulos administrativos comunes.
+  // Nunca concede permisos de gestión de roles, parámetros, RRHH o seguimiento de choferes.
+  document.getElementById('plantillaRol')?.addEventListener('change', e => {
+    if (e.target.value !== 'secretaria') return;
+    if (checks.some(c => c.checked) && !confirm('¿Reemplazar la selección actual por la propuesta para Secretaria?')) {
+      e.target.value = ''; return;
+    }
+    const permitidos = new Set(['centro_comercio', 'compras', 'inventario', 'documentos', 'facturacion']);
+    checks.forEach(c => {
+      const mod = c.closest('.roles-module')?.dataset.modulo.toLowerCase();
+      const code = c.closest('.permiso-item')?.dataset.permiso || '';
+      c.checked = permitidos.has(mod) && code.startsWith('view_');
+    });
+    const name = document.getElementById('nombre');
+    if (name && !name.value.trim()) name.value = 'Secretaria';
+    const desc = document.getElementById('descripcion');
+    if (desc && !desc.value.trim()) desc.value = 'Consulta administrativa limitada. Sin acceso a roles, parámetros, RRHH ni seguimiento de choferes.';
+    update();
+  });
+  modules.forEach(mod => {
+    mod.querySelector('.modulo-selector').addEventListener('change', e => {
+      mod.querySelectorAll('.permiso-checkbox').forEach(c => c.checked = e.target.checked);
+      update();
+    });
+  });
+  document.getElementById('deseleccionarTodos')?.addEventListener('click', () => {
+    checks.forEach(c => c.checked = false); update();
+  });
+  document.getElementById('expandirModulos')?.addEventListener('click', () => modules.filter(m => !m.hidden).forEach(m => m.open = true));
+  document.getElementById('contraerModulos')?.addEventListener('click', () => modules.forEach(m => m.open = false));
+  function filter() {
+    const q = (search?.value || '').trim().toLocaleLowerCase('es');
+    let found = 0;
+    modules.forEach(mod => {
+      const modName = mod.querySelector('.modulo-nombre').textContent.toLocaleLowerCase('es');
+      const wholeModule = !!q && (modName.includes(q) || mod.dataset.modulo.toLowerCase().includes(q));
+      let visible = 0;
+      mod.querySelectorAll('.permiso-item').forEach(item => {
+        const label = item.querySelector('.roles-permission-label');
+        const hay = !q || wholeModule || label.textContent.toLocaleLowerCase('es').includes(q) ||
+          (item.dataset.nombre || '').includes(q) || (item.dataset.permiso || '').includes(q);
+        item.hidden = !hay;
+        if (hay) visible++;
+      });
+      mod.hidden = visible === 0;
+      if (q && visible) mod.open = true;
+      if (visible) found++;
+    });
+    const empty = document.getElementById('sinResultados');
+    if (empty) empty.hidden = found > 0;
+  }
+  search?.addEventListener('input', filter);
+  document.getElementById('limpiarBusqueda')?.addEventListener('click', () => {
+    search.value = ''; filter(); search.focus();
+  });
+  form?.addEventListener('submit', e => {
+    const name = document.getElementById('nombre');
+    if (!name.value.trim()) { e.preventDefault(); name.focus(); name.reportValidity(); return; }
+    if (checks.length && !checks.some(c => c.checked)) {
+      e.preventDefault();
+      if (window.Swal) Swal.fire({icon:'warning',title:'Selecciona permisos',text:'Elige al menos un permiso para este rol.'});
+      else alert('Selecciona al menos un permiso para este rol.');
+    }
+  });
+  update();
+});
+</script>
+<style>
+.bg-dark-card {background-color:#1a1d24!important}
+.bg-dark-header {background-color:#2a2d35!important}
+.bg-dark-input {background-color:#0d0f12!important;color:#e9ecef!important}
+.bg-dark-input:focus {background-color:#0d0f12!important;color:#fff!important;border-color:#0d6efd!important;box-shadow:0 0 0 .2rem rgba(13,110,253,.2)!important}
+.bg-dark-input::placeholder {color:#89919c!important}
+.roles-permisos {color:#f0f3f8}
+.roles-heading {display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-bottom:1rem}
+.roles-heading h5 {margin:0 0 .35rem;font-size:1.12rem;font-weight:700}
+.roles-heading p,.roles-help,.roles-footer-count {color:#aeb8c6;font-size:.88rem;margin:0}
+.roles-counter {background:#173a63;color:#dbeeff;padding:.5rem .8rem;border-radius:30px;font-weight:700;font-size:.85rem}
+.roles-tools {display:flex;gap:.75rem;flex-wrap:wrap;align-items:center;margin-bottom:.65rem}
+.roles-tools .input-group {flex:1 1 300px;min-width:200px}
+.roles-tool-buttons {display:flex;gap:.45rem;flex-wrap:wrap}
+.roles-help {margin-bottom:1rem}
+.roles-modules {display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,360px),1fr));gap:.85rem;align-items:start}
+.roles-module {background:#20242d;border:1px solid #454d5b;border-radius:10px;overflow:hidden}
+.roles-module[hidden],.permiso-item[hidden] {display:none!important}
+.roles-module-header {display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:.9rem 1rem;cursor:pointer;background:#292e39;list-style:none}
+.roles-module-header::-webkit-details-marker {display:none}
+.roles-module-header:focus-visible {outline:2px solid #6aa8ff;outline-offset:-3px}
+.roles-module-title {font-weight:700;min-width:0;overflow-wrap:anywhere}
+.roles-module-title i {color:#69a7ff}
+.roles-module-meta {white-space:nowrap;color:#bdc9d7;font-size:.82rem;display:flex;align-items:center;gap:.7rem}
+.roles-chevron {transition:transform .15s}
+.roles-module[open] .roles-chevron {transform:rotate(180deg)}
+.roles-module-body {padding:.85rem 1rem 1rem}
+.roles-select-module {display:flex;align-items:center;gap:.5rem;color:#c4dcff;font-size:.85rem;margin-bottom:.8rem;cursor:pointer}
+.roles-permission-grid {display:grid;grid-template-columns:1fr;gap:.55rem}
+.roles-permission {display:flex;align-items:center;gap:.85rem;padding:.7rem .8rem;min-height:42px;border-radius:7px;cursor:pointer;font-size:.94rem;line-height:1.5;font-weight:400;color:#edf2f8;white-space:normal;overflow-wrap:anywhere;background:#252b35}
+.roles-permission:hover {background:#323946}
+.roles-permission .form-check-input,.roles-select-module .form-check-input {margin:0;flex-shrink:0;width:17px;height:17px;background-color:#101319;border:1px solid #a7b4c7;appearance:auto;accent-color:#287fff}
+.roles-permission .form-check-input:checked,.roles-select-module .form-check-input:checked {background-color:#0d6efd;border-color:#0d6efd}
+.roles-technical {border-color:#56515d}
+.roles-permission-label {display:block;flex:1;min-width:0;letter-spacing:.01em}
+.roles-select-module {padding:.45rem .5rem;line-height:1.5}
+.roles-preset {padding:1rem;background:#252b35;border:1px solid #454d5b;border-radius:10px}
+.roles-footer-count {text-align:right;margin-top:1rem}
+.roles-empty {padding:1rem;text-align:center;color:#e8bf7a}
+@media(max-width:640px){.roles-tools .input-group{flex-basis:100%}.roles-tool-buttons{width:100%}.roles-tool-buttons .btn{flex:1}.roles-heading{display:block}.roles-counter{display:inline-block;margin-top:.6rem}}
+</style>
+{% endblock %}

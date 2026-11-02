@@ -279,6 +279,7 @@
 {% endif %}
 
                     <!-- RRHH / Remuneraciones -->
+                    {% if user.rol_usuario.rol.nombre != 'Secretaria' %}
                     {% if perms.roles.puede_ver_rrhh or user.is_superuser %}
                     <li class="nav-item has-treeview {% if '/remuneraciones/' in request.path %}menu-open{% endif %}">
                         <a href="#" class="nav-link {% if '/remuneraciones/' in request.path %}active{% endif %}">
@@ -300,7 +301,10 @@
                     </li>
                     {% endif %}
 
+                    {% endif %}
+
                     <!-- Gestión de Roles -->
+                    {% if user.rol_usuario.rol.nombre != 'Secretaria' %}
                     {% if perms.roles.puede_ver_roles or user.is_superuser %}
                     <li class="nav-item">
                         <a href="{% url 'roles:panel' %}" class="nav-link">
@@ -310,13 +314,18 @@
                     </li>
                     {% endif %}
 
-                    <!-- ✅ NUEVO: Seguimiento de Choferes (todos pueden ver) -->
+                    {% endif %}
+
+                    <!-- Seguimiento de Choferes (excepto Secretaria) -->
+                    {% if user.rol_usuario.rol.nombre != 'Secretaria' %}
                     <li class="nav-item">
                         <a href="{% url 'api_movil:panel_seguimiento' %}" class="nav-link">
                             <i class="nav-icon fas fa-map-marked-alt"></i>
                             <p>Seguimiento de Choferes</p>
                         </a>
                     </li>
+
+                    {% endif %}
 
                     <!-- Parámetros (solo superusuario) -->
                     {% if user.is_superuser %}
